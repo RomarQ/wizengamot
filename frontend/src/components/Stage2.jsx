@@ -32,18 +32,34 @@ export default function Stage2({
   onRemoveContextSegment
 }) {
   const [activeTab, setActiveTab] = useState(0);
+  const activeRanking = rankings?.[activeTab];
+  const rankingContent = activeRanking
+    ? deAnonymizeText(activeRanking.ranking, labelToModel)
+    : '';
 
   useEffect(() => {
+    if (!activeRanking) return;
+
     const handleMouseUp = () => {
       const selection = SelectionHandler.getSelection();
-      if (selection && selection.stage === 2) {
-        onSelectionChange(selection);
+      if (
+        selection &&
+        selection.stage === 2 &&
+        selection.messageIndex === messageIndex
+      ) {
+        onSelectionChange({
+          ...selection,
+          stage: 2,
+          model: activeRanking.model,
+          messageIndex,
+          sourceContent: rankingContent,
+        });
       }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
-  }, [onSelectionChange]);
+  }, [onSelectionChange, activeRanking, rankingContent, messageIndex]);
 
   // Listen for tab switch events from sidebar
   useEffect(() => {
@@ -60,11 +76,10 @@ export default function Stage2({
     return () => window.removeEventListener('switchToComment', handleSwitchToComment);
   }, [rankings]);
 
-  if (!rankings || rankings.length === 0) {
+  if (!rankings || rankings.length === 0 || !activeRanking) {
     return null;
   }
 
-  const activeRanking = rankings[activeTab];
   const rankingComments = comments?.filter(
     c => c.stage === 2 && c.model === activeRanking.model && c.message_index === messageIndex
   ) || [];
@@ -74,7 +89,6 @@ export default function Stage2({
     ? activeCommentId
     : null;
 
-  const rankingContent = deAnonymizeText(activeRanking.ranking, labelToModel);
   const segmentId = `stage2-${messageIndex}-${activeRanking.model}`;
   const shortModelName = activeRanking.model.split('/')[1] || activeRanking.model;
   const isSegmentSelected = contextSegments.some((segment) => segment.id === segmentId);

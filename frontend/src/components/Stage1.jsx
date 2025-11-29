@@ -18,18 +18,31 @@ export default function Stage1({
   onRemoveContextSegment
 }) {
   const [activeTab, setActiveTab] = useState(0);
+  const activeResponse = responses?.[activeTab];
 
   useEffect(() => {
+    if (!activeResponse) return;
+
     const handleMouseUp = () => {
       const selection = SelectionHandler.getSelection();
-      if (selection && selection.stage === 1) {
-        onSelectionChange(selection);
+      if (
+        selection &&
+        selection.stage === 1 &&
+        selection.messageIndex === messageIndex
+      ) {
+        onSelectionChange({
+          ...selection,
+          stage: 1,
+          model: activeResponse.model,
+          messageIndex,
+          sourceContent: activeResponse.response,
+        });
       }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
-  }, [onSelectionChange]);
+  }, [onSelectionChange, activeResponse, messageIndex]);
 
   // Listen for tab switch events from sidebar
   useEffect(() => {
@@ -46,11 +59,10 @@ export default function Stage1({
     return () => window.removeEventListener('switchToComment', handleSwitchToComment);
   }, [responses]);
 
-  if (!responses || responses.length === 0) {
+  if (!responses || responses.length === 0 || !activeResponse) {
     return null;
   }
 
-  const activeResponse = responses[activeTab];
   const responseComments = comments?.filter(
     c => c.stage === 1 && c.model === activeResponse.model && c.message_index === messageIndex
   ) || [];

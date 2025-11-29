@@ -250,6 +250,12 @@
   color: #4a90e2;
 }
 
+.context-stack-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .stack-count {
   background: #e6f0ff;
   color: #1f63b7;
@@ -261,6 +267,28 @@
 .context-stack-empty {
   font-size: 12px;
   color: #999;
+}
+
+.context-stack-collapsed {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.btn-fold-stack {
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #555;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-fold-stack:hover {
+  background: #f5f5f5;
+  color: #333;
 }
 
 .context-stack-card {
@@ -306,6 +334,12 @@
   border-radius: 999px;
   background: #eef4ff;
   color: #1f63b7;
+}
+
+.stack-label-pill.auto,
+.context-stack-label.auto {
+  background: #fff4d6;
+  color: #a15f00;
 }
 
 .btn-remove-stack {

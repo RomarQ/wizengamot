@@ -18,16 +18,28 @@ export default function Stage3({
   onRemoveContextSegment
 }) {
   useEffect(() => {
+    if (!finalResponse) return;
+
     const handleMouseUp = () => {
       const selection = SelectionHandler.getSelection();
-      if (selection && selection.stage === 3) {
-        onSelectionChange(selection);
+      if (
+        selection &&
+        selection.stage === 3 &&
+        selection.messageIndex === messageIndex
+      ) {
+        onSelectionChange({
+          ...selection,
+          stage: 3,
+          model: finalResponse.model,
+          messageIndex,
+          sourceContent: finalResponse.response,
+        });
       }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
-  }, [onSelectionChange]);
+  }, [onSelectionChange, finalResponse, messageIndex]);
 
   if (!finalResponse) {
     return null;
