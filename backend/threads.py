@@ -7,37 +7,55 @@ from .storage import get_conversation, get_comments
 
 def compile_context_from_comments(
     conversation: Dict[str, Any],
-    comment_ids: List[str]
+    comment_ids: List[str],
+    context_segments: Optional[List[Dict[str, Any]]] = None
 ) -> str:
     """
-    Compile context from comments into a formatted string.
+    Compile context from comments and optional manual segments into a formatted string.
 
     Args:
         conversation: The conversation dict
         comment_ids: List of comment IDs to include
+        context_segments: Optional list of manually added segments
 
     Returns:
         Formatted context string
     """
+    context_parts: List[str] = []
+
     comments = conversation.get("comments", [])
     relevant_comments = [c for c in comments if c["id"] in comment_ids]
 
-    if not relevant_comments:
-        return ""
+    if relevant_comments:
+        context_parts.append(
+            "The user has highlighted and commented on specific parts of previous responses:\n"
+        )
 
-    context_parts = ["The user has highlighted and commented on specific parts of previous responses:\n"]
+        for comment in relevant_comments:
+            stage = comment["stage"]
+            model = comment["model"]
+            selection = comment["selection"]
+            content = comment["content"]
 
-    for comment in relevant_comments:
-        stage = comment["stage"]
-        model = comment["model"]
-        selection = comment["selection"]
-        content = comment["content"]
+            context_parts.append(f"\nStage {stage} response from {model}:")
+            context_parts.append(f'Selected text: "{selection}"')
+            context_parts.append(f"User comment: {content}\n")
 
-        context_parts.append(f"\nStage {stage} response from {model}:")
-        context_parts.append(f"Selected text: \"{selection}\"")
-        context_parts.append(f"User comment: {content}\n")
+    if context_segments:
+        context_parts.append(
+            "The user also pinned larger context segments for your reference:\n"
+        )
+        for segment in context_segments:
+            stage = segment.get("stage")
+            model = segment.get("model")
+            label = segment.get("label") or "Selected segment"
+            content = segment.get("content") or ""
 
-    return "\n".join(context_parts)
+            context_parts.append(
+                f"\n{label} (Stage {stage} • {model}):\n{content.strip()}\n"
+            )
+
+    return "\n".join(context_parts).strip()
 
 
 async def query_with_context(
@@ -45,6 +63,7 @@ async def query_with_context(
     question: str,
     conversation: Dict[str, Any],
     comment_ids: List[str],
+    context_segments: Optional[List[Dict[str, Any]]] = None,
     system_prompt: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
@@ -60,8 +79,8 @@ async def query_with_context(
     Returns:
         Response dict with 'content' and optional 'reasoning_details', or None if failed
     """
-    # Compile context from comments
-    context = compile_context_from_comments(conversation, comment_ids)
+    # Compile context from comments and segments
+    context = compile_context_from_comments(conversation, comment_ids, context_segments)
 
     # Build messages
     messages = []

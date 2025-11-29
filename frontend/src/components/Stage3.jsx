@@ -1,17 +1,21 @@
 import { useEffect } from 'react';
 import ResponseWithComments from './ResponseWithComments';
 import { SelectionHandler } from '../utils/SelectionHandler';
+import AddToContextButton from './AddToContextButton';
 import './Stage3.css';
 
 export default function Stage3({
   finalResponse,
   messageIndex,
   comments,
+  contextSegments = [],
   onSelectionChange,
   onEditComment,
   onDeleteComment,
   activeCommentId,
-  onSetActiveComment
+  onSetActiveComment,
+  onAddContextSegment,
+  onRemoveContextSegment
 }) {
   useEffect(() => {
     const handleMouseUp = () => {
@@ -38,12 +42,38 @@ export default function Stage3({
     ? activeCommentId
     : null;
 
+  const segmentId = `stage3-${messageIndex}-${finalResponse.model}`;
+  const shortModelName = finalResponse.model.split('/')[1] || finalResponse.model;
+  const isSegmentSelected = contextSegments.some((segment) => segment.id === segmentId);
+
+  const handleContextToggle = () => {
+    if (isSegmentSelected) {
+      onRemoveContextSegment?.(segmentId);
+    } else {
+      onAddContextSegment?.({
+        id: segmentId,
+        stage: 3,
+        model: finalResponse.model,
+        messageIndex,
+        label: `Stage 3 • ${shortModelName}`,
+        content: finalResponse.response,
+      });
+    }
+  };
+
   return (
     <div className="stage stage3">
       <h3 className="stage-title">Stage 3: Final Council Answer</h3>
       <div className="final-response">
-        <div className="chairman-label">
-          Chairman: {finalResponse.model.split('/')[1] || finalResponse.model}
+        <div className="stage-toolbar">
+          <div className="chairman-label">
+            Chairman: {shortModelName}
+          </div>
+          <AddToContextButton
+            isSelected={isSegmentSelected}
+            onToggle={handleContextToggle}
+            label="Stack Final Answer"
+          />
         </div>
         <ResponseWithComments
           content={finalResponse.response}

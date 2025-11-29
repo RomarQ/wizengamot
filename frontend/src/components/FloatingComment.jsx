@@ -14,7 +14,8 @@ function FloatingComment({
   onPin,
   onUnpin,
   onMouseEnter,
-  onMouseLeave
+  onMouseLeave,
+  onClose
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(comment?.content || '');
@@ -69,6 +70,35 @@ function FloatingComment({
 
   const handleDelete = () => {
     onDelete(comment.id);
+  };
+
+  const handleCopyAndClose = async (e) => {
+    e.stopPropagation();
+    const text = comment.selection;
+    if (!text) {
+      onClose?.();
+      return;
+    }
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-1000px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+    } catch (error) {
+      console.error('Failed to copy highlighted text', error);
+    } finally {
+      onClose?.();
+    }
   };
 
   if (!position || !comment) return null;
@@ -165,6 +195,13 @@ function FloatingComment({
             {comment.content}
           </div>
           <div className="floating-comment-actions">
+            <button
+              className="btn-copy"
+              onClick={handleCopyAndClose}
+              title="Copy highlighted text and close"
+            >
+              Copy & Close
+            </button>
             <button
               className="btn-edit"
               onClick={(e) => {

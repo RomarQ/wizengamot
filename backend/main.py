@@ -317,12 +317,23 @@ async def delete_comment(conversation_id: str, comment_id: str):
 
 # Thread Management Endpoints
 
+class ContextSegmentRequest(BaseModel):
+    """Manually selected context segment to send with follow-ups."""
+    id: str
+    message_index: int
+    stage: int
+    model: str
+    label: Optional[str] = None
+    content: str
+
+
 class CreateThreadRequest(BaseModel):
     """Request to create a follow-up thread."""
     model: str
     comment_ids: List[str]
     question: str
     message_index: int
+    context_segments: List[ContextSegmentRequest] = []
 
 
 @app.post("/api/conversations/{conversation_id}/threads")
@@ -338,11 +349,14 @@ async def create_thread(conversation_id: str, request: CreateThreadRequest):
         system_prompt = conversation.get("system_prompt")
 
         # Query the model with context
+        segment_payload = [segment.dict() for segment in request.context_segments]
+
         response = await threads.query_with_context(
             request.model,
             request.question,
             conversation,
             request.comment_ids,
+            segment_payload,
             system_prompt
         )
 
@@ -353,7 +367,8 @@ async def create_thread(conversation_id: str, request: CreateThreadRequest):
         thread_id = str(uuid.uuid4())
         context = {
             "message_index": request.message_index,
-            "comment_ids": request.comment_ids
+            "comment_ids": request.comment_ids,
+            "context_segments": segment_payload
         }
         thread = storage.create_thread(
             conversation_id,
@@ -411,9 +426,11 @@ async def continue_thread(conversation_id: str, thread_id: str, request: Continu
         # Compile context from comments (only for first message, so pass None here)
         context = None
         if len(thread["messages"]) == 1:  # First response only
+            thread_context = thread.get("context", {}) or {}
             context = threads.compile_context_from_comments(
                 conversation,
-                thread["context"]["comment_ids"]
+                thread_context.get("comment_ids", []),
+                thread_context.get("context_segments")
             )
 
         # Continue the thread

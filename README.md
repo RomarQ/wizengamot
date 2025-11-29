@@ -19,18 +19,25 @@ The UI now supports inline annotations and targeted follow-up conversations with
 1. Highlight any span of text inside Stage 1, 2, or 3 responses. The app captures the stage, model, and message index automatically.
 2. The comment modal shows the selected quote plus context badges; write your note and save (Cmd/Ctrl+Enter works too).
 3. Saved comments render as yellow highlights with floating tooltips. Hover to preview, click to pin/edit/delete, and use the `Review` badge in the corner to jump back to a specific annotation.
+- Need the snippet elsewhere? Hit the `Copy & Close` action inside the highlight popup to copy the raw selection to your clipboard and dismiss the overlay in one click.
+
+### Pin Full Segments
+
+- Each Stage panel now has a stack button. Click it to add the entire response/analysis/final answer to your context stack without making a highlight.
+- The stack lives inside the Review sidebar under **Context Stack**—remove entries inline or re-open them directly from the stage toolbar badges.
+- During follow-ups, both annotations and stacked segments are bundled so you can hand-pick exactly what the next model should see.
 
 ### Curate Review Context
 
-- Click the `Annotate` button (or the auto-opening sidebar after your first note) to open the **Review Context** sidebar.
+- After your first note or stacked segment, the **Review Context** sidebar opens automatically. Once you have context items, use the `Review (#)` badge in the corner to reopen it.
 - Triage annotations in one place: reorder mentally, inline edit/correct them, delete stale ones, and optionally expand the context preview to see original source snippets.
-- Each card tracks `[Stage, Model]`, the highlighted text, and your comment so you can sanity-check what will be sent downstream.
+- Each card tracks `[Stage, Model]`, the highlighted text, and your comment so you can sanity-check what will be sent downstream. The stack section mirrors pinned segments so you can confirm the exact passages that will ride along.
 
 ### Start Targeted Follow-ups
 
 1. From the sidebar, pick the model you want to interrogate (defaults to the configured chairman, but you can choose any council member that ran during the conversation).
 2. Draft a follow-up prompt that references your annotations. When you click **Start Conversation**, the client hits the new thread endpoint and bundles every comment ID plus your question.
-3. The backend compiles those highlights into a context block (`backend/threads.py`) and queries the selected OpenRouter model. The exchange shows up inline as a `Follow-up` user/assistant pair beneath the original run so the entire conversation stays chronological.
+3. The backend compiles those highlights and any stacked segments into a context block (`backend/threads.py`) and queries the selected OpenRouter model. The exchange shows up inline as a `Follow-up` user/assistant pair beneath the original run so the entire conversation stays chronological.
 4. You can continue a thread later via the `/api/conversations/{conversation_id}/threads/{thread_id}/message` endpoint if you want to keep drilling down on the same reviewer.
 
 ### REST Endpoints

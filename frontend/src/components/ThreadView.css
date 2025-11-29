@@ -33,6 +33,62 @@
   color: #666;
 }
 
+.thread-context-summary {
+  padding: 12px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #fbfcff;
+}
+
+.thread-context-stack-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a90e2;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.thread-context-stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thread-context-card {
+  border: 1px solid #dbe7ff;
+  border-radius: 6px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.thread-context-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #3a4a67;
+}
+
+.thread-context-label {
+  font-weight: 600;
+}
+
+.thread-context-pill {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1f63b7;
+}
+
+.thread-context-snippet {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #444;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
 .thread-close {
   background: none;
   border: none;

@@ -263,6 +263,30 @@
   font-size: 12px;
 }
 
+.stack-context .context-comment {
+  border-left: 2px solid #4a90e2;
+}
+
+.context-stack-label {
+  font-size: 10px;
+  color: #4a90e2;
+  background: #e9f1ff;
+  border-radius: 999px;
+  padding: 0 8px;
+  line-height: 18px;
+}
+
+.context-stack-snippet {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #444;
+  background: #fff;
+  border-radius: 4px;
+  padding: 8px;
+  border: 1px solid #eee;
+  white-space: pre-wrap;
+}
+
 .context-annotation {
   color: #333;
   font-size: 12px;

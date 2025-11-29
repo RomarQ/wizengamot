@@ -282,7 +282,7 @@ export const api = {
   /**
    * Create a follow-up thread with a specific model.
    */
-  async createThread(conversationId, model, commentIds, question, messageIndex) {
+  async createThread(conversationId, model, commentIds, question, messageIndex, contextSegments = []) {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/threads`,
       {
@@ -295,6 +295,7 @@ export const api = {
           comment_ids: commentIds,
           question,
           message_index: messageIndex,
+          context_segments: contextSegments,
         }),
       }
     );

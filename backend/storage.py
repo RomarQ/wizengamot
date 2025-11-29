@@ -334,7 +334,7 @@ def create_thread(
         conversation_id: Conversation identifier
         thread_id: Unique identifier for the thread
         model: Model identifier to query
-        context: Context dict with message_index and relevant comment IDs
+        context: Context dict with message_index, relevant comment IDs, and optional context segments
         initial_question: The follow-up question
 
     Returns:

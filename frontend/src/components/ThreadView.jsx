@@ -11,6 +11,9 @@ function ThreadView({ thread, onContinue, onClose }) {
 
   if (!thread) return null;
 
+  const commentCount = thread.context?.comment_ids?.length || 0;
+  const contextSegments = thread.context?.context_segments || [];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!question.trim() || isLoading) return;
@@ -34,13 +37,34 @@ function ThreadView({ thread, onContinue, onClose }) {
         <div className="thread-title">
           <h3>Follow-up with {thread.model}</h3>
           <p className="thread-context-info">
-            {thread.context.comment_ids.length} comment{thread.context.comment_ids.length !== 1 ? 's' : ''} included as context
+            {commentCount} annotation{commentCount !== 1 ? 's' : ''}{contextSegments.length > 0 ? ` · ${contextSegments.length} segment${contextSegments.length !== 1 ? 's' : ''}` : ''} in context
           </p>
         </div>
         <button className="thread-close" onClick={onClose} title="Close thread">
           &times;
         </button>
       </div>
+
+      {(contextSegments.length > 0) && (
+        <div className="thread-context-summary">
+          <div className="thread-context-stack-title">Context Stack</div>
+          <div className="thread-context-stack-list">
+            {contextSegments.map((segment, idx) => (
+              <div key={segment.id || idx} className="thread-context-card">
+                <div className="thread-context-card-header">
+                  <span className="thread-context-label">Stage {segment.stage} · {segment.model}</span>
+                  {segment.label && <span className="thread-context-pill">{segment.label}</span>}
+                </div>
+                <div className="thread-context-snippet">
+                  {segment.content.length > 200
+                    ? `${segment.content.substring(0, 200)}...`
+                    : segment.content}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="thread-messages">
         {thread.messages.map((msg, index) => (

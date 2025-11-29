@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
 import ResponseWithComments from './ResponseWithComments';
 import { SelectionHandler } from '../utils/SelectionHandler';
+import AddToContextButton from './AddToContextButton';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -22,11 +22,14 @@ export default function Stage2({
   aggregateRankings,
   messageIndex,
   comments,
+  contextSegments = [],
   onSelectionChange,
   onEditComment,
   onDeleteComment,
   activeCommentId,
-  onSetActiveComment
+  onSetActiveComment,
+  onAddContextSegment,
+  onRemoveContextSegment
 }) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -71,6 +74,26 @@ export default function Stage2({
     ? activeCommentId
     : null;
 
+  const rankingContent = deAnonymizeText(activeRanking.ranking, labelToModel);
+  const segmentId = `stage2-${messageIndex}-${activeRanking.model}`;
+  const shortModelName = activeRanking.model.split('/')[1] || activeRanking.model;
+  const isSegmentSelected = contextSegments.some((segment) => segment.id === segmentId);
+
+  const handleContextToggle = () => {
+    if (isSegmentSelected) {
+      onRemoveContextSegment?.(segmentId);
+    } else {
+      onAddContextSegment?.({
+        id: segmentId,
+        stage: 2,
+        model: activeRanking.model,
+        messageIndex,
+        label: `Stage 2 • ${shortModelName}`,
+        content: rankingContent,
+      });
+    }
+  };
+
   return (
     <div className="stage stage2">
       <h3 className="stage-title">Stage 2: Peer Rankings</h3>
@@ -94,11 +117,18 @@ export default function Stage2({
       </div>
 
       <div className="tab-content">
-        <div className="ranking-model">
-          {activeRanking.model}
+        <div className="stage-toolbar">
+          <div className="ranking-model">
+            {activeRanking.model}
+          </div>
+          <AddToContextButton
+            isSelected={isSegmentSelected}
+            onToggle={handleContextToggle}
+            label="Stack This Ranking"
+          />
         </div>
         <ResponseWithComments
-          content={deAnonymizeText(activeRanking.ranking, labelToModel)}
+          content={rankingContent}
           comments={rankingComments}
           messageIndex={messageIndex}
           stage={2}

@@ -11,11 +11,14 @@ export default function ChatInterface({
   onSendMessage,
   isLoading,
   comments,
+  contextSegments,
   onSelectionChange,
   onEditComment,
   onDeleteComment,
   activeCommentId,
   onSetActiveComment,
+  onAddContextSegment,
+  onRemoveContextSegment,
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -122,6 +125,29 @@ export default function ChatInterface({
                         ))}
                       </div>
                     )}
+                    {msg.context_segments && msg.context_segments.length > 0 && (
+                      <div className="follow-up-context stack-context">
+                        <div className="context-header">Context Stack ({msg.context_segments.length}):</div>
+                        {msg.context_segments.map((segment, idx) => (
+                          <div key={segment.id || idx} className="context-comment">
+                            <div className="context-comment-header">
+                              <span className="context-num">{idx + 1}.</span>
+                              <span className="context-source">
+                                [{getModelShortName(segment.model)}, Stage {segment.stage}]
+                              </span>
+                              {segment.label && (
+                                <span className="context-stack-label">{segment.label}</span>
+                              )}
+                            </div>
+                            <div className="context-stack-snippet">
+                              {segment.content?.length > 240
+                                ? `${segment.content.substring(0, 240)}...`
+                                : segment.content}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="follow-up-question">
                       <div className="markdown-content">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -159,11 +185,14 @@ export default function ChatInterface({
                       responses={msg.stage1}
                       messageIndex={index}
                       comments={comments}
+                      contextSegments={contextSegments}
                       onSelectionChange={onSelectionChange}
                       onEditComment={onEditComment}
                       onDeleteComment={onDeleteComment}
                       activeCommentId={activeCommentId}
                       onSetActiveComment={onSetActiveComment}
+                      onAddContextSegment={onAddContextSegment}
+                      onRemoveContextSegment={onRemoveContextSegment}
                     />
                   )}
 
@@ -181,11 +210,14 @@ export default function ChatInterface({
                       aggregateRankings={msg.metadata?.aggregate_rankings}
                       messageIndex={index}
                       comments={comments}
+                      contextSegments={contextSegments}
                       onSelectionChange={onSelectionChange}
                       onEditComment={onEditComment}
                       onDeleteComment={onDeleteComment}
                       activeCommentId={activeCommentId}
                       onSetActiveComment={onSetActiveComment}
+                      onAddContextSegment={onAddContextSegment}
+                      onRemoveContextSegment={onRemoveContextSegment}
                     />
                   )}
 
@@ -201,11 +233,14 @@ export default function ChatInterface({
                       finalResponse={msg.stage3}
                       messageIndex={index}
                       comments={comments}
+                      contextSegments={contextSegments}
                       onSelectionChange={onSelectionChange}
                       onEditComment={onEditComment}
                       onDeleteComment={onDeleteComment}
                       activeCommentId={activeCommentId}
                       onSetActiveComment={onSetActiveComment}
+                      onAddContextSegment={onAddContextSegment}
+                      onRemoveContextSegment={onRemoveContextSegment}
                     />
                   )}
                 </div>

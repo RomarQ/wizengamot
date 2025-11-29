@@ -115,3 +115,18 @@ mark.text-highlight.active {
   background-color: #ffe69c;
   border-bottom-color: #ff9800;
 }
+
+.stage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.stage-toolbar .model-name,
+.stage-toolbar .ranking-model,
+.stage-toolbar .chairman-label {
+  margin-bottom: 0;
+}

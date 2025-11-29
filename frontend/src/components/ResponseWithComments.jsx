@@ -182,6 +182,19 @@ function ResponseWithComments({
     }
   }, [pinnedComment, onEditComment]);
 
+  const handleCloseComment = useCallback(() => {
+    clearTimeout(hoverTimeoutRef.current);
+    setPinnedComment(null);
+    setHoveredComment(null);
+    setCommentPosition(null);
+    onSetActiveComment?.(null);
+    
+    containerRef.current?.querySelectorAll('.text-highlight').forEach(h => {
+      h.classList.remove('active');
+      h.classList.remove('hover');
+    });
+  }, [onSetActiveComment]);
+
   const handlePin = useCallback(() => {
     if (hoveredComment) {
       setPinnedComment(hoveredComment);
@@ -191,15 +204,8 @@ function ResponseWithComments({
   }, [hoveredComment, onSetActiveComment]);
 
   const handleUnpin = useCallback(() => {
-    setPinnedComment(null);
-    setCommentPosition(null);
-    onSetActiveComment?.(null);
-    
-    // Remove active class
-    containerRef.current?.querySelectorAll('.text-highlight').forEach(h => {
-      h.classList.remove('active');
-    });
-  }, [onSetActiveComment]);
+    handleCloseComment();
+  }, [handleCloseComment]);
 
   const handleFloatingMouseEnter = useCallback(() => {
     // Keep the comment visible when hovering over it
@@ -240,6 +246,7 @@ function ResponseWithComments({
           isPinned={!!pinnedComment}
           onPin={handlePin}
           onUnpin={handleUnpin}
+          onClose={handleCloseComment}
           onMouseEnter={handleFloatingMouseEnter}
           onMouseLeave={handleFloatingMouseLeave}
         />

@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import ResponseWithComments from './ResponseWithComments';
 import { SelectionHandler } from '../utils/SelectionHandler';
+import AddToContextButton from './AddToContextButton';
 import './Stage1.css';
 
 export default function Stage1({
   responses,
   messageIndex,
   comments,
+  contextSegments = [],
   onSelectionChange,
   onEditComment,
   onDeleteComment,
   activeCommentId,
-  onSetActiveComment
+  onSetActiveComment,
+  onAddContextSegment,
+  onRemoveContextSegment
 }) {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -56,6 +60,25 @@ export default function Stage1({
     ? activeCommentId
     : null;
 
+  const segmentId = `stage1-${messageIndex}-${activeResponse.model}`;
+  const shortModelName = activeResponse.model.split('/')[1] || activeResponse.model;
+  const isSegmentSelected = contextSegments.some((segment) => segment.id === segmentId);
+
+  const handleContextToggle = () => {
+    if (isSegmentSelected) {
+      onRemoveContextSegment?.(segmentId);
+    } else {
+      onAddContextSegment?.({
+        id: segmentId,
+        stage: 1,
+        model: activeResponse.model,
+        messageIndex,
+        label: `Stage 1 • ${shortModelName}`,
+        content: activeResponse.response,
+      });
+    }
+  };
+
   return (
     <div className="stage stage1">
       <h3 className="stage-title">Stage 1: Individual Responses</h3>
@@ -73,7 +96,14 @@ export default function Stage1({
       </div>
 
       <div className="tab-content">
-        <div className="model-name">{activeResponse.model}</div>
+        <div className="stage-toolbar">
+          <div className="model-name">{activeResponse.model}</div>
+          <AddToContextButton
+            isSelected={isSegmentSelected}
+            onToggle={handleContextToggle}
+            label="Add to Context"
+          />
+        </div>
         <ResponseWithComments
           content={activeResponse.response}
           comments={responseComments}

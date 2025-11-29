@@ -27,6 +27,7 @@ function App() {
   const [showCommitSidebar, setShowCommitSidebar] = useState(false);
   const [showContextPreview, setShowContextPreview] = useState(false);
   const [activeCommentId, setActiveCommentId] = useState(null);
+  const [contextSegments, setContextSegments] = useState([]);
 
   // Sidebar collapse states
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
@@ -54,6 +55,7 @@ function App() {
     } else {
       setComments([]);
       setActiveCommentId(null);
+      setContextSegments([]);
     }
   }, [currentConversationId]);
 
@@ -104,6 +106,7 @@ function App() {
   const handleSelectConversation = (id) => {
     setCurrentConversationId(id);
     setActiveCommentId(null);
+    setContextSegments([]);
   };
 
   const handleSendMessage = async (content) => {
@@ -320,6 +323,23 @@ function App() {
     }
   };
 
+  const handleAddContextSegment = useCallback((segment) => {
+    setContextSegments((prev) => {
+      if (prev.some((item) => item.id === segment.id)) {
+        return prev;
+      }
+      const updated = [...prev, segment];
+      if (updated.length === 1 && !showCommitSidebar) {
+        setShowCommitSidebar(true);
+      }
+      return updated;
+    });
+  }, [showCommitSidebar]);
+
+  const handleRemoveContextSegment = useCallback((segmentId) => {
+    setContextSegments((prev) => prev.filter((segment) => segment.id !== segmentId));
+  }, []);
+
   const handleToggleCommitSidebar = () => {
     setShowCommitSidebar(!showCommitSidebar);
   };
@@ -353,19 +373,32 @@ function App() {
   }, []);
 
   const handleCommitAndStartThread = async (model, question) => {
-    if (!currentConversationId || comments.length === 0) return;
+    if (!currentConversationId || (comments.length === 0 && contextSegments.length === 0)) return;
 
     setIsLoading(true);
     
     try {
       const commentIds = comments.map((c) => c.id);
-      const messageIndex = comments[0].message_index;
+      const contextSegmentPayload = contextSegments.map((segment) => ({
+        id: segment.id,
+        stage: segment.stage,
+        model: segment.model,
+        label: segment.label,
+        content: segment.content,
+        message_index: segment.messageIndex,
+      }));
+      const messageIndex = comments[0]?.message_index ?? contextSegments[0]?.messageIndex;
+
+      if (messageIndex === undefined) {
+        throw new Error('Unable to determine which response these context items belong to.');
+      }
 
       // Create the follow-up user message with comments context
       const followUpUserMessage = {
         role: 'follow-up-user',
         content: question,
         comments: [...comments],
+        context_segments: contextSegmentPayload,
         model: model,
       };
 
@@ -394,7 +427,8 @@ function App() {
         model,
         commentIds,
         question,
-        messageIndex
+        messageIndex,
+        contextSegmentPayload
       );
 
       // Update the assistant message with the actual response
@@ -410,6 +444,7 @@ function App() {
 
       setShowCommitSidebar(false);
       setComments([]); // Clear comments after creating thread
+      setContextSegments([]);
       setActiveCommentId(null);
       setIsLoading(false);
     } catch (error) {
@@ -438,6 +473,9 @@ function App() {
     return availableConfig?.chairman_model;
   };
 
+  const totalContextItems = comments.length + contextSegments.length;
+  const hasContextItems = totalContextItems > 0;
+
   return (
     <div className={`app ${leftSidebarCollapsed ? 'left-collapsed' : ''} ${showCommitSidebar ? 'right-open' : ''}`}>
       <Sidebar
@@ -453,11 +491,14 @@ function App() {
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
         comments={comments}
+        contextSegments={contextSegments}
         onSelectionChange={handleSelectionChange}
         onEditComment={handleEditComment}
         onDeleteComment={handleDeleteComment}
         activeCommentId={activeCommentId}
         onSetActiveComment={handleSetActiveComment}
+        onAddContextSegment={handleAddContextSegment}
+        onRemoveContextSegment={handleRemoveContextSegment}
       />
       <ConfigModal
         isOpen={showConfigModal}
@@ -488,6 +529,7 @@ function App() {
       {showCommitSidebar && (
         <CommitSidebar
           comments={comments}
+          contextSegments={contextSegments}
           availableModels={getAvailableModels()}
           defaultChairman={getDefaultChairman()}
           onCommit={handleCommitAndStartThread}
@@ -498,15 +540,16 @@ function App() {
           showContextPreview={showContextPreview}
           onToggleContextPreview={() => setShowContextPreview(!showContextPreview)}
           activeCommentId={activeCommentId}
+          onRemoveContextSegment={handleRemoveContextSegment}
         />
       )}
-      {!showCommitSidebar && (
+      {!showCommitSidebar && hasContextItems && (
         <button
-          className={`commit-button-fab ${comments.length > 0 ? 'has-comments' : ''}`}
+          className={`commit-button-fab ${hasContextItems ? 'has-comments' : ''}`}
           onClick={handleToggleCommitSidebar}
-          title={comments.length > 0 ? "Open review context sidebar" : "No annotations yet - select text to add comments"}
+          title="Open review context sidebar"
         >
-          {comments.length > 0 ? `Review (${comments.length})` : 'Annotate'}
+          {`Review (${totalContextItems})`}
         </button>
       )}
     </div>

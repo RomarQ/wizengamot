@@ -8,6 +8,7 @@ import './CommitSidebar.css';
  */
 function CommitSidebar({
   comments,
+  contextSegments = [],
   availableModels,
   defaultChairman,
   onCommit,
@@ -18,6 +19,7 @@ function CommitSidebar({
   showContextPreview,
   onToggleContextPreview,
   activeCommentId,
+  onRemoveContextSegment,
 }) {
   const [selectedModel, setSelectedModel] = useState(defaultChairman || '');
   const [followUpQuestion, setFollowUpQuestion] = useState('');
@@ -102,12 +104,15 @@ function CommitSidebar({
     ...availableModels.filter(m => m !== defaultChairman).map(m => ({ value: m, label: getModelShortName(m) })),
   ];
 
+  const totalContextItems = comments.length + contextSegments.length;
+  const hasContext = totalContextItems > 0;
+
   return (
     <div className="commit-sidebar">
       <div className="commit-sidebar-header">
         <div className="sidebar-title">
           <h3>Review Context</h3>
-          <span className="comment-count">{comments.length}</span>
+          <span className="comment-count">{totalContextItems}</span>
         </div>
         <button className="btn-close" onClick={onClose} title="Close sidebar">
           ×
@@ -115,85 +120,122 @@ function CommitSidebar({
       </div>
 
       <div className="commit-sidebar-comments">
-        {comments.length === 0 ? (
+        {comments.length === 0 && contextSegments.length === 0 && (
           <div className="empty-comments">
-            <p>No annotations yet</p>
-            <p className="empty-hint">Select text and add comments to build your review context</p>
+            <p>No context yet</p>
+            <p className="empty-hint">Highlight text or pin sections to build your stack</p>
           </div>
-        ) : (
-          comments.map((comment, index) => (
-            <div 
-              key={comment.id} 
-              className={`comment-card ${activeCommentId === comment.id ? 'active' : ''}`}
-            >
-              <div className="comment-card-header">
-                <span className="comment-number">#{index + 1}</span>
-                <div className="comment-badges">
-                  <span className="badge-stage">Stage {comment.stage}</span>
-                  <span className="badge-model">{getModelShortName(comment.model)}</span>
-                </div>
-                <div className="comment-card-actions">
-                  {editingCommentId !== comment.id && (
-                    <button
-                      className="btn-edit-small"
-                      onClick={() => handleStartEdit(comment)}
-                      title="Edit comment"
-                    >
-                      ✎
-                    </button>
-                  )}
+        )}
+        {comments.length > 0 && comments.map((comment, index) => (
+          <div 
+            key={comment.id} 
+            className={`comment-card ${activeCommentId === comment.id ? 'active' : ''}`}
+          >
+            <div className="comment-card-header">
+              <span className="comment-number">#{index + 1}</span>
+              <div className="comment-badges">
+                <span className="badge-stage">Stage {comment.stage}</span>
+                <span className="badge-model">{getModelShortName(comment.model)}</span>
+              </div>
+              <div className="comment-card-actions">
+                {editingCommentId !== comment.id && (
                   <button
-                    className="btn-delete-small"
-                    onClick={() => onDeleteComment(comment.id)}
-                    title="Remove annotation"
+                    className="btn-edit-small"
+                    onClick={() => handleStartEdit(comment)}
+                    title="Edit comment"
+                  >
+                    ✎
+                  </button>
+                )}
+                <button
+                  className="btn-delete-small"
+                  onClick={() => onDeleteComment(comment.id)}
+                  title="Remove annotation"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            
+            <div
+              className="comment-selection"
+              onClick={() => onSelectComment(comment.id)}
+              title="Jump to highlighted text"
+            >
+              "{comment.selection.substring(0, 80)}
+              {comment.selection.length > 80 ? '...' : ''}"
+            </div>
+            
+            {editingCommentId === comment.id ? (
+              <div className="comment-edit-inline">
+                <textarea
+                  ref={editTextareaRef}
+                  className="comment-edit-textarea"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => handleEditKeyDown(e, comment.id)}
+                  rows={3}
+                />
+                <div className="comment-edit-actions">
+                  <button 
+                    className="btn-save-small"
+                    onClick={() => handleSaveEdit(comment.id)}
+                    disabled={!editValue.trim()}
+                  >
+                    Save
+                  </button>
+                  <button 
+                    className="btn-cancel-small"
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="edit-hint">⌘/Ctrl+Enter to save, Esc to cancel</div>
+              </div>
+            ) : (
+              <div className="comment-content">{comment.content}</div>
+            )}
+          </div>
+        ))}
+
+        <div className="context-stack-section">
+          <div className="context-stack-title">
+            <span>Context Stack</span>
+            <span className="stack-count">{contextSegments.length}</span>
+          </div>
+          {contextSegments.length === 0 ? (
+            <p className="context-stack-empty">Click the stack icon on any stage to pin a full section.</p>
+          ) : (
+            contextSegments.map((segment, index) => (
+              <div key={segment.id} className="context-stack-card">
+                <div className="context-stack-header">
+                  <div className="context-stack-meta">
+                    <span className="stack-index">#{index + 1}</span>
+                    <span className="stack-model">
+                      Stage {segment.stage} · {getModelShortName(segment.model)}
+                    </span>
+                    {segment.label && (
+                      <span className="stack-label-pill">{segment.label}</span>
+                    )}
+                  </div>
+                  <button
+                    className="btn-remove-stack"
+                    onClick={() => onRemoveContextSegment?.(segment.id)}
+                    title="Remove from context stack"
                   >
                     ×
                   </button>
                 </div>
-              </div>
-              
-              <div
-                className="comment-selection"
-                onClick={() => onSelectComment(comment.id)}
-                title="Jump to highlighted text"
-              >
-                "{comment.selection.substring(0, 80)}
-                {comment.selection.length > 80 ? '...' : ''}"
-              </div>
-              
-              {editingCommentId === comment.id ? (
-                <div className="comment-edit-inline">
-                  <textarea
-                    ref={editTextareaRef}
-                    className="comment-edit-textarea"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onKeyDown={(e) => handleEditKeyDown(e, comment.id)}
-                    rows={3}
-                  />
-                  <div className="comment-edit-actions">
-                    <button 
-                      className="btn-save-small"
-                      onClick={() => handleSaveEdit(comment.id)}
-                      disabled={!editValue.trim()}
-                    >
-                      Save
-                    </button>
-                    <button 
-                      className="btn-cancel-small"
-                      onClick={handleCancelEdit}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <div className="edit-hint">⌘/Ctrl+Enter to save, Esc to cancel</div>
+                <div className="context-stack-preview">
+                  {segment.content.length > 200
+                    ? `${segment.content.substring(0, 200)}...`
+                    : segment.content}
                 </div>
-              ) : (
-                <div className="comment-content">{comment.content}</div>
-              )}
-            </div>
-          ))
-        )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       <div className="commit-sidebar-input">
@@ -260,7 +302,7 @@ function CommitSidebar({
           <button
             className="btn-commit"
             onClick={handleSubmit}
-            disabled={!followUpQuestion.trim() || !selectedModel || comments.length === 0}
+            disabled={!followUpQuestion.trim() || !selectedModel || !hasContext}
           >
             Start Conversation
           </button>
@@ -302,6 +344,27 @@ function CommitSidebar({
                 </div>
               ))}
             </div>
+            {contextSegments.length > 0 && (
+              <div className="context-section">
+                <strong>Context Stack ({contextSegments.length}):</strong>
+                {contextSegments.map((segment, idx) => (
+                  <div key={segment.id} className="context-item-block">
+                    <div className="context-item-header">
+                      <span className="context-num">{idx + 1}.</span>
+                      <span className="context-meta">[{getModelShortName(segment.model)}, Stage {segment.stage}]</span>
+                      {segment.label && (
+                        <span className="context-stack-label">{segment.label}</span>
+                      )}
+                    </div>
+                    <div className="context-segment-preview">
+                      {segment.content.length > 300
+                        ? `${segment.content.substring(0, 300)}...`
+                        : segment.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="context-section target-section">
               <strong>Target Councilor:</strong> {getModelShortName(selectedModel)}
             </div>
