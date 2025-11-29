@@ -3,7 +3,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import uuid
 import json
@@ -333,7 +333,8 @@ class CreateThreadRequest(BaseModel):
     comment_ids: List[str]
     question: str
     message_index: int
-    context_segments: List[ContextSegmentRequest] = []
+    context_segments: List[ContextSegmentRequest] = Field(default_factory=list)
+    compiled_context: Optional[str] = None
 
 
 @app.post("/api/conversations/{conversation_id}/threads")
@@ -357,7 +358,8 @@ async def create_thread(conversation_id: str, request: CreateThreadRequest):
             conversation,
             request.comment_ids,
             segment_payload,
-            system_prompt
+            system_prompt,
+            request.compiled_context
         )
 
         if response is None:
@@ -405,6 +407,7 @@ async def get_thread(conversation_id: str, thread_id: str):
 class ContinueThreadRequest(BaseModel):
     """Request to continue a thread."""
     question: str
+    compiled_context: Optional[str] = None
 
 
 @app.post("/api/conversations/{conversation_id}/threads/{thread_id}/message")
@@ -427,7 +430,7 @@ async def continue_thread(conversation_id: str, thread_id: str, request: Continu
         context = None
         if len(thread["messages"]) == 1:  # First response only
             thread_context = thread.get("context", {}) or {}
-            context = threads.compile_context_from_comments(
+            context = request.compiled_context or threads.compile_context_from_comments(
                 conversation,
                 thread_context.get("comment_ids", []),
                 thread_context.get("context_segments")

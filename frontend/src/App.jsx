@@ -7,6 +7,7 @@ import CommentModal from './components/CommentModal';
 import CommitSidebar from './components/CommitSidebar';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
+import { buildHighlightsText, buildContextStackText } from './utils/tokenizer';
 import './App.css';
 
 function App() {
@@ -446,6 +447,13 @@ function App() {
         content: segment.content,
         message_index: segment.messageIndex,
       }));
+      const compiledContext = [
+        buildHighlightsText(comments),
+        buildContextStackText(combinedSegments),
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
       const messageIndex =
         comments[0]?.message_index ??
         contextSegments[0]?.messageIndex ??
@@ -490,7 +498,8 @@ function App() {
         commentIds,
         question,
         messageIndex,
-        contextSegmentPayload
+        contextSegmentPayload,
+        compiledContext || null
       );
 
       // Update the assistant message with the actual response

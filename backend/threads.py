@@ -64,7 +64,8 @@ async def query_with_context(
     conversation: Dict[str, Any],
     comment_ids: List[str],
     context_segments: Optional[List[Dict[str, Any]]] = None,
-    system_prompt: Optional[str] = None
+    system_prompt: Optional[str] = None,
+    compiled_context: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Query a specific model with context from comments.
@@ -79,8 +80,8 @@ async def query_with_context(
     Returns:
         Response dict with 'content' and optional 'reasoning_details', or None if failed
     """
-    # Compile context from comments and segments
-    context = compile_context_from_comments(conversation, comment_ids, context_segments)
+    # Compile context from comments and segments, unless an explicit compiled blob is provided
+    context = compiled_context or compile_context_from_comments(conversation, comment_ids, context_segments)
 
     # Build messages
     messages = []

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { computeTokenBreakdown } from '../utils/tokenizer';
 import './CommitSidebar.css';
 
 /**
@@ -107,7 +108,10 @@ function CommitSidebar({
     ...availableModels.filter(m => m !== defaultChairman).map(m => ({ value: m, label: getModelShortName(m) })),
   ];
 
-  const combinedStackSegments = [...contextSegments, ...autoContextSegments];
+  const combinedStackSegments = useMemo(
+    () => [...contextSegments, ...autoContextSegments],
+    [contextSegments, autoContextSegments]
+  );
   const totalContextItems = comments.length + combinedStackSegments.length;
   const hasContext = totalContextItems > 0;
   const autoCollapseThreshold = 3;
@@ -128,6 +132,27 @@ function CommitSidebar({
     setIsStackCollapsed((prev) => !prev);
     setStackToggledManually(true);
   };
+
+  const tokenBreakdown = useMemo(
+    () =>
+      computeTokenBreakdown({
+        question: followUpQuestion,
+        comments,
+        segments: combinedStackSegments,
+        model: selectedModel,
+      }),
+    [followUpQuestion, comments, combinedStackSegments, selectedModel]
+  );
+
+  const promptPct = tokenBreakdown.total
+    ? (tokenBreakdown.promptTokens / tokenBreakdown.total) * 100
+    : 0;
+  const highlightPct = tokenBreakdown.total
+    ? (tokenBreakdown.highlightTokens / tokenBreakdown.total) * 100
+    : 0;
+  const stackPct = tokenBreakdown.total
+    ? Math.max(0, 100 - promptPct - highlightPct)
+    : 0;
 
   return (
     <div className="commit-sidebar">
@@ -336,6 +361,48 @@ function CommitSidebar({
             onKeyDown={handleKeyDown}
             rows={3}
           />
+        </div>
+
+        <div className="token-meter">
+          <div className="token-meter-header">
+            <span className="token-meter-title">Token estimate</span>
+            <span className="token-meter-total">{tokenBreakdown.total} tokens</span>
+          </div>
+          <div className="token-meter-track">
+            <div
+              className="token-meter-segment prompt"
+              style={{ width: `${promptPct}%` }}
+              title={`Prompt: ${tokenBreakdown.promptTokens} tokens`}
+            />
+            <div
+              className="token-meter-segment highlights"
+              style={{ width: `${highlightPct}%` }}
+              title={`Highlights: ${tokenBreakdown.highlightTokens} tokens`}
+            />
+            <div
+              className="token-meter-segment stack"
+              style={{ width: `${stackPct}%` }}
+              title={`Context stack: ${tokenBreakdown.stackTokens} tokens`}
+            />
+          </div>
+          <div className="token-meter-legend">
+            <div className="token-legend-item">
+              <span className="token-swatch prompt" />
+              <span>Prompt · {tokenBreakdown.promptTokens}</span>
+            </div>
+            <div className="token-legend-item">
+              <span className="token-swatch highlights" />
+              <span>Highlights · {tokenBreakdown.highlightTokens}</span>
+            </div>
+            <div className="token-legend-item">
+              <span className="token-swatch stack" />
+              <span>Context stack · {tokenBreakdown.stackTokens}</span>
+            </div>
+            <div className="token-legend-item encoding">
+              <span className="encoding-label">Encoding</span>
+              <span className="encoding-value">{tokenBreakdown.encodingName}</span>
+            </div>
+          </div>
         </div>
 
         <div className="input-actions">
