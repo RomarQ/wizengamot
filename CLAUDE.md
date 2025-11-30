@@ -1,10 +1,28 @@
-# CLAUDE.md - Technical Notes for LLM Council
+# CLAUDE.md
 
-This file contains technical details, architectural decisions, and important implementation notes for future development sessions.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Commands
+
+```bash
+# Install dependencies (from project root)
+uv sync                          # Backend Python dependencies
+cd frontend && npm install       # Frontend JS dependencies
+
+# Run the application
+./start.sh                       # Start both backend and frontend
+# OR manually:
+uv run python -m backend.main    # Backend on port 8001
+cd frontend && npm run dev       # Frontend on port 5173
+
+# Frontend commands
+cd frontend && npm run build     # Production build
+cd frontend && npm run lint      # ESLint
+```
 
 ## Project Overview
 
-LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively answer user questions. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
+LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively answer user questions via OpenRouter. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
 
 ## Architecture
 
@@ -150,10 +168,6 @@ Models are hardcoded in `backend/config.py`. Chairman can be same or different f
 - Model performance analytics over time
 - Custom ranking criteria (not just accuracy/insight)
 - Support for reasoning models (o1, etc.) with special handling
-
-## Testing Notes
-
-Use `test_openrouter.py` to verify API connectivity and test different model identifiers before adding to council. The script tests both streaming and non-streaming modes.
 
 ## Data Flow Summary
 
