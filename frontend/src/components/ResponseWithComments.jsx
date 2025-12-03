@@ -6,14 +6,24 @@ import './ResponseWithComments.css';
 
 /**
  * Component that renders a response with inline comment highlights and floating comments
- * Supports click-to-pin, hover preview, and bidirectional sync with sidebar
+ * Supports click-to-pin, hover preview, and bidirectional sync with sidebar.
+ * Works for both Council mode (stage, model) and Synthesizer mode (noteId, noteTitle).
  */
 function ResponseWithComments({
   content,
   comments,
+  // Source type: 'council' (default) or 'synthesizer'
+  sourceType = 'council',
+  // Council-specific props
   messageIndex,
   stage,
   model,
+  // Synthesizer-specific props
+  noteId,
+  noteTitle,
+  sourceUrl,
+  noteModel,
+  // Callbacks
   onDeleteComment,
   onEditComment,
   activeCommentId,
@@ -225,14 +235,28 @@ function ResponseWithComments({
   // Determine which comment to show
   const activeComment = pinnedComment || hoveredComment;
 
+  // Build data attributes based on source type
+  const dataAttributes = sourceType === 'council'
+    ? {
+        'data-source-type': 'council',
+        'data-message-index': messageIndex,
+        'data-stage': stage,
+        'data-model': model,
+      }
+    : {
+        'data-source-type': 'synthesizer',
+        'data-note-id': noteId,
+        'data-note-title': noteTitle,
+        'data-source-url': sourceUrl,
+        'data-note-model': noteModel,
+      };
+
   return (
     <div className={`response-with-comments ${className}`}>
       <div
         ref={containerRef}
         className="response-content markdown-content"
-        data-message-index={messageIndex}
-        data-stage={stage}
-        data-model={model}
+        {...dataAttributes}
       >
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>

@@ -287,13 +287,22 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 # Comment Management Endpoints
 
 class CreateCommentRequest(BaseModel):
-    """Request to create a comment."""
-    message_index: int
-    stage: int
-    model: str
+    """Request to create a comment. Supports both Council and Synthesizer modes."""
     selection: str
     content: str
+    source_type: str = "council"  # 'council' or 'synthesizer'
     source_content: Optional[str] = None
+
+    # Council-specific fields (required when source_type='council')
+    message_index: Optional[int] = None
+    stage: Optional[int] = None
+    model: Optional[str] = None
+
+    # Synthesizer-specific fields (required when source_type='synthesizer')
+    note_id: Optional[str] = None
+    note_title: Optional[str] = None
+    source_url: Optional[str] = None
+    note_model: Optional[str] = None
 
 
 @app.post("/api/conversations/{conversation_id}/comments")
@@ -302,14 +311,21 @@ async def create_comment(conversation_id: str, request: CreateCommentRequest):
     try:
         comment_id = str(uuid.uuid4())
         comment = storage.add_comment(
-            conversation_id,
-            comment_id,
-            request.message_index,
-            request.stage,
-            request.model,
-            request.selection,
-            request.content,
-            request.source_content
+            conversation_id=conversation_id,
+            comment_id=comment_id,
+            selection=request.selection,
+            content=request.content,
+            source_type=request.source_type,
+            source_content=request.source_content,
+            # Council-specific
+            message_index=request.message_index,
+            stage=request.stage,
+            model=request.model,
+            # Synthesizer-specific
+            note_id=request.note_id,
+            note_title=request.note_title,
+            source_url=request.source_url,
+            note_model=request.note_model
         )
         return comment
     except ValueError as e:
@@ -355,11 +371,16 @@ async def delete_comment(conversation_id: str, comment_id: str):
 class ContextSegmentRequest(BaseModel):
     """Manually selected context segment to send with follow-ups."""
     id: str
-    message_index: int
-    stage: int
-    model: str
-    label: Optional[str] = None
     content: str
+    label: Optional[str] = None
+    source_type: Optional[str] = "council"  # 'council' or 'synthesizer'
+    # Council-specific fields
+    message_index: Optional[int] = None
+    stage: Optional[int] = None
+    model: Optional[str] = None
+    # Synthesizer-specific fields
+    note_id: Optional[str] = None
+    note_title: Optional[str] = None
 
 
 class CreateThreadRequest(BaseModel):
@@ -367,7 +388,8 @@ class CreateThreadRequest(BaseModel):
     model: str
     comment_ids: List[str]
     question: str
-    message_index: int
+    message_index: Optional[int] = None  # For council mode
+    note_ids: Optional[List[str]] = None  # For synthesizer mode
     context_segments: List[ContextSegmentRequest] = Field(default_factory=list)
     compiled_context: Optional[str] = None
 
@@ -403,10 +425,14 @@ async def create_thread(conversation_id: str, request: CreateThreadRequest):
         # Create the thread
         thread_id = str(uuid.uuid4())
         context = {
-            "message_index": request.message_index,
             "comment_ids": request.comment_ids,
             "context_segments": segment_payload
         }
+        # Add mode-specific context
+        if request.message_index is not None:
+            context["message_index"] = request.message_index
+        if request.note_ids:
+            context["note_ids"] = request.note_ids
         thread = storage.create_thread(
             conversation_id,
             thread_id,
@@ -762,7 +788,7 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         conversation_id,
         result["notes"],
         result.get("raw_response", ""),
-        content_result["content"][:500] if content_result["content"] else "",
+        content_result["content"] or "",
         content_result["source_type"],
         request.url,
         result.get("model"),

@@ -38,15 +38,23 @@ export const countTokens = (text = '', encodingName = DEFAULT_ENCODING) => {
 export const buildHighlightsText = (comments = []) => {
   if (!comments.length) return '';
 
-  const parts = ['The user has highlighted and commented on specific parts of previous responses:\n'];
+  const parts = ['The user has highlighted and commented on specific content:\n'];
 
   comments.forEach((comment) => {
-    const stage = comment?.stage ?? '?';
-    const model = comment?.model ?? 'model';
+    const sourceType = comment?.source_type || (comment?.note_id ? 'synthesizer' : 'council');
     const selection = comment?.selection ?? '';
     const content = comment?.content ?? '';
 
-    parts.push(`\nStage ${stage} response from ${model}:`);
+    if (sourceType === 'council') {
+      const stage = comment?.stage ?? '?';
+      const model = comment?.model ?? 'model';
+      parts.push(`\nStage ${stage} response from ${model}:`);
+    } else {
+      // synthesizer
+      const noteTitle = comment?.note_title || 'Note';
+      parts.push(`\nFrom note "${noteTitle}":`);
+    }
+
     parts.push(`Selected text: "${selection}"`);
     parts.push(`User comment: ${content}\n`);
   });
@@ -60,12 +68,19 @@ export const buildContextStackText = (segments = []) => {
   const parts = ['The user also pinned larger context segments for your reference:\n'];
 
   segments.forEach((segment) => {
-    const stage = segment?.stage ?? '?';
-    const model = segment?.model ?? 'context';
+    const sourceType = segment?.sourceType || (segment?.noteId ? 'synthesizer' : 'council');
     const label = segment?.label || 'Selected segment';
     const content = segment?.content || '';
 
-    parts.push(`\n${label} (Stage ${stage} • ${model}):\n${content.trim()}\n`);
+    if (sourceType === 'council') {
+      const stage = segment?.stage ?? '?';
+      const model = segment?.model ?? 'context';
+      parts.push(`\n${label} (Stage ${stage} • ${model}):\n${content.trim()}\n`);
+    } else {
+      // synthesizer
+      const noteTitle = segment?.noteTitle || 'Note';
+      parts.push(`\n${label} (Note: ${noteTitle}):\n${content.trim()}\n`);
+    }
   });
 
   return parts.join('\n').trim();

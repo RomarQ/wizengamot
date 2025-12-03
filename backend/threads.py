@@ -28,16 +28,23 @@ def compile_context_from_comments(
 
     if relevant_comments:
         context_parts.append(
-            "The user has highlighted and commented on specific parts of previous responses:\n"
+            "The user has highlighted and commented on specific content:\n"
         )
 
         for comment in relevant_comments:
-            stage = comment["stage"]
-            model = comment["model"]
+            # Detect source type - check for note_id as fallback
+            source_type = comment.get("source_type") or ("synthesizer" if comment.get("note_id") else "council")
             selection = comment["selection"]
             content = comment["content"]
 
-            context_parts.append(f"\nStage {stage} response from {model}:")
+            if source_type == "council":
+                stage = comment.get("stage")
+                model = comment.get("model")
+                context_parts.append(f"\nStage {stage} response from {model}:")
+            else:  # synthesizer
+                note_title = comment.get("note_title", "Note")
+                context_parts.append(f"\nFrom note '{note_title}':")
+
             context_parts.append(f'Selected text: "{selection}"')
             context_parts.append(f"User comment: {content}\n")
 
@@ -46,14 +53,22 @@ def compile_context_from_comments(
             "The user also pinned larger context segments for your reference:\n"
         )
         for segment in context_segments:
-            stage = segment.get("stage")
-            model = segment.get("model")
+            # Detect source type - check for note_id as fallback
+            source_type = segment.get("source_type") or ("synthesizer" if segment.get("note_id") else "council")
             label = segment.get("label") or "Selected segment"
             content = segment.get("content") or ""
 
-            context_parts.append(
-                f"\n{label} (Stage {stage} • {model}):\n{content.strip()}\n"
-            )
+            if source_type == "council":
+                stage = segment.get("stage")
+                model = segment.get("model")
+                context_parts.append(
+                    f"\n{label} (Stage {stage} • {model}):\n{content.strip()}\n"
+                )
+            else:  # synthesizer
+                note_title = segment.get("note_title", "Note")
+                context_parts.append(
+                    f"\n{label} (Note: {note_title}):\n{content.strip()}\n"
+                )
 
     return "\n".join(context_parts).strip()
 

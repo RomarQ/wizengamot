@@ -217,12 +217,19 @@ def update_conversation_title(conversation_id: str, title: str):
 def add_comment(
     conversation_id: str,
     comment_id: str,
-    message_index: int,
-    stage: int,
-    model: str,
     selection: str,
     content: str,
-    source_content: Optional[str] = None
+    source_type: str = "council",
+    source_content: Optional[str] = None,
+    # Council-specific fields
+    message_index: Optional[int] = None,
+    stage: Optional[int] = None,
+    model: Optional[str] = None,
+    # Synthesizer-specific fields
+    note_id: Optional[str] = None,
+    note_title: Optional[str] = None,
+    source_url: Optional[str] = None,
+    note_model: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Add a comment to a conversation.
@@ -230,12 +237,21 @@ def add_comment(
     Args:
         conversation_id: Conversation identifier
         comment_id: Unique identifier for the comment
+        selection: Highlighted text snippet
+        content: Comment content
+        source_type: Type of source ('council' or 'synthesizer')
+        source_content: Full content of the response the selection came from
+
+        Council-specific:
         message_index: Index of the message being commented on
         stage: Stage number (1, 2, or 3)
         model: Model identifier for the response being commented on
-        selection: Highlighted text snippet
-        content: Comment content
-        source_content: Full content of the response the selection came from
+
+        Synthesizer-specific:
+        note_id: ID of the note being commented on
+        note_title: Title of the note
+        source_url: Original URL that was synthesized
+        note_model: Model that generated the note
 
     Returns:
         The created comment
@@ -246,14 +262,23 @@ def add_comment(
 
     comment = {
         "id": comment_id,
-        "message_index": message_index,
-        "stage": stage,
-        "model": model,
+        "source_type": source_type,
         "selection": selection,
         "content": content,
         "source_content": source_content,
         "created_at": datetime.utcnow().isoformat()
     }
+
+    # Add source-type specific fields
+    if source_type == "council":
+        comment["message_index"] = message_index
+        comment["stage"] = stage
+        comment["model"] = model
+    elif source_type == "synthesizer":
+        comment["note_id"] = note_id
+        comment["note_title"] = note_title
+        comment["source_url"] = source_url
+        comment["note_model"] = note_model
 
     if "comments" not in conversation:
         conversation["comments"] = []
@@ -487,7 +512,7 @@ def add_synthesizer_message(
     conversation_id: str,
     notes: List[Dict[str, Any]],
     raw_response: str,
-    source_content_preview: str,
+    source_content: str,
     source_type: str,
     source_url: str,
     model: Optional[str] = None,
@@ -504,8 +529,8 @@ def add_synthesizer_message(
             - tags: List of hashtags
             - body: Note content (~100 words)
         raw_response: Raw LLM response for debugging
-        source_content_preview: Preview of source content (first ~500 chars)
-        source_type: Type of source ("youtube" or "article")
+        source_content: Full source content (transcript or article text)
+        source_type: Type of source ("youtube", "podcast", or "article")
         source_url: Original URL
         model: Model used for generation
         source_title: Title of the source content
@@ -518,7 +543,7 @@ def add_synthesizer_message(
         "role": "assistant",
         "notes": notes,
         "raw_response": raw_response,
-        "source_content_preview": source_content_preview,
+        "source_content": source_content,
         "source_type": source_type,
         "source_url": source_url,
         "source_title": source_title,

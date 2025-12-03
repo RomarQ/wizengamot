@@ -222,9 +222,46 @@ export const api = {
   },
 
   /**
-   * Create a comment on a response.
+   * Create a comment on a response. Supports both Council and Synthesizer modes.
+   * @param {string} conversationId - The conversation ID
+   * @param {Object} commentData - Comment data object
+   * @param {string} commentData.selection - Highlighted text
+   * @param {string} commentData.content - Comment text
+   * @param {string} [commentData.sourceType='council'] - 'council' or 'synthesizer'
+   * @param {string} [commentData.sourceContent] - Full source content
+   * Council-specific:
+   * @param {number} [commentData.messageIndex] - Message index
+   * @param {number} [commentData.stage] - Stage (1, 2, or 3)
+   * @param {string} [commentData.model] - Model identifier
+   * Synthesizer-specific:
+   * @param {string} [commentData.noteId] - Note ID
+   * @param {string} [commentData.noteTitle] - Note title
+   * @param {string} [commentData.sourceUrl] - Source URL
+   * @param {string} [commentData.noteModel] - Model that generated the note
    */
-  async createComment(conversationId, messageIndex, stage, model, selection, content, sourceContent = null) {
+  async createComment(conversationId, commentData) {
+    const body = {
+      selection: commentData.selection,
+      content: commentData.content,
+      source_type: commentData.sourceType || 'council',
+      source_content: commentData.sourceContent || null,
+    };
+
+    // Add council-specific fields
+    if (commentData.sourceType === 'council' || !commentData.sourceType) {
+      body.message_index = commentData.messageIndex;
+      body.stage = commentData.stage;
+      body.model = commentData.model;
+    }
+
+    // Add synthesizer-specific fields
+    if (commentData.sourceType === 'synthesizer') {
+      body.note_id = commentData.noteId;
+      body.note_title = commentData.noteTitle;
+      body.source_url = commentData.sourceUrl;
+      body.note_model = commentData.noteModel;
+    }
+
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/comments`,
       {
@@ -232,14 +269,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message_index: messageIndex,
-          stage,
-          model,
-          selection,
-          content,
-          source_content: sourceContent,
-        }),
+        body: JSON.stringify(body),
       }
     );
     if (!response.ok) {
@@ -302,7 +332,27 @@ export const api = {
   /**
    * Create a follow-up thread with a specific model.
    */
-  async createThread(conversationId, model, commentIds, question, messageIndex, contextSegments = [], compiledContext = null) {
+  async createThread(conversationId, model, commentIds, question, options = {}) {
+    const { messageIndex, noteIds, contextSegments = [], compiledContext = null } = options;
+
+    const body = {
+      model,
+      comment_ids: commentIds,
+      question,
+      context_segments: contextSegments,
+      compiled_context: compiledContext,
+    };
+
+    // Add mode-specific fields
+    if (messageIndex !== undefined && messageIndex !== null) {
+      body.message_index = messageIndex;
+    }
+    if (noteIds && noteIds.length > 0) {
+      body.note_ids = noteIds;
+    }
+
+    console.log('API createThread body:', JSON.stringify(body, null, 2));
+
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/threads`,
       {
@@ -310,18 +360,13 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model,
-          comment_ids: commentIds,
-          question,
-          message_index: messageIndex,
-          context_segments: contextSegments,
-          compiled_context: compiledContext,
-        }),
+        body: JSON.stringify(body),
       }
     );
     if (!response.ok) {
-      throw new Error('Failed to create thread');
+      const errorText = await response.text();
+      console.error('Thread creation failed:', response.status, errorText);
+      throw new Error(`Failed to create thread: ${errorText}`);
     }
     return response.json();
   },

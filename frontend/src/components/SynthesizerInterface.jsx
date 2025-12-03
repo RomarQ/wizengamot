@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { api } from '../api';
 import NoteViewer from './NoteViewer';
 import './SynthesizerInterface.css';
@@ -10,17 +11,31 @@ import './SynthesizerInterface.css';
  * - Optional comment/guidance for processing
  * - Loading state with progress indication
  * - Renders NoteViewer after generation
+ * - Supports commenting/highlighting on generated notes
+ * - Shows follow-up conversations with toggle between notes and chat
  */
-export default function SynthesizerInterface({ conversation, onConversationUpdate }) {
+export default function SynthesizerInterface({
+  conversation,
+  onConversationUpdate,
+  // Comment-related props
+  comments = [],
+  onSelectionChange,
+  onEditComment,
+  onDeleteComment,
+  activeCommentId,
+  onSetActiveComment,
+}) {
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('notes'); // 'notes' or 'conversation'
   const urlInputRef = useRef(null);
+  const conversationEndRef = useRef(null);
 
   // Get latest synthesizer message with notes
-  const latestNotes = React.useMemo(() => {
+  const latestNotes = useMemo(() => {
     if (!conversation?.messages) return null;
 
     for (let i = conversation.messages.length - 1; i >= 0; i--) {
@@ -29,12 +44,43 @@ export default function SynthesizerInterface({ conversation, onConversationUpdat
         return {
           notes: msg.notes,
           sourceTitle: msg.source_title || conversation.synthesizer_config?.source_title,
-          sourceType: msg.source_type || conversation.synthesizer_config?.source_type
+          sourceType: msg.source_type || conversation.synthesizer_config?.source_type,
+          sourceUrl: msg.source_url || conversation.synthesizer_config?.source_url,
+          // Support both new source_content and legacy source_content_preview
+          sourceContent: msg.source_content || msg.source_content_preview || null
         };
       }
     }
     return null;
   }, [conversation]);
+
+  // Get follow-up messages (conversation thread)
+  const followUpMessages = useMemo(() => {
+    if (!conversation?.messages) return [];
+    return conversation.messages.filter(
+      (msg) => msg.role === 'follow-up-user' || msg.role === 'follow-up-assistant'
+    );
+  }, [conversation]);
+
+  // Check if we have an active conversation
+  const hasConversation = followUpMessages.length > 0;
+
+  // Auto-switch to conversation view when new messages arrive
+  useEffect(() => {
+    if (hasConversation && viewMode === 'notes') {
+      setViewMode('conversation');
+    }
+  }, [followUpMessages.length]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (viewMode === 'conversation' && conversationEndRef.current) {
+      conversationEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [followUpMessages.length, viewMode]);
+
+  // Helper to get short model name
+  const getModelShortName = (model) => model?.split('/').pop() || model;
 
   // Auto-paste URL from clipboard on mount
   useEffect(() => {
@@ -125,17 +171,122 @@ export default function SynthesizerInterface({ conversation, onConversationUpdat
     }
   };
 
+  // Get pinned notes info for conversation view header
+  const pinnedNotesInfo = useMemo(() => {
+    if (!followUpMessages.length || !latestNotes) return [];
+    // Get note titles from the first follow-up user message's context
+    const firstMsg = followUpMessages.find((m) => m.role === 'follow-up-user');
+    if (!firstMsg?.context_segments) return [];
+    return firstMsg.context_segments
+      .filter((seg) => seg.note_title || seg.note_id)
+      .map((seg) => ({
+        id: seg.note_id,
+        title: seg.note_title || 'Note',
+      }));
+  }, [followUpMessages, latestNotes]);
+
   return (
     <div className="synthesizer-interface">
-      {/* Show NoteViewer if we have notes */}
+      {/* Show NoteViewer or Conversation if we have notes */}
       {latestNotes ? (
         <div className="synthesizer-content">
-          <NoteViewer
-            notes={latestNotes.notes}
-            sourceTitle={latestNotes.sourceTitle}
-            sourceType={latestNotes.sourceType}
-          />
+          {/* View toggle when conversation exists */}
+          {hasConversation && (
+            <div className="synth-view-toggle">
+              <button
+                className={`synth-toggle-btn ${viewMode === 'notes' ? 'active' : ''}`}
+                onClick={() => setViewMode('notes')}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="9" rx="1" />
+                  <rect x="14" y="3" width="7" height="9" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Notes ({latestNotes.notes.length})
+              </button>
+              <button
+                className={`synth-toggle-btn ${viewMode === 'conversation' ? 'active' : ''}`}
+                onClick={() => setViewMode('conversation')}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Conversation ({followUpMessages.length})
+              </button>
+            </div>
+          )}
 
+          {/* Notes View */}
+          {viewMode === 'notes' && (
+            <NoteViewer
+              notes={latestNotes.notes}
+              sourceTitle={latestNotes.sourceTitle}
+              sourceType={latestNotes.sourceType}
+              sourceUrl={conversation?.synthesizer_config?.source_url || latestNotes.sourceUrl}
+              sourceContent={latestNotes.sourceContent}
+              comments={comments}
+              onSelectionChange={onSelectionChange}
+              onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
+              activeCommentId={activeCommentId}
+              onSetActiveComment={onSetActiveComment}
+            />
+          )}
+
+          {/* Conversation View */}
+          {viewMode === 'conversation' && hasConversation && (
+            <div className="synth-conversation-view">
+              {/* Pinned Notes Header */}
+              {pinnedNotesInfo.length > 0 && (
+                <div className="pinned-notes-header">
+                  <div className="pinned-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2L12 12M12 12L8 8M12 12L16 8" />
+                      <rect x="4" y="14" width="16" height="8" rx="1" />
+                    </svg>
+                    Pinned Notes
+                  </div>
+                  <div className="pinned-notes-list">
+                    {pinnedNotesInfo.map((note, idx) => (
+                      <span key={note.id || idx} className="pinned-note-chip">
+                        {note.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Conversation Thread */}
+              <div className="synth-conversation-thread">
+                {followUpMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`synth-message ${msg.role === 'follow-up-user' ? 'user' : 'assistant'}`}
+                  >
+                    <div className="synth-message-header">
+                      {msg.role === 'follow-up-user' ? (
+                        <span className="synth-message-label">You</span>
+                      ) : (
+                        <span className="synth-message-label">{getModelShortName(msg.model)}</span>
+                      )}
+                    </div>
+                    <div className="synth-message-content markdown-content">
+                      {msg.loading ? (
+                        <div className="synth-loading">
+                          <div className="spinner"></div>
+                          <span>Thinking...</span>
+                        </div>
+                      ) : (
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div ref={conversationEndRef} />
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="synthesizer-input-container">

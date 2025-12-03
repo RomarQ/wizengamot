@@ -4,7 +4,8 @@
 
 export class SelectionHandler {
   /**
-   * Get the currently selected text and its context
+   * Get the currently selected text and its context.
+   * Supports both Council mode (stage, model) and Synthesizer mode (noteId, noteTitle).
    * @returns {Object|null} Selection object or null if no valid selection
    */
   static getSelection() {
@@ -29,9 +30,10 @@ export class SelectionHandler {
       container = container.parentElement;
     }
 
-    // Find the response container (has data attributes for message context)
+    // Find the response container (has data attributes for context)
+    // Look for data-source-type first (new format), fallback to data-message-index (legacy)
     let responseContainer = container;
-    while (responseContainer && !responseContainer.dataset.messageIndex) {
+    while (responseContainer && !responseContainer.dataset.sourceType && !responseContainer.dataset.messageIndex) {
       responseContainer = responseContainer.parentElement;
     }
 
@@ -45,14 +47,14 @@ export class SelectionHandler {
     // Get the full source content from the response container
     const sourceContent = responseContainer.textContent || "";
 
-    return {
+    // Determine source type (default to 'council' for backward compatibility)
+    const sourceType = responseContainer.dataset.sourceType || 'council';
+
+    // Base selection object
+    const baseSelection = {
       text: selectedText,
-      messageIndex: parseInt(responseContainer.dataset.messageIndex),
-      stage: parseInt(responseContainer.dataset.stage),
-      model: responseContainer.dataset.model,
-      // Store range for potential future use (highlighting, etc.)
+      sourceType,
       range: range.cloneRange(),
-      // Position for popup
       rect: {
         top: rect.top,
         left: rect.left,
@@ -61,9 +63,29 @@ export class SelectionHandler {
         width: rect.width,
         height: rect.height,
       },
-      // Full content of the source document for context
-      sourceContent: sourceContent,
+      sourceContent,
     };
+
+    // Add source-type specific fields
+    if (sourceType === 'council') {
+      return {
+        ...baseSelection,
+        messageIndex: parseInt(responseContainer.dataset.messageIndex),
+        stage: parseInt(responseContainer.dataset.stage),
+        model: responseContainer.dataset.model,
+      };
+    } else if (sourceType === 'synthesizer') {
+      return {
+        ...baseSelection,
+        noteId: responseContainer.dataset.noteId,
+        noteTitle: responseContainer.dataset.noteTitle,
+        sourceUrl: responseContainer.dataset.sourceUrl,
+        noteModel: responseContainer.dataset.noteModel,
+      };
+    }
+
+    // Unknown source type, return base selection
+    return baseSelection;
   }
 
   /**

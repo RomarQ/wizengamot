@@ -41,8 +41,17 @@ function CommentModal({ selection, onSave, onCancel }) {
           </div>
 
           <div className="comment-context">
-            <span className="context-badge">Stage {selection.stage}</span>
-            <span className="context-badge">{selection.model}</span>
+            {(selection.sourceType === 'council' || !selection.sourceType) ? (
+              <>
+                <span className="context-badge">Stage {selection.stage}</span>
+                <span className="context-badge">{selection.model}</span>
+              </>
+            ) : (
+              <>
+                <span className="context-badge note-badge">Note</span>
+                <span className="context-badge">{selection.noteTitle || 'Untitled'}</span>
+              </>
+            )}
           </div>
 
           <textarea

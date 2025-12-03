@@ -181,8 +181,17 @@ function CommitSidebar({
             <div className="comment-card-header">
               <span className="comment-number">#{index + 1}</span>
               <div className="comment-badges">
-                <span className="badge-stage">Stage {comment.stage}</span>
-                <span className="badge-model">{getModelShortName(comment.model)}</span>
+                {(comment.source_type || (comment.note_id ? 'synthesizer' : 'council')) === 'council' ? (
+                  <>
+                    <span className="badge-stage">Stage {comment.stage}</span>
+                    <span className="badge-model">{getModelShortName(comment.model)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="badge-note">Note</span>
+                    <span className="badge-title">{comment.note_title || 'Untitled'}</span>
+                  </>
+                )}
               </div>
               <div className="comment-card-actions">
                 {editingCommentId !== comment.id && (
@@ -276,7 +285,9 @@ function CommitSidebar({
                   <div className="context-stack-meta">
                     <span className="stack-index">#{index + 1}</span>
                     <span className="stack-model">
-                      Stage {segment.stage} · {getModelShortName(segment.model)}
+                      {(segment.sourceType || (segment.noteId ? 'synthesizer' : 'council')) === 'council'
+                        ? `Stage ${segment.stage} · ${getModelShortName(segment.model)}`
+                        : `Note · ${segment.noteTitle || 'Untitled'}`}
                     </span>
                     {segment.label && (
                       <span className="stack-label-pill">{segment.label}</span>

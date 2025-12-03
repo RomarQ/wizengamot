@@ -1,17 +1,87 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import ResponseWithComments from './ResponseWithComments';
+import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
 
 /**
  * NoteViewer displays Zettelkasten notes in two modes:
  * - Swipe view: Single note at a time with J/K navigation
  * - List view: All notes in sequence
+ *
+ * Supports commenting/highlighting on notes via ResponseWithComments.
  */
-export default function NoteViewer({ notes, sourceTitle, sourceType }) {
+export default function NoteViewer({
+  notes,
+  sourceTitle,
+  sourceType,
+  sourceUrl,
+  sourceContent,
+  // Comment-related props
+  comments = [],
+  onSelectionChange,
+  onEditComment,
+  onDeleteComment,
+  activeCommentId,
+  onSetActiveComment,
+}) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
   const [currentIndex, setCurrentIndex] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
+  const [showSourceInfo, setShowSourceInfo] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(null);
   const containerRef = useRef(null);
+  const sourceInfoRef = useRef(null);
+
+  // Close source info dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sourceInfoRef.current && !sourceInfoRef.current.contains(e.target)) {
+        setShowSourceInfo(false);
+      }
+    };
+    if (showSourceInfo) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSourceInfo]);
+
+  // Copy source content to clipboard
+  const handleCopySource = async () => {
+    if (!sourceContent) return;
+    try {
+      await navigator.clipboard.writeText(sourceContent);
+      setCopyFeedback('Copied!');
+      setTimeout(() => setCopyFeedback(null), 2000);
+    } catch (err) {
+      setCopyFeedback('Failed to copy');
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }
+  };
+
+  // Get label for source type
+  const getSourceTypeLabel = () => {
+    switch (sourceType) {
+      case 'youtube': return 'YouTube Transcript';
+      case 'podcast': return 'Podcast Transcript';
+      case 'article': return 'Article Content';
+      default: return 'Source Content';
+    }
+  };
+
+  // Handle text selection for comments
+  useEffect(() => {
+    if (!onSelectionChange) return;
+
+    const handleMouseUp = () => {
+      const selection = SelectionHandler.getSelection();
+      if (selection && selection.sourceType === 'synthesizer') {
+        onSelectionChange(selection);
+      }
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [onSelectionChange]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
@@ -74,6 +144,18 @@ export default function NoteViewer({ notes, sourceTitle, sourceType }) {
   const safeIndex = Math.min(currentIndex, notes.length - 1);
   const currentNote = notes[safeIndex];
 
+  // Filter comments for the current note (in swipe view)
+  const currentNoteComments = useMemo(() => {
+    if (!currentNote || !comments.length) return [];
+    return comments.filter((c) => c.note_id === currentNote.id);
+  }, [comments, currentNote]);
+
+  // Helper to get comments for a specific note (in list view)
+  const getCommentsForNote = useCallback(
+    (noteId) => comments.filter((c) => c.note_id === noteId),
+    [comments]
+  );
+
   // Extra safety check
   if (!currentNote) {
     return (
@@ -90,10 +172,60 @@ export default function NoteViewer({ notes, sourceTitle, sourceType }) {
         <div className="note-viewer-source">
           {sourceType && (
             <span className={`source-badge source-${sourceType}`}>
-              {sourceType === 'youtube' ? 'YouTube' : 'Article'}
+              {sourceType === 'youtube' ? 'YouTube' : sourceType === 'podcast' ? 'Podcast' : 'Article'}
             </span>
           )}
           {sourceTitle && <span className="source-title">{sourceTitle}</span>}
+
+          {/* Source Info Button */}
+          {(sourceUrl || sourceContent) && (
+            <div className="source-info-container" ref={sourceInfoRef}>
+              <button
+                className="source-info-btn"
+                onClick={() => setShowSourceInfo(!showSourceInfo)}
+                title="View source info"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+
+              {showSourceInfo && (
+                <div className="source-info-dropdown">
+                  {sourceUrl && (
+                    <a
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="source-info-item"
+                      onClick={() => setShowSourceInfo(false)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                      Open Source URL
+                    </a>
+                  )}
+                  {sourceContent && (
+                    <button
+                      className="source-info-item"
+                      onClick={handleCopySource}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      {copyFeedback || `Copy ${getSourceTypeLabel()}`}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="note-viewer-controls">
@@ -155,8 +287,20 @@ export default function NoteViewer({ notes, sourceTitle, sourceType }) {
               </div>
             )}
 
-            <div className="note-body markdown-content">
-              <ReactMarkdown>{currentNote.body}</ReactMarkdown>
+            <div className="note-body">
+              <ResponseWithComments
+                content={currentNote.body}
+                comments={currentNoteComments}
+                sourceType="synthesizer"
+                noteId={currentNote.id}
+                noteTitle={currentNote.title}
+                sourceUrl={sourceUrl}
+                noteModel={currentNote.source_model}
+                onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
+                activeCommentId={activeCommentId}
+                onSetActiveComment={onSetActiveComment}
+              />
             </div>
           </div>
 
@@ -215,8 +359,20 @@ export default function NoteViewer({ notes, sourceTitle, sourceType }) {
                 </div>
               )}
 
-              <div className="note-body markdown-content">
-                <ReactMarkdown>{note.body}</ReactMarkdown>
+              <div className="note-body">
+                <ResponseWithComments
+                  content={note.body}
+                  comments={getCommentsForNote(note.id)}
+                  sourceType="synthesizer"
+                  noteId={note.id}
+                  noteTitle={note.title}
+                  sourceUrl={sourceUrl}
+                  noteModel={note.source_model}
+                  onEditComment={onEditComment}
+                  onDeleteComment={onDeleteComment}
+                  activeCommentId={activeCommentId}
+                  onSetActiveComment={onSetActiveComment}
+                />
               </div>
             </div>
           ))}
@@ -256,8 +412,20 @@ export default function NoteViewer({ notes, sourceTitle, sourceType }) {
                 </div>
               )}
 
-              <div className="note-body markdown-content">
-                <ReactMarkdown>{currentNote.body}</ReactMarkdown>
+              <div className="note-body">
+                <ResponseWithComments
+                  content={currentNote.body}
+                  comments={currentNoteComments}
+                  sourceType="synthesizer"
+                  noteId={currentNote.id}
+                  noteTitle={currentNote.title}
+                  sourceUrl={sourceUrl}
+                  noteModel={currentNote.source_model}
+                  onEditComment={onEditComment}
+                  onDeleteComment={onDeleteComment}
+                  activeCommentId={activeCommentId}
+                  onSetActiveComment={onSetActiveComment}
+                />
               </div>
             </div>
 
