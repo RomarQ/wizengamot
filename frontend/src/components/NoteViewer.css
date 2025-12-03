@@ -1,7 +1,7 @@
 .note-viewer {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   background: #fafafa;
   outline: none; /* Hide focus outline since container is focusable for keyboard nav */
 }
@@ -112,7 +112,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 40px;
   overflow: hidden;
 }
 
@@ -120,9 +120,9 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  padding: 28px;
-  max-width: 600px;
+  padding: 32px 40px;
   width: 100%;
+  max-width: 900px;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -335,11 +335,11 @@
   }
 
   .swipe-view {
-    padding: 16px;
+    padding: 20px;
   }
 
   .note-card {
-    padding: 20px;
+    padding: 24px;
   }
 
   .note-title {
