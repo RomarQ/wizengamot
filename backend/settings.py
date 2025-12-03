@@ -5,7 +5,7 @@ Allows updating configuration (like API keys) without restarting the container.
 import json
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 # Config directory - defaults to data/config in Docker
 CONFIG_DIR = Path(os.getenv("CONFIG_DIR", "data/config"))
@@ -84,3 +84,79 @@ def get_api_key_source() -> str:
     if os.getenv("OPENROUTER_API_KEY"):
         return "environment"
     return "none"
+
+
+# Default model pool - these are the models available for selection
+DEFAULT_MODEL_POOL = [
+    "openai/gpt-5.1",
+    "google/gemini-3-pro-preview",
+    "anthropic/claude-sonnet-4.5",
+    "x-ai/grok-4.1-fast",
+    "moonshotai/kimi-k2-thinking",
+]
+
+DEFAULT_CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+
+
+def get_model_pool() -> List[str]:
+    """
+    Get the available model pool.
+    Priority: settings file > defaults
+    """
+    settings = load_settings()
+    return settings.get("model_pool", DEFAULT_MODEL_POOL)
+
+
+def set_model_pool(models: List[str]) -> None:
+    """Set the available model pool in settings file."""
+    settings = load_settings()
+    settings["model_pool"] = models
+    save_settings(settings)
+
+
+def get_council_models() -> List[str]:
+    """
+    Get the default council models.
+    Priority: settings file > model pool (all enabled by default)
+    """
+    settings = load_settings()
+    return settings.get("council_models", get_model_pool())
+
+
+def set_council_models(models: List[str]) -> None:
+    """Set the default council models in settings file."""
+    settings = load_settings()
+    settings["council_models"] = models
+    save_settings(settings)
+
+
+def get_chairman_model() -> str:
+    """
+    Get the default chairman model.
+    Priority: settings file > default
+    """
+    settings = load_settings()
+    return settings.get("chairman_model", DEFAULT_CHAIRMAN_MODEL)
+
+
+def set_chairman_model(model: str) -> None:
+    """Set the default chairman model in settings file."""
+    settings = load_settings()
+    settings["chairman_model"] = model
+    save_settings(settings)
+
+
+def get_default_prompt() -> Optional[str]:
+    """Get the default system prompt filename."""
+    settings = load_settings()
+    return settings.get("default_prompt")
+
+
+def set_default_prompt(prompt_filename: Optional[str]) -> None:
+    """Set the default system prompt filename."""
+    settings = load_settings()
+    if prompt_filename:
+        settings["default_prompt"] = prompt_filename
+    elif "default_prompt" in settings:
+        del settings["default_prompt"]
+    save_settings(settings)

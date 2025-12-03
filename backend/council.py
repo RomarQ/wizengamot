@@ -2,7 +2,7 @@
 
 from typing import List, Dict, Any, Tuple, Optional
 from .openrouter import query_models_parallel, query_model
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL
+from .config import get_council_models, get_chairman_model
 
 
 async def stage1_collect_responses(user_query: str, council_models: Optional[List[str]] = None, system_prompt: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -11,14 +11,14 @@ async def stage1_collect_responses(user_query: str, council_models: Optional[Lis
 
     Args:
         user_query: The user's question
-        council_models: Optional list of models to use (defaults to COUNCIL_MODELS from config)
+        council_models: Optional list of models to use (defaults to council models from settings)
         system_prompt: Optional system prompt to prepend to the conversation
 
     Returns:
         List of dicts with 'model' and 'response' keys
     """
     if council_models is None:
-        council_models = COUNCIL_MODELS
+        council_models = get_council_models()
 
     # Build messages with optional system prompt
     messages = []
@@ -58,7 +58,7 @@ async def stage2_collect_rankings(
         Tuple of (rankings list, label_to_model mapping)
     """
     if council_models is None:
-        council_models = COUNCIL_MODELS
+        council_models = get_council_models()
     # Create anonymized labels for responses (Response A, Response B, etc.)
     labels = [chr(65 + i) for i in range(len(stage1_results))]  # A, B, C, ...
 
@@ -144,7 +144,7 @@ async def stage3_synthesize_final(
         Dict with 'model' and 'response' keys
     """
     if chairman_model is None:
-        chairman_model = CHAIRMAN_MODEL
+        chairman_model = get_chairman_model()
     # Build comprehensive context for chairman
     stage1_text = "\n\n".join([
         f"Model: {result['model']}\nResponse: {result['response']}"

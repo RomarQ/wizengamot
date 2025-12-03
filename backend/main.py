@@ -69,8 +69,9 @@ async def root():
 async def get_config():
     """Get the current council configuration."""
     return {
-        "council_models": config.COUNCIL_MODELS,
-        "chairman_model": config.CHAIRMAN_MODEL,
+        "council_models": config.get_council_models(),
+        "chairman_model": config.get_chairman_model(),
+        "model_pool": config.get_model_pool(),
     }
 
 
@@ -109,6 +110,15 @@ async def get_conversation(conversation_id: str):
         conversation["prompt_title"] = storage.extract_prompt_title(conversation["system_prompt"])
 
     return conversation
+
+
+@app.delete("/api/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    """Delete a conversation."""
+    deleted = storage.delete_conversation(conversation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"success": True}
 
 
 @app.post("/api/conversations/{conversation_id}/message")
@@ -570,6 +580,95 @@ async def clear_api_key():
         "api_key_configured": settings.has_api_key_configured(),
         "api_key_source": settings.get_api_key_source()
     }
+
+
+# Model Configuration Endpoints
+
+class UpdateModelPoolRequest(BaseModel):
+    """Request to update the model pool."""
+    models: List[str]
+
+
+@app.get("/api/settings/models")
+async def get_model_settings():
+    """Get current model configuration."""
+    return {
+        "model_pool": settings.get_model_pool(),
+        "council_models": settings.get_council_models(),
+        "chairman_model": settings.get_chairman_model(),
+        "default_prompt": settings.get_default_prompt(),
+    }
+
+
+@app.put("/api/settings/model-pool")
+async def update_model_pool(request: UpdateModelPoolRequest):
+    """Update the available model pool."""
+    if not request.models or len(request.models) == 0:
+        raise HTTPException(status_code=400, detail="At least one model is required")
+
+    settings.set_model_pool(request.models)
+
+    # Also update council models to only include models in the new pool
+    current_council = settings.get_council_models()
+    filtered_council = [m for m in current_council if m in request.models]
+    if not filtered_council:
+        filtered_council = request.models  # Use all if none match
+    settings.set_council_models(filtered_council)
+
+    # Update chairman if not in new pool
+    chairman = settings.get_chairman_model()
+    if chairman not in request.models:
+        settings.set_chairman_model(request.models[0])
+
+    return {"success": True, "model_pool": request.models}
+
+
+class UpdateCouncilModelsRequest(BaseModel):
+    """Request to update the default council models."""
+    models: List[str]
+
+
+@app.put("/api/settings/council-models")
+async def update_council_models(request: UpdateCouncilModelsRequest):
+    """Update the default council models."""
+    if not request.models or len(request.models) == 0:
+        raise HTTPException(status_code=400, detail="At least one model is required")
+
+    settings.set_council_models(request.models)
+    return {"success": True, "council_models": request.models}
+
+
+class UpdateChairmanRequest(BaseModel):
+    """Request to update the default chairman model."""
+    model: str
+
+
+@app.put("/api/settings/chairman")
+async def update_chairman(request: UpdateChairmanRequest):
+    """Update the default chairman model."""
+    if not request.model:
+        raise HTTPException(status_code=400, detail="Model is required")
+
+    settings.set_chairman_model(request.model)
+    return {"success": True, "chairman_model": request.model}
+
+
+class UpdateDefaultPromptRequest(BaseModel):
+    """Request to update the default prompt."""
+    prompt_filename: Optional[str] = None
+
+
+@app.put("/api/settings/default-prompt")
+async def update_default_prompt(request: UpdateDefaultPromptRequest):
+    """Update the default system prompt."""
+    if request.prompt_filename:
+        # Verify the prompt exists
+        prompt = prompts.get_prompt(request.prompt_filename)
+        if prompt is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+    settings.set_default_prompt(request.prompt_filename)
+    return {"success": True, "default_prompt": request.prompt_filename}
 
 
 if __name__ == "__main__":

@@ -8,20 +8,32 @@ load_dotenv()
 # OpenRouter API key
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# Council members - list of OpenRouter model identifiers
-COUNCIL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4.1-fast",
-    "moonshotai/kimi-k2-thinking",
-]
-
-# Chairman model - synthesizes final response
-CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
-
 # OpenRouter API endpoint
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Data directory for conversation storage (configurable for Docker)
 DATA_DIR = os.getenv("DATA_DIR", "data/conversations")
+
+
+def get_council_models():
+    """Get council models from settings (with fallback to defaults)."""
+    from . import settings
+    return settings.get_council_models()
+
+
+def get_chairman_model():
+    """Get chairman model from settings (with fallback to default)."""
+    from . import settings
+    return settings.get_chairman_model()
+
+
+def get_model_pool():
+    """Get the available model pool from settings."""
+    from . import settings
+    return settings.get_model_pool()
+
+
+# Backwards compatibility - these are now functions
+# Use get_council_models() and get_chairman_model() for dynamic values
+COUNCIL_MODELS = None  # Deprecated - use get_council_models()
+CHAIRMAN_MODEL = None  # Deprecated - use get_chairman_model()

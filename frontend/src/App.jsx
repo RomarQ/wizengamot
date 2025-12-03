@@ -155,6 +155,19 @@ function App() {
     setContextSegments([]);
   };
 
+  const handleDeleteConversation = async (id) => {
+    try {
+      await api.deleteConversation(id);
+      setConversations(conversations.filter(c => c.id !== id));
+      if (currentConversationId === id) {
+        setCurrentConversationId(null);
+        setCurrentConversation(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+  };
+
   const handleSendMessage = async (content) => {
     if (!currentConversationId) return;
 
@@ -556,6 +569,7 @@ function App() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
         onOpenSettings={() => setShowSettingsModal(true)}
         collapsed={leftSidebarCollapsed}
         onToggleCollapse={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
@@ -578,12 +592,16 @@ function App() {
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
         onSubmit={handleConfigSubmit}
-        availableModels={availableConfig?.council_models}
+        availableModels={availableConfig?.model_pool || availableConfig?.council_models}
+        defaultSelectedModels={availableConfig?.council_models}
         defaultChairman={availableConfig?.chairman_model}
       />
       <SettingsModal
         isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
+        onClose={() => {
+          setShowSettingsModal(false);
+          loadConfig(); // Reload config to pick up any model changes
+        }}
       />
       {showPromptManager && (
         <PromptManager

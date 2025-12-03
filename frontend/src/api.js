@@ -67,6 +67,22 @@ export const api = {
   },
 
   /**
+   * Delete a conversation.
+   */
+  async deleteConversation(conversationId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete conversation');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message in a conversation.
    */
   async sendMessage(conversationId, content) {
@@ -377,6 +393,85 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to clear API key');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get model configuration settings.
+   */
+  async getModelSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/models`);
+    if (!response.ok) {
+      throw new Error('Failed to get model settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the model pool.
+   */
+  async updateModelPool(models) {
+    const response = await fetch(`${API_BASE}/api/settings/model-pool`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ models }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update model pool');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the default council models.
+   */
+  async updateCouncilModels(models) {
+    const response = await fetch(`${API_BASE}/api/settings/council-models`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ models }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update council models');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the default chairman model.
+   */
+  async updateChairman(model) {
+    const response = await fetch(`${API_BASE}/api/settings/chairman`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update chairman');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update the default system prompt.
+   */
+  async updateDefaultPrompt(promptFilename) {
+    const response = await fetch(`${API_BASE}/api/settings/default-prompt`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt_filename: promptFilename }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update default prompt');
     }
     return response.json();
   },

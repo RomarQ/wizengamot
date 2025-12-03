@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
 import './ConfigModal.css';
 
-export default function ConfigModal({ isOpen, onClose, onSubmit, availableModels, defaultChairman }) {
+export default function ConfigModal({ isOpen, onClose, onSubmit, availableModels, defaultSelectedModels, defaultChairman }) {
   const [selectedModels, setSelectedModels] = useState([]);
   const [chairmanModel, setChairmanModel] = useState('');
 
   useEffect(() => {
     if (isOpen && availableModels && availableModels.length > 0) {
-      // Default to all models selected
-      setSelectedModels(availableModels);
+      // Default to the configured default council models, or all if not specified
+      const defaultModels = defaultSelectedModels && defaultSelectedModels.length > 0
+        ? defaultSelectedModels.filter(m => availableModels.includes(m))
+        : availableModels;
+      setSelectedModels(defaultModels);
       setChairmanModel(defaultChairman || availableModels[0]);
     }
-  }, [isOpen, availableModels, defaultChairman]);
+  }, [isOpen, availableModels, defaultSelectedModels, defaultChairman]);
 
   if (!isOpen) return null;
 

@@ -35,16 +35,16 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 ### Backend Structure (`backend/`)
 
 **`config.py`**
-- Contains `COUNCIL_MODELS` (list of OpenRouter model identifiers)
-- Contains `CHAIRMAN_MODEL` (model that synthesizes final answer)
+- Dynamic model configuration via functions: `get_council_models()`, `get_chairman_model()`, `get_model_pool()`
 - Uses environment variable `OPENROUTER_API_KEY` from `.env`
 - Backend runs on **port 8001** in development (Docker uses nginx on port 80/8080)
 
 **`settings.py`**
-- Runtime settings management (allows API key updates without restart)
+- Runtime settings management (allows updates without restart)
 - Settings stored in `data/config/settings.json`
-- Priority: settings file > environment variable
-- Used primarily for Docker deployments where env vars are baked in
+- Manages: API key, model pool, council models, chairman model, default prompt
+- Priority: settings file > environment variable > defaults
+- Functions: `get_model_pool()`, `get_council_models()`, `get_chairman_model()`, `get_default_prompt()`
 
 **`prompts.py`**
 - System prompts stored as markdown files in `prompts/` directory
@@ -85,7 +85,9 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - FastAPI app with CORS enabled for localhost:5173 and localhost:3000
 - POST `/api/conversations/{id}/message` returns metadata in addition to stages
 - POST `/api/conversations/{id}/message/stream` for SSE streaming responses
+- DELETE `/api/conversations/{id}` deletes a conversation
 - Metadata includes: label_to_model mapping and aggregate_rankings
+- Settings endpoints: `/api/settings/models`, `/api/settings/model-pool`, `/api/settings/council-models`, `/api/settings/chairman`, `/api/settings/default-prompt`
 - Additional endpoints: `/api/prompts`, `/api/settings`, `/api/conversations/{id}/comments`, `/api/conversations/{id}/threads`
 
 ### Frontend Structure (`frontend/src/`)
@@ -135,7 +137,10 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 
 **Prompt & Settings Components**
 - **`PromptSelector.jsx`**, **`PromptEditor.jsx`**, **`PromptManager.jsx`**: System prompt management UI
-- **`SettingsModal.jsx`**: Runtime API key configuration (for Docker deployments)
+- **`SettingsModal.jsx`**: Full settings panel with 3 tabs:
+  - API Key: OpenRouter key configuration
+  - Models: Model pool management, default council selection, chairman selection
+  - Prompts: Default prompt selection, create/edit/delete prompts
 - **`ConfigModal.jsx`**: Council/chairman model configuration per conversation
 
 **Styling (`*.css`)**
@@ -189,7 +194,11 @@ All backend modules use relative imports (e.g., `from .config import ...`) not a
 All ReactMarkdown components must be wrapped in `<div className="markdown-content">` for proper spacing. This class is defined globally in `index.css`.
 
 ### Model Configuration
-Models are hardcoded in `backend/config.py`. Chairman can be same or different from council members. The current default is Gemini as chairman per user preference.
+Models are configurable via Settings UI or `data/config/settings.json`. The system supports:
+- **Model Pool**: Available models for selection (add/remove via UI)
+- **Council Models**: Which models participate (subset of pool)
+- **Chairman Model**: Synthesizes final answer (can be same as council member)
+Default model pool and chairman defined in `backend/settings.py`.
 
 ## Common Gotchas
 
