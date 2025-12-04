@@ -42,6 +42,9 @@ function App() {
   // Search modal state
   const [showSearchModal, setShowSearchModal] = useState(false);
 
+  // Title animation state
+  const [animatingTitleId, setAnimatingTitleId] = useState(null);
+
   const getModelShortName = useCallback((model) => {
     return model?.split('/')[1] || model;
   }, []);
@@ -342,6 +345,8 @@ function App() {
             break;
 
           case 'title_complete':
+            // Set animation state before reloading
+            setAnimatingTitleId(currentConversationId);
             // Reload conversations to get updated title
             loadConversations();
             break;
@@ -706,8 +711,12 @@ function App() {
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
         onOpenSettings={() => setShowSettingsModal(true)}
+        onOpenSearch={() => setShowSearchModal(true)}
         collapsed={leftSidebarCollapsed}
         onToggleCollapse={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+        isLoading={isLoading}
+        animatingTitleId={animatingTitleId}
+        onTitleAnimationComplete={() => setAnimatingTitleId(null)}
       />
       {currentConversation?.mode === 'synthesizer' ? (
         <SynthesizerInterface

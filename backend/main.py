@@ -10,7 +10,7 @@ import json
 import asyncio
 
 from . import storage, config, prompts, threads, settings, content, synthesizer, search
-from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
 
@@ -802,9 +802,10 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         content_result.get("title")
     )
 
-    # Update title if first message and we have a title from content
-    if is_first_message and content_result.get("title"):
-        storage.update_conversation_title(conversation_id, content_result["title"][:100])
+    # Generate title from notes if first message
+    if is_first_message and result.get("notes"):
+        title = await generate_synthesizer_title(result["notes"])
+        storage.update_conversation_title(conversation_id, title)
 
     return {
         "notes": result["notes"],

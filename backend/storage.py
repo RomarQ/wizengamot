@@ -135,13 +135,20 @@ def list_conversations() -> List[Dict[str, Any]]:
             with open(path, 'r') as f:
                 data = json.load(f)
                 # Return metadata only
-                conversations.append({
+                conv_meta = {
                     "id": data["id"],
                     "created_at": data["created_at"],
                     "title": data.get("title", "New Conversation"),
                     "message_count": len(data["messages"]),
                     "mode": data.get("mode", "council")  # Default to council for backwards compat
-                })
+                }
+                # For synthesizer, extract source_type from first assistant message
+                if conv_meta["mode"] == "synthesizer":
+                    for msg in data.get("messages", []):
+                        if msg.get("role") == "assistant" and msg.get("source_type"):
+                            conv_meta["source_type"] = msg["source_type"]
+                            break
+                conversations.append(conv_meta)
 
     # Sort by creation time, newest first
     conversations.sort(key=lambda x: x["created_at"], reverse=True)

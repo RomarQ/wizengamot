@@ -310,6 +310,54 @@ Title:"""
     return title
 
 
+async def generate_synthesizer_title(notes: list) -> str:
+    """
+    Generate a short title for a synthesizer conversation based on notes.
+
+    Args:
+        notes: List of note objects with 'title' and 'body' fields
+
+    Returns:
+        A short title (3-5 words)
+    """
+    # Combine first few notes for context
+    notes_parts = []
+    for note in notes[:5]:
+        title = note.get("title", "")
+        body = note.get("body", "") or note.get("content", "")
+        if title or body:
+            notes_parts.append(f"{title}\n{body}" if title else body)
+
+    notes_content = "\n\n".join(notes_parts)[:2000]
+
+    if not notes_content.strip():
+        return "New Conversation"
+
+    title_prompt = f"""Generate a very short title (3-5 words maximum) that summarizes the main topic of these notes.
+The title should be concise and descriptive. Do not use quotes or punctuation in the title.
+
+Notes:
+{notes_content}
+
+Title:"""
+
+    messages = [{"role": "user", "content": title_prompt}]
+
+    # Use gemini-2.5-flash for title generation (fast and cheap)
+    response = await query_model("google/gemini-2.5-flash", messages, timeout=30.0)
+
+    if response is None:
+        return "New Conversation"
+
+    title = response.get('content', 'New Conversation').strip()
+    title = title.strip('"\'')
+
+    if len(title) > 50:
+        title = title[:47] + "..."
+
+    return title
+
+
 async def run_full_council(
     user_query: str,
     council_models: Optional[List[str]] = None,
