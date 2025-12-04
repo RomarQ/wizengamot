@@ -148,7 +148,7 @@ export default function SynthesizerInterface({
       // Update conversation with new message
       if (onConversationUpdate) {
         const updatedConversation = await api.getConversation(conversation.id);
-        onConversationUpdate(updatedConversation);
+        onConversationUpdate(updatedConversation, result.conversation_title);
       }
 
       // Clear inputs

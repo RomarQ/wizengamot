@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -13,11 +13,11 @@
 }
 
 .search-modal {
-  background: #fff;
+  background: var(--bg-elevated);
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px var(--shadow);
   overflow: hidden;
 }
 
@@ -25,14 +25,14 @@
   display: flex;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-primary);
   gap: 12px;
 }
 
 .search-icon {
   width: 20px;
   height: 20px;
-  color: #888;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
@@ -41,27 +41,28 @@
   border: none;
   outline: none;
   font-size: 18px;
-  color: #333;
+  color: var(--text-primary);
   background: transparent;
 }
 
 .search-input::placeholder {
-  color: #999;
+  color: var(--text-muted);
 }
 
 .search-hint {
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .search-hint kbd {
-  background: #f0f0f0;
-  border: 1px solid #ddd;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   padding: 2px 6px;
   font-family: inherit;
   font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .search-results {
@@ -69,19 +70,79 @@
   overflow-y: auto;
 }
 
+/* Action items section */
+.search-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+}
+
+.search-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-secondary);
+}
+
+.search-action:hover,
+.search-action.selected {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.search-action .action-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.search-action.selected .action-icon {
+  color: var(--primary);
+}
+
+.search-action .action-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.search-action .action-badge {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.search-divider {
+  height: 1px;
+  background: var(--border-primary);
+}
+
 .search-loading,
 .search-empty,
 .search-hint-text {
   padding: 24px;
   text-align: center;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
 .search-result {
   padding: 12px 20px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-secondary);
   transition: background 0.1s;
 }
 
@@ -91,45 +152,11 @@
 
 .search-result:hover,
 .search-result.selected {
-  background: #f5f8ff;
+  background: var(--primary-lighter);
 }
 
 .search-result.selected {
-  background: #e8f0fe;
-}
-
-/* New Conversation item */
-.search-result-new {
-  background: #f8faf8;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.search-result-new:hover,
-.search-result-new.selected {
-  background: #e8f5e9;
-}
-
-.search-result-new .search-result-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.search-result-new .new-icon {
-  width: 18px;
-  height: 18px;
-  color: #4caf50;
-  flex-shrink: 0;
-}
-
-.search-result-new .search-result-title {
-  color: #2e7d32;
-  font-weight: 600;
-}
-
-.search-result-hint {
-  color: #888;
-  font-size: 12px;
+  background: var(--primary-light);
 }
 
 .search-result-header {
@@ -143,7 +170,7 @@
 .search-result-title {
   font-size: 15px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,13 +187,13 @@
 }
 
 .search-result-mode.council {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--council-badge-bg);
+  color: var(--council-badge-text);
 }
 
 .search-result-mode.synthesizer {
-  background: #f3e5f5;
-  color: #7b1fa2;
+  background: var(--synthesizer-badge-bg);
+  color: var(--synthesizer-badge-text);
 }
 
 .search-result-meta {
@@ -174,9 +201,9 @@
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .search-result-score {
-  color: #4a90e2;
+  color: var(--primary);
 }

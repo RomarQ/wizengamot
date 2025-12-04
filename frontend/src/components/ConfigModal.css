@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,20 +12,20 @@
 }
 
 .modal-content {
-  background: #fff;
+  background: var(--bg-elevated);
   border-radius: 8px;
   padding: 24px;
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--shadow);
 }
 
 .modal-content h2 {
   margin: 0 0 20px 0;
   font-size: 20px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .modal-section {
@@ -35,12 +35,12 @@
 .modal-section h3 {
   font-size: 16px;
   margin: 0 0 8px 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .section-description {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   margin: 0 0 12px 0;
 }
 
@@ -54,15 +54,15 @@
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .checkbox-label:hover {
-  background: #f0f0f0;
+  background: var(--bg-hover);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -72,23 +72,23 @@
 
 .checkbox-label span {
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .chairman-select {
   width: 100%;
   padding: 10px;
   font-size: 14px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
-  background: #fff;
-  color: #333;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .chairman-select:focus {
   outline: none;
-  border-color: #4a90e2;
+  border-color: var(--border-focus);
 }
 
 .modal-actions {
@@ -97,7 +97,7 @@
   justify-content: flex-end;
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-primary);
 }
 
 .btn-primary,
@@ -112,22 +112,22 @@
 }
 
 .btn-primary {
-  background: #4a90e2;
-  border-color: #4a90e2;
-  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-inverse);
 }
 
 .btn-primary:hover {
-  background: #357abd;
-  border-color: #357abd;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .btn-secondary {
-  background: #fff;
-  border-color: #e0e0e0;
-  color: #333;
+  background: var(--bg-elevated);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
 }
 
 .btn-secondary:hover {
-  background: #f5f5f5;
+  background: var(--bg-hover);
 }

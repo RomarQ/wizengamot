@@ -1,9 +1,9 @@
 .highlight-popup {
   position: absolute;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--shadow);
   padding: 12px;
   max-width: 300px;
   z-index: 1000;
@@ -24,21 +24,21 @@
   align-items: center;
   margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .highlight-popup-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #666;
+  color: var(--text-secondary);
   letter-spacing: 0.5px;
 }
 
 .highlight-popup-delete {
   background: none;
   border: none;
-  color: #999;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
@@ -53,12 +53,12 @@
 }
 
 .highlight-popup-delete:hover {
-  background-color: #ffebee;
-  color: #e74c3c;
+  background-color: var(--error-bg);
+  color: var(--error);
 }
 
 .highlight-popup-content {
-  color: #333;
+  color: var(--text-primary);
   font-size: 13px;
   line-height: 1.5;
   margin-bottom: 8px;
@@ -74,15 +74,15 @@
 }
 
 .highlight-popup-stage {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: var(--council-badge-bg);
+  color: var(--council-badge-text);
   padding: 2px 6px;
   border-radius: 3px;
   font-weight: 500;
 }
 
 .highlight-popup-time {
-  color: #999;
+  color: var(--text-muted);
 }
 
 .highlight-popup-arrow {
@@ -91,7 +91,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid white;
+  border-bottom: 6px solid var(--bg-elevated);
   top: -6px;
   left: 20px;
 }
@@ -103,26 +103,26 @@
   height: 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-bottom: 7px solid #ddd;
+  border-bottom: 7px solid var(--border-primary);
   top: 1px;
   left: -7px;
 }
 
 /* Highlight styling for selected text */
 .text-highlight {
-  background-color: #fff3cd;
-  border-bottom: 2px solid #ffc107;
+  background-color: var(--highlight-bg);
+  border-bottom: 2px solid var(--highlight-border);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s;
 }
 
 .text-highlight:hover {
-  background-color: #ffe69c;
+  background-color: var(--highlight-hover);
 }
 
 /* Active highlight when popup is shown */
 .text-highlight.active {
-  background-color: #ffe69c;
-  border-bottom-color: #ff9800;
+  background-color: var(--highlight-hover);
+  border-bottom-color: var(--highlight-active-border);
 }

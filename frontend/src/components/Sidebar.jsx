@@ -32,12 +32,12 @@ function TypewriterTitle({ text, isAnimating, onAnimationComplete }) {
     };
   }, [isAnimating, text, onAnimationComplete]);
 
-  // Update text when not animating and text changes
+  // Update text when not actively animating and text changes
   useEffect(() => {
-    if (!isAnimating && !animatingRef.current) {
+    if (!animatingRef.current) {
       setDisplayText(text);
     }
-  }, [text, isAnimating]);
+  }, [text]);
 
   return <>{displayText || text}</>;
 }

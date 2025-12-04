@@ -12,9 +12,11 @@ import SearchModal from './components/SearchModal';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
 import { buildHighlightsText, buildContextStackText } from './utils/tokenizer';
+import { useTheme } from './contexts/ThemeContext';
 import './App.css';
 
 function App() {
+  const { theme, toggleTheme } = useTheme();
   const [conversations, setConversations] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversation, setCurrentConversation] = useState(null);
@@ -871,6 +873,12 @@ function App() {
           setShowSearchModal(false);
         }}
         onNewConversation={handleNewConversation}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onOpenSettings={() => {
+          setShowSearchModal(false);
+          setShowSettingsModal(true);
+        }}
       />
     </div>
   );
