@@ -18,6 +18,21 @@ export const api = {
   },
 
   /**
+   * Search conversations by semantic similarity.
+   * @param {string} query - Search query
+   * @param {number} limit - Maximum results to return
+   */
+  async searchConversations(query, limit = 10) {
+    const response = await fetch(
+      `${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to search conversations');
+    }
+    return response.json();
+  },
+
+  /**
    * List all conversations.
    */
   async listConversations() {

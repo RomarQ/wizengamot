@@ -8,6 +8,7 @@ import CommentModal from './components/CommentModal';
 import CommitSidebar from './components/CommitSidebar';
 import ModeSelector from './components/ModeSelector';
 import SynthesizerInterface from './components/SynthesizerInterface';
+import SearchModal from './components/SearchModal';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
 import { buildHighlightsText, buildContextStackText } from './utils/tokenizer';
@@ -37,6 +38,9 @@ function App() {
 
   // Sidebar collapse states
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+
+  // Search modal state
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   const getModelShortName = useCallback((model) => {
     return model?.split('/')[1] || model;
@@ -113,6 +117,18 @@ function App() {
   useEffect(() => {
     loadConversations();
     loadConfig();
+  }, []);
+
+  // Global Cmd+K keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearchModal(s => !s);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const loadConfig = async () => {
@@ -790,6 +806,15 @@ function App() {
           {`Review (${totalContextItems})`}
         </button>
       )}
+      <SearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectConversation={(id) => {
+          handleSelectConversation(id);
+          setShowSearchModal(false);
+        }}
+        onNewConversation={handleNewConversation}
+      />
     </div>
   );
 }

@@ -30,6 +30,10 @@ docker compose up -d             # Run container on port 8080
 
 LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively answer user questions via OpenRouter. The key innovation is anonymized peer review in Stage 2, preventing models from playing favorites.
 
+**Two Modes:**
+- **Council**: Multi-model deliberation with peer ranking (Stage 1 → Stage 2 → Stage 3)
+- **Synthesizer**: Transform URLs (YouTube, articles) into Zettelkasten notes
+
 ## Architecture
 
 ### Backend Structure (`backend/`)
@@ -89,6 +93,15 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Metadata includes: label_to_model mapping and aggregate_rankings
 - Settings endpoints: `/api/settings/models`, `/api/settings/model-pool`, `/api/settings/council-models`, `/api/settings/chairman`, `/api/settings/default-prompt`
 - Additional endpoints: `/api/prompts`, `/api/settings`, `/api/conversations/{id}/comments`, `/api/conversations/{id}/threads`
+- GET `/api/search?q=<query>&limit=<n>` for semantic search across conversations
+
+**`search.py`**
+- Semantic search using fastembed (ONNX-based local embeddings)
+- Model: `BAAI/bge-small-en-v1.5` (384 dimensions, ~50MB)
+- Index stored in `data/search_index.pkl` (single pickle file)
+- Lazy indexing: builds on first search, caches in memory
+- Scoring: 70% semantic similarity + 30% recency (30-day half-life decay)
+- Extracts searchable content: titles, user messages, stage1/stage3 responses, synthesizer notes
 
 ### Frontend Structure (`frontend/src/`)
 
@@ -97,6 +110,7 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
 - Handles message sending and metadata storage
 - Important: metadata is stored in the UI state for display but not persisted to backend JSON
 - Manages context stack (pinned segments) for follow-up threads
+- Global keyboard shortcut: **Cmd+K** opens search modal
 
 **`api.js`**
 - API client with automatic base URL switching (localhost:8001 in dev, relative URLs in Docker)
@@ -142,6 +156,19 @@ LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively
   - Models: Model pool management, default council selection, chairman selection
   - Prompts: Default prompt selection, create/edit/delete prompts
 - **`ConfigModal.jsx`**: Council/chairman model configuration per conversation
+
+**Search & Navigation Components**
+- **`SearchModal.jsx`**: Cmd+K search modal with semantic search
+  - First option always "New Conversation" (opens ModeSelector)
+  - Arrow keys to navigate, Enter to select, Escape to close
+  - 200ms debounced search with real-time results
+- **`ModeSelector.jsx`**: Choose between Council and Synthesizer modes
+  - Left/right arrows to switch, Enter to confirm
+  - Visual selection highlight
+
+**Synthesizer Components**
+- **`SynthesizerInterface.jsx`**: URL-to-Zettelkasten notes interface
+- **`NoteViewer.jsx`**: Display generated notes with focus mode
 
 **Styling (`*.css`)**
 - Light mode theme (not dark mode)

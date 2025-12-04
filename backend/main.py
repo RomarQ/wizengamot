@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer
+from . import storage, config, prompts, threads, settings, content, synthesizer, search
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -84,6 +84,13 @@ async def get_config():
         "chairman_model": config.get_chairman_model(),
         "model_pool": config.get_model_pool(),
     }
+
+
+@app.get("/api/search")
+async def search_conversations(q: str, limit: int = 10):
+    """Search conversations by semantic similarity + recency."""
+    results = search.search(q, limit)
+    return {"results": results, "query": q}
 
 
 @app.get("/api/conversations", response_model=List[ConversationMetadata])

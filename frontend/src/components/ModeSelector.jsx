@@ -1,21 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './ModeSelector.css';
 
 /**
  * Mode selection screen shown when creating a new conversation.
  * Two-card layout for choosing between Council and Synthesizer modes.
+ * Supports keyboard navigation: left/right arrows, Enter to select, Escape to cancel.
  */
 export default function ModeSelector({ onSelect, onCancel }) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const modes = ['council', 'synthesizer'];
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    // Focus the container for keyboard events
+    if (containerRef.current) {
+      containerRef.current.focus();
+    }
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setSelectedIndex(0);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setSelectedIndex(1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      onSelect(modes[selectedIndex]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
   return (
-    <div className="mode-selector-overlay">
+    <div
+      className="mode-selector-overlay"
+      ref={containerRef}
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
+    >
       <div className="mode-selector-container">
         <h2 className="mode-selector-title">Start a New Conversation</h2>
         <p className="mode-selector-subtitle">Choose how you want to interact with the council</p>
+        <p className="mode-selector-hint">Use arrow keys to select, Enter to confirm</p>
 
         <div className="mode-cards">
           <button
-            className="mode-card mode-card-council"
+            className={`mode-card mode-card-council ${selectedIndex === 0 ? 'selected' : ''}`}
             onClick={() => onSelect('council')}
+            onMouseEnter={() => setSelectedIndex(0)}
           >
             <div className="mode-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -40,8 +75,9 @@ export default function ModeSelector({ onSelect, onCancel }) {
           </button>
 
           <button
-            className="mode-card mode-card-synthesizer"
+            className={`mode-card mode-card-synthesizer ${selectedIndex === 1 ? 'selected' : ''}`}
             onClick={() => onSelect('synthesizer')}
+            onMouseEnter={() => setSelectedIndex(1)}
           >
             <div className="mode-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
