@@ -168,12 +168,23 @@ export const api = {
   },
 
   /**
-   * List all available prompts.
+   * List all available prompts (with labels).
    */
   async listPrompts() {
     const response = await fetch(`${API_BASE}/api/prompts`);
     if (!response.ok) {
       throw new Error('Failed to list prompts');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get prompt labels mapping (title -> label).
+   */
+  async getPromptLabels() {
+    const response = await fetch(`${API_BASE}/api/prompts/labels`);
+    if (!response.ok) {
+      throw new Error('Failed to get prompt labels');
     }
     return response.json();
   },

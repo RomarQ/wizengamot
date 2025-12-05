@@ -239,7 +239,7 @@
 .conversation-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: var(--text-tertiary);
   font-size: 12px;
 }
@@ -247,6 +247,34 @@
 .conversation-meta svg {
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+.meta-timestamp {
+  color: var(--text-muted);
+}
+
+.meta-separator {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.source-type-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.prompt-label-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--primary-light);
+  color: var(--primary);
+  margin-left: 2px;
+  font-weight: 500;
 }
 
 .sidebar-footer {

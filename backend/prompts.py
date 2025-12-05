@@ -2,11 +2,19 @@
 Prompt management for system prompts stored as markdown files.
 """
 import os
+import json
 from pathlib import Path
 from typing import List, Dict, Optional
 
 # Prompts directory - configurable for Docker
 PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", "prompts"))
+
+# Config directory for labels storage
+CONFIG_DIR = Path(os.getenv("CONFIG_DIR", "data/config"))
+LABELS_FILE = CONFIG_DIR / "prompt_labels.json"
+
+# Cheap model for generating labels
+LABEL_MODEL = "openai/gpt-4.1-mini"
 
 def ensure_prompts_dir():
     """Ensure the prompts directory exists."""
@@ -134,4 +142,155 @@ def delete_prompt(filename: str) -> bool:
         raise ValueError(f"Prompt file '{filename}' does not exist")
 
     filepath.unlink()
+
+    # Also remove label if exists
+    labels = load_labels()
+    if filename in labels:
+        del labels[filename]
+        save_labels(labels)
+
     return True
+
+
+# =============================================================================
+# Prompt Label Management
+# =============================================================================
+
+def ensure_config_dir():
+    """Ensure the config directory exists."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_labels() -> Dict[str, str]:
+    """Load prompt labels from file."""
+    if not LABELS_FILE.exists():
+        return {}
+    try:
+        return json.loads(LABELS_FILE.read_text())
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+
+def save_labels(labels: Dict[str, str]) -> None:
+    """Save prompt labels to file."""
+    ensure_config_dir()
+    LABELS_FILE.write_text(json.dumps(labels, indent=2))
+
+
+def get_label(filename: str) -> Optional[str]:
+    """Get cached label for a prompt."""
+    return load_labels().get(filename)
+
+
+def set_label(filename: str, label: str) -> None:
+    """Set label for a prompt."""
+    labels = load_labels()
+    labels[filename] = label
+    save_labels(labels)
+
+
+async def generate_label(title: str, content: str) -> str:
+    """
+    Generate a single-word label using a cheap LLM.
+
+    Args:
+        title: The prompt title
+        content: The prompt content
+
+    Returns:
+        A single-word label (capitalized)
+    """
+    from .openrouter import query_model
+
+    messages = [{
+        "role": "user",
+        "content": f"""Generate a single word (one word only, no punctuation) that best categorizes this system prompt. The word should be a noun or adjective that captures the essence of the prompt's purpose.
+
+Title: {title}
+Content preview: {content[:500]}
+
+Reply with exactly one word:"""
+    }]
+
+    try:
+        result = await query_model(LABEL_MODEL, messages, timeout=10.0)
+        if result and result.get("content"):
+            # Clean up response - extract single word
+            label = result["content"].strip().split()[0].strip('.,!?:;"\'')
+            return label.capitalize()
+    except Exception as e:
+        print(f"Error generating label: {e}")
+
+    return "General"  # Fallback
+
+
+async def list_prompts_with_labels() -> List[Dict[str, str]]:
+    """
+    List all prompts with their labels.
+    Lazily generates labels for prompts that don't have one.
+    """
+    import asyncio
+
+    prompts_list = list_prompts()
+    labels = load_labels()
+    pending_labels = []
+
+    for prompt in prompts_list:
+        if prompt["filename"] in labels:
+            prompt["short_label"] = labels[prompt["filename"]]
+        else:
+            # Queue for lazy generation
+            pending_labels.append(prompt)
+            prompt["short_label"] = None
+
+    # Generate missing labels (one-time migration for existing prompts)
+    if pending_labels:
+        tasks = [generate_label(p["title"], p["content"]) for p in pending_labels]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for prompt, label in zip(pending_labels, results):
+            if isinstance(label, str):
+                set_label(prompt["filename"], label)
+                prompt["short_label"] = label
+            else:
+                # On error, use a fallback
+                prompt["short_label"] = "General"
+
+    return prompts_list
+
+
+async def create_prompt_with_label(title: str, content: str) -> Dict[str, str]:
+    """
+    Create a new prompt and generate its label.
+
+    Args:
+        title: The prompt title
+        content: The prompt content
+
+    Returns:
+        Dict with filename, title, content, and short_label
+    """
+    prompt = create_prompt(title, content)
+
+    # Generate and store label
+    label = await generate_label(title, content)
+    set_label(prompt["filename"], label)
+    prompt["short_label"] = label
+
+    return prompt
+
+
+def get_labels_mapping() -> Dict[str, str]:
+    """
+    Get mapping of prompt titles to labels.
+    This is used to lookup labels by title (since conversations store full prompt content).
+    """
+    prompts_list = list_prompts()
+    labels = load_labels()
+
+    title_to_label = {}
+    for prompt in prompts_list:
+        if prompt["filename"] in labels:
+            title_to_label[prompt["title"]] = labels[prompt["filename"]]
+
+    return title_to_label

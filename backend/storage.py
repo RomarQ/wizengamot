@@ -142,6 +142,11 @@ def list_conversations() -> List[Dict[str, Any]]:
                     "message_count": len(data["messages"]),
                     "mode": data.get("mode", "council")  # Default to council for backwards compat
                 }
+                # For council conversations, extract prompt title from system_prompt
+                if conv_meta["mode"] == "council" and data.get("system_prompt"):
+                    prompt_title = extract_prompt_title(data["system_prompt"])
+                    if prompt_title:
+                        conv_meta["prompt_title"] = prompt_title
                 # For synthesizer, extract source_type from first assistant message
                 if conv_meta["mode"] == "synthesizer":
                     for msg in data.get("messages", []):

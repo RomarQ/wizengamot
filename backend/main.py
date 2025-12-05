@@ -545,9 +545,15 @@ async def continue_thread(conversation_id: str, thread_id: str, request: Continu
 # Prompt Management Endpoints
 
 @app.get("/api/prompts")
-async def list_prompts():
-    """List all available system prompts."""
-    return prompts.list_prompts()
+async def list_prompts_endpoint():
+    """List all available system prompts with their labels."""
+    return await prompts.list_prompts_with_labels()
+
+
+@app.get("/api/prompts/labels")
+async def get_prompt_labels():
+    """Get mapping of prompt titles to labels."""
+    return prompts.get_labels_mapping()
 
 
 @app.get("/api/prompts/{filename}")
@@ -566,10 +572,10 @@ class CreatePromptRequest(BaseModel):
 
 
 @app.post("/api/prompts")
-async def create_prompt(request: CreatePromptRequest):
-    """Create a new prompt file."""
+async def create_prompt_endpoint(request: CreatePromptRequest):
+    """Create a new prompt file with auto-generated label."""
     try:
-        return prompts.create_prompt(request.title, request.content)
+        return await prompts.create_prompt_with_label(request.title, request.content)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

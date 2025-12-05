@@ -47,6 +47,9 @@ function App() {
   // Title animation state
   const [animatingTitleId, setAnimatingTitleId] = useState(null);
 
+  // Prompt labels for sidebar display
+  const [promptLabels, setPromptLabels] = useState({});
+
   const getModelShortName = useCallback((model) => {
     return model?.split('/')[1] || model;
   }, []);
@@ -118,10 +121,11 @@ function App() {
     return segments;
   }, [comments, contextSegments, getModelShortName]);
 
-  // Load conversations and config on mount
+  // Load conversations, config, and prompt labels on mount
   useEffect(() => {
     loadConversations();
     loadConfig();
+    loadPromptLabels();
   }, []);
 
   // Global keyboard shortcuts
@@ -150,6 +154,15 @@ function App() {
       setAvailableConfig(config);
     } catch (error) {
       console.error('Failed to load config:', error);
+    }
+  };
+
+  const loadPromptLabels = async () => {
+    try {
+      const labels = await api.getPromptLabels();
+      setPromptLabels(labels);
+    } catch (error) {
+      console.error('Failed to load prompt labels:', error);
     }
   };
 
@@ -760,6 +773,7 @@ function App() {
         isLoading={isLoading}
         animatingTitleId={animatingTitleId}
         onTitleAnimationComplete={() => setAnimatingTitleId(null)}
+        promptLabels={promptLabels}
       />
       {currentConversation?.mode === 'synthesizer' ? (
         <SynthesizerInterface

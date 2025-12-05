@@ -1,5 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import './Sidebar.css';
+import { formatRelativeTime } from '../utils/formatRelativeTime';
+
+function getSourceTypeLabel(sourceType) {
+  const labels = {
+    youtube: 'YouTube',
+    article: 'Article',
+    podcast: 'Podcast',
+    pdf: 'PDF',
+    arxiv: 'arXiv'
+  };
+  return labels[sourceType] || sourceType;
+}
 
 function TypewriterTitle({ text, isAnimating, onAnimationComplete }) {
   const [displayText, setDisplayText] = useState(text);
@@ -55,6 +67,7 @@ export default function Sidebar({
   isLoading,
   animatingTitleId,
   onTitleAnimationComplete,
+  promptLabels = {},
 }) {
   return (
     <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -144,13 +157,38 @@ export default function Sidebar({
                           <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                           <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
+                        <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                        <span className="meta-separator">·</span>
                         <span>Council</span>
+                        {conv.prompt_title && promptLabels[conv.prompt_title] && (
+                          <span className="prompt-label-badge">{promptLabels[conv.prompt_title]}</span>
+                        )}
                       </>
                     ) : (
                       <>
                         {conv.source_type === 'youtube' ? (
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                          </svg>
+                        ) : conv.source_type === 'pdf' ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <path d="M9 13h2v2H9zM9 9h2v2H9z"/>
+                          </svg>
+                        ) : conv.source_type === 'arxiv' ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                            <line x1="12" y1="6" x2="12" y2="12"/>
+                            <line x1="9" y1="9" x2="15" y2="9"/>
+                          </svg>
+                        ) : conv.source_type === 'podcast' ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
                           </svg>
                         ) : (
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -160,7 +198,12 @@ export default function Sidebar({
                             <line x1="16" y1="17" x2="8" y2="17"/>
                           </svg>
                         )}
+                        <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                        <span className="meta-separator">·</span>
                         <span>Notes</span>
+                        {conv.source_type && (
+                          <span className="source-type-badge">{getSourceTypeLabel(conv.source_type)}</span>
+                        )}
                       </>
                     )}
                   </div>
