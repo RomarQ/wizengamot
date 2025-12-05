@@ -93,12 +93,13 @@ export default function ModeSelector({ onSelect, onCancel }) {
             </div>
             <h3 className="mode-card-title">Synthesizer</h3>
             <p className="mode-card-description">
-              Transform URLs into atomic Zettelkasten notes. Paste a YouTube video or article
+              Transform URLs into atomic Zettelkasten notes. Paste a YouTube video, article, or PDF
               and get structured notes with titles, tags, and concise content.
             </p>
             <div className="mode-card-features">
               <span className="feature-tag">YouTube</span>
               <span className="feature-tag">Articles</span>
+              <span className="feature-tag">PDF</span>
               <span className="feature-tag">Zettelkasten</span>
             </div>
           </button>
