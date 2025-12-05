@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -892,6 +892,37 @@ async def update_synthesizer_settings(request: UpdateSynthesizerSettingsRequest)
         "default_model": settings.get_synthesizer_model(),
         "default_mode": settings.get_synthesizer_mode(),
         "default_prompt": settings.get_synthesizer_prompt()
+    }
+
+
+# =============================================================================
+# Tweet Generation Endpoint
+# =============================================================================
+
+class GenerateTweetRequest(BaseModel):
+    """Request to generate a tweet from a note."""
+    note_body: str
+    note_title: str
+    comments: Optional[List[Dict[str, Any]]] = None
+    custom_prompt: Optional[str] = None
+
+
+@app.post("/api/generate-tweet")
+async def generate_tweet_endpoint(request: GenerateTweetRequest):
+    """Generate a 280-character tweet from a note."""
+    tweet_text = await tweet.generate_tweet(
+        note_body=request.note_body,
+        note_title=request.note_title,
+        comments=request.comments,
+        custom_prompt=request.custom_prompt
+    )
+
+    if tweet_text is None:
+        raise HTTPException(status_code=500, detail="Failed to generate tweet")
+
+    return {
+        "tweet": tweet_text,
+        "char_count": len(tweet_text)
     }
 
 

@@ -647,4 +647,35 @@ export const api = {
     }
     return response.json();
   },
+
+  // ==========================================================================
+  // Tweet Generation
+  // ==========================================================================
+
+  /**
+   * Generate a tweet from a note.
+   * @param {string} noteBody - The note content
+   * @param {string} noteTitle - The note title
+   * @param {Array} comments - Optional comments on the note
+   * @param {string} customPrompt - Optional customization prompt
+   */
+  async generateTweet(noteBody, noteTitle, comments = null, customPrompt = null) {
+    const response = await fetch(`${API_BASE}/api/generate-tweet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        note_body: noteBody,
+        note_title: noteTitle,
+        comments: comments,
+        custom_prompt: customPrompt,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to generate tweet');
+    }
+    return response.json();
+  },
 };

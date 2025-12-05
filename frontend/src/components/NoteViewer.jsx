@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ResponseWithComments from './ResponseWithComments';
+import TweetModal from './TweetModal';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
 
@@ -29,6 +30,7 @@ export default function NoteViewer({
   const [focusMode, setFocusMode] = useState(false);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
+  const [showTweetModal, setShowTweetModal] = useState(false);
   const containerRef = useRef(null);
   const sourceInfoRef = useRef(null);
 
@@ -139,6 +141,16 @@ export default function NoteViewer({
     }
   }, [currentIndex, notes, formatNoteBody]);
 
+  // Open tweet modal
+  const openTweetModal = useCallback(() => {
+    setShowTweetModal(true);
+  }, []);
+
+  // Close tweet modal
+  const closeTweetModal = useCallback(() => {
+    setShowTweetModal(false);
+  }, []);
+
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
     // Skip if user is typing in an input
@@ -149,6 +161,13 @@ export default function NoteViewer({
     if ((e.key === 'c' || e.key === 'C') && (viewMode === 'swipe' || focusMode)) {
       e.preventDefault();
       copyNoteToClipboard();
+      return;
+    }
+
+    // X key opens tweet modal (in swipe view or focus mode)
+    if ((e.key === 'x' || e.key === 'X') && (viewMode === 'swipe' || focusMode)) {
+      e.preventDefault();
+      openTweetModal();
       return;
     }
 
@@ -176,7 +195,7 @@ export default function NoteViewer({
       e.preventDefault();
       setCurrentIndex((prev) => Math.max(prev - 1, 0));
     }
-  }, [viewMode, focusMode, notes?.length, copyNoteToClipboard]);
+  }, [viewMode, focusMode, notes?.length, copyNoteToClipboard, openTweetModal]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -397,7 +416,7 @@ export default function NoteViewer({
           </div>
 
           <p className="nav-hint">
-            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy note
+            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy note, <kbd>X</kbd> tweet
           </p>
         </div>
       ) : (
@@ -526,10 +545,19 @@ export default function NoteViewer({
             </div>
 
             <p className="focus-hint">
-              <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy, <kbd>Esc</kbd> exit
+              <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy, <kbd>X</kbd> tweet, <kbd>Esc</kbd> exit
             </p>
           </div>
         </div>
+      )}
+
+      {/* Tweet Modal */}
+      {showTweetModal && currentNote && (
+        <TweetModal
+          note={currentNote}
+          sourceUrl={sourceUrl}
+          onClose={closeTweetModal}
+        />
       )}
     </div>
   );
