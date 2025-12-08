@@ -147,8 +147,11 @@ async def fetch_podcast_content(url: str, whisper_model: str = "base") -> Dict[s
             "error": Optional[str]
         }
     """
+    from .workers.podcast import is_apple_podcast_url
+
+    # Apple Podcasts don't need Firecrawl - they use iTunes API
     api_key = get_firecrawl_api_key()
-    if not api_key:
+    if not api_key and not is_apple_podcast_url(url):
         return {
             "source_type": "podcast",
             "content": None,

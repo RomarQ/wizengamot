@@ -34,7 +34,12 @@ def is_podcast_url(url: str) -> bool:
     return False
 
 
-async def scrape_page_html(url: str, api_key: str) -> Optional[str]:
+def is_apple_podcast_url(url: str) -> bool:
+    """Check if URL is an Apple Podcasts URL."""
+    return bool(re.search(r'podcasts\.apple\.com/', url, re.IGNORECASE))
+
+
+async def scrape_page_html(url: str, api_key: Optional[str]) -> Optional[str]:
     """
     Scrape a page using Firecrawl and return raw HTML.
 
@@ -212,6 +217,199 @@ async def find_mp3_from_rss(rss_url: str, episode_identifier: str) -> Optional[s
     return None
 
 
+async def extract_apple_podcast_mp3(url: str) -> Dict[str, Any]:
+    """
+    Extract audio URL from an Apple Podcasts URL using iTunes Lookup API.
+
+    Strategy:
+    1. Extract podcast ID from URL
+    2. Call iTunes Lookup API to get RSS feed URL
+    3. Extract episode ID from URL query param
+    4. Parse RSS feed to find matching episode
+    5. Return audio enclosure URL
+
+    Args:
+        url: Apple Podcasts episode URL
+
+    Returns:
+        {
+            "mp3_url": str or None,
+            "title": str,
+            "description": str,
+            "error": str or None
+        }
+    """
+    try:
+        import feedparser
+    except ImportError:
+        return {
+            "mp3_url": None,
+            "title": None,
+            "description": None,
+            "error": "feedparser not installed, required for Apple Podcasts"
+        }
+
+    # 1. Extract podcast ID from URL (e.g., id1836497887)
+    podcast_id_match = re.search(r'/id(\d+)', url)
+    if not podcast_id_match:
+        return {
+            "mp3_url": None,
+            "title": None,
+            "description": None,
+            "error": "Could not extract podcast ID from Apple Podcasts URL"
+        }
+    podcast_id = podcast_id_match.group(1)
+
+    # 2. Extract episode ID from query param (e.g., i=1000740057726)
+    parsed_url = urlparse(url)
+    from urllib.parse import parse_qs
+    query_params = parse_qs(parsed_url.query)
+    episode_id = query_params.get('i', [None])[0]
+
+    logger.info(f"Apple Podcast - podcast_id: {podcast_id}, episode_id: {episode_id}")
+
+    # 3. Call iTunes Lookup API to get podcast info including RSS feed URL
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        lookup_url = f"https://itunes.apple.com/lookup?id={podcast_id}&entity=podcast"
+        response = await client.get(lookup_url)
+
+        if response.status_code != 200:
+            logger.error(f"iTunes Lookup API error: {response.status_code}")
+            return {
+                "mp3_url": None,
+                "title": None,
+                "description": None,
+                "error": f"iTunes Lookup API error: {response.status_code}"
+            }
+
+        data = response.json()
+        results = data.get("results", [])
+
+        if not results:
+            return {
+                "mp3_url": None,
+                "title": None,
+                "description": None,
+                "error": "Podcast not found in iTunes"
+            }
+
+        podcast_info = results[0]
+        feed_url = podcast_info.get("feedUrl")
+        podcast_name = podcast_info.get("trackName", "Unknown Podcast")
+
+        if not feed_url:
+            return {
+                "mp3_url": None,
+                "title": podcast_name,
+                "description": None,
+                "error": "No RSS feed URL found for this podcast"
+            }
+
+        logger.info(f"Found RSS feed: {feed_url}")
+
+        # 4. Fetch and parse RSS feed
+        feed_response = await client.get(feed_url, follow_redirects=True)
+        if feed_response.status_code != 200:
+            logger.error(f"Failed to fetch RSS feed: {feed_response.status_code}")
+            return {
+                "mp3_url": None,
+                "title": podcast_name,
+                "description": None,
+                "error": f"Failed to fetch RSS feed: {feed_response.status_code}"
+            }
+
+        feed = feedparser.parse(feed_response.text)
+
+        # 5. Find the episode
+        target_entry = None
+
+        if episode_id:
+            # Try to match episode by Apple episode ID
+            # Apple IDs are often in guid or as part of episode tracking
+            for entry in feed.entries:
+                entry_guid = entry.get('id', entry.get('guid', ''))
+                # Check if episode_id appears in guid or link
+                if episode_id in str(entry_guid) or episode_id in entry.get('link', ''):
+                    target_entry = entry
+                    break
+
+                # Also check itunes:episode or other identifiers
+                itunes_episode = entry.get('itunes_episode', '')
+                if str(itunes_episode) == episode_id:
+                    target_entry = entry
+                    break
+
+        # If no match found by ID, try to match by title from URL
+        if not target_entry:
+            # Extract potential title from URL path
+            url_path = parsed_url.path
+            path_parts = url_path.strip('/').split('/')
+            if len(path_parts) >= 4:
+                # URL format: /us/podcast/{episode-title}/id{podcast_id}
+                url_title_slug = path_parts[2] if path_parts[2] != 'podcast' else path_parts[3]
+                url_title_words = set(url_title_slug.lower().replace('-', ' ').split())
+
+                best_match = None
+                best_score = 0
+                for entry in feed.entries:
+                    entry_title = entry.get('title', '').lower()
+                    entry_words = set(entry_title.replace('-', ' ').split())
+                    # Simple word overlap scoring
+                    overlap = len(url_title_words & entry_words)
+                    if overlap > best_score:
+                        best_score = overlap
+                        best_match = entry
+
+                if best_match and best_score >= 2:
+                    target_entry = best_match
+                    logger.info(f"Matched episode by title overlap (score {best_score}): {best_match.get('title')}")
+
+        # If still no match, use most recent episode
+        if not target_entry and feed.entries:
+            target_entry = feed.entries[0]
+            logger.warning(f"Could not match specific episode, using most recent: {target_entry.get('title')}")
+
+        if not target_entry:
+            return {
+                "mp3_url": None,
+                "title": podcast_name,
+                "description": None,
+                "error": "No episodes found in RSS feed"
+            }
+
+        # 6. Extract audio URL from enclosures
+        audio_url = None
+        if hasattr(target_entry, 'enclosures') and target_entry.enclosures:
+            for enclosure in target_entry.enclosures:
+                enc_type = enclosure.get('type', '')
+                if enc_type.startswith('audio/') or enc_type in ['audio/mpeg', 'audio/mp3', 'audio/x-m4a', 'audio/mp4']:
+                    audio_url = enclosure.get('href')
+                    break
+
+        # Fallback: check for media:content
+        if not audio_url:
+            media_content = target_entry.get('media_content', [])
+            for media in media_content:
+                if media.get('type', '').startswith('audio/'):
+                    audio_url = media.get('url')
+                    break
+
+        if not audio_url:
+            return {
+                "mp3_url": None,
+                "title": target_entry.get('title', podcast_name),
+                "description": target_entry.get('summary', ''),
+                "error": "No audio URL found in episode"
+            }
+
+        return {
+            "mp3_url": audio_url,
+            "title": target_entry.get('title', podcast_name),
+            "description": target_entry.get('summary', ''),
+            "error": None
+        }
+
+
 def score_mp3_url(url: str) -> int:
     """
     Score an MP3 URL based on likelihood of being the episode audio.
@@ -257,15 +455,13 @@ def score_mp3_url(url: str) -> int:
     return score
 
 
-async def extract_podcast_mp3(url: str, api_key: str) -> Dict[str, Any]:
+async def extract_podcast_mp3(url: str, api_key: Optional[str]) -> Dict[str, Any]:
     """
     Extract MP3 URL from a podcast episode page.
 
     Strategy:
-    1. Scrape page with Firecrawl (raw HTML)
-    2. Look for .mp3 URLs directly in HTML
-    3. If multiple found, score and pick best one
-    4. If none found, try RSS feed fallback
+    - For Apple Podcasts: Use iTunes Lookup API to get RSS feed
+    - For other platforms: Scrape page with Firecrawl and look for MP3 URLs
 
     Args:
         url: Podcast episode page URL
@@ -281,6 +477,12 @@ async def extract_podcast_mp3(url: str, api_key: str) -> Dict[str, Any]:
     """
     logger.info(f"Extracting MP3 from podcast URL: {url}")
 
+    # Apple Podcasts: Use dedicated extraction via iTunes API
+    if is_apple_podcast_url(url):
+        logger.info("Detected Apple Podcasts URL, using iTunes API extraction")
+        return await extract_apple_podcast_mp3(url)
+
+    # Other platforms: Scrape page with Firecrawl
     # 1. Scrape the page
     html = await scrape_page_html(url, api_key)
 
@@ -406,7 +608,7 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> str:
 
 async def transcribe_podcast(
     url: str,
-    api_key: str,
+    api_key: Optional[str],
     whisper_model: str = "base"
 ) -> Dict[str, Any]:
     """
