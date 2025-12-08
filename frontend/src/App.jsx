@@ -634,16 +634,44 @@ function App() {
     try {
       await api.deleteComment(currentConversationId, commentId);
       setComments(comments.filter((c) => c.id !== commentId));
-      
+
       // Clear active comment if it was deleted
       if (activeCommentId === commentId) {
         setActiveCommentId(null);
       }
-      
+
       // Also remove the highlight from DOM
       SelectionHandler.removeHighlight(commentId);
     } catch (error) {
       console.error('Failed to delete comment:', error);
+    }
+  };
+
+  // Direct comment save handler (for keyboard-triggered comments in NoteViewer)
+  const handleSaveCommentDirect = async (selection, commentText) => {
+    if (!selection || !currentConversationId) return;
+
+    try {
+      const commentData = {
+        selection: selection.text,
+        content: commentText,
+        sourceType: 'synthesizer',
+        sourceContent: selection.sourceContent,
+        noteId: selection.noteId,
+        noteTitle: selection.noteTitle,
+        sourceUrl: selection.sourceUrl,
+        noteModel: selection.noteModel,
+      };
+
+      const newComment = await api.createComment(currentConversationId, commentData);
+      setComments([...comments, newComment]);
+
+      // Auto-open sidebar when first comment is added
+      if (comments.length === 0) {
+        setShowCommitSidebar(true);
+      }
+    } catch (error) {
+      console.error('Failed to save comment:', error);
     }
   };
 
@@ -916,6 +944,7 @@ function App() {
           }}
           comments={comments}
           onSelectionChange={handleSelectionChange}
+          onSaveComment={handleSaveCommentDirect}
           onEditComment={handleEditComment}
           onDeleteComment={handleDeleteComment}
           activeCommentId={activeCommentId}

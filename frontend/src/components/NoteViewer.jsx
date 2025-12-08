@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ResponseWithComments from './ResponseWithComments';
 import TweetModal from './TweetModal';
+import CommentModal from './CommentModal';
 import { SelectionHandler } from '../utils/SelectionHandler';
 import './NoteViewer.css';
 
@@ -20,6 +21,7 @@ export default function NoteViewer({
   // Comment-related props
   comments = [],
   onSelectionChange,
+  onSaveComment,
   onEditComment,
   onDeleteComment,
   activeCommentId,
@@ -33,6 +35,14 @@ export default function NoteViewer({
   const [showTweetModal, setShowTweetModal] = useState(false);
   const containerRef = useRef(null);
   const sourceInfoRef = useRef(null);
+
+  // Keyboard sentence navigation state (focus mode only)
+  const [sentences, setSentences] = useState([]);
+  const [sentenceCursor, setSentenceCursor] = useState(0);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const [keyboardSelection, setKeyboardSelection] = useState(null);
+  const [showKeyboardCommentModal, setShowKeyboardCommentModal] = useState(false);
 
   // Close source info dropdown when clicking outside
   useEffect(() => {
@@ -95,6 +105,34 @@ export default function NoteViewer({
       .trim();
   }, []);
 
+  // Parse note body into array of sentences for keyboard navigation
+  const parseSentences = useCallback((body) => {
+    if (!body) return [];
+    // Match sentences ending with . ! ? followed by whitespace or end of string
+    const sentenceRegex = /[^.!?]*[.!?]+(?:\s|$)/g;
+    const matches = body.match(sentenceRegex);
+    if (!matches) return [body.trim()];
+    return matches.map(s => s.trim()).filter(s => s.length > 0);
+  }, []);
+
+  // Helper to get the range of selected sentences
+  const getSelectionRange = useCallback(() => {
+    if (selectionStart !== null && selectionEnd !== null) {
+      return {
+        start: Math.min(selectionStart, selectionEnd),
+        end: Math.max(selectionStart, selectionEnd),
+      };
+    }
+    return { start: sentenceCursor, end: sentenceCursor };
+  }, [sentenceCursor, selectionStart, selectionEnd]);
+
+  // Helper to get text of selected sentence(s)
+  const getSelectedSentencesText = useCallback(() => {
+    if (sentences.length === 0) return null;
+    const range = getSelectionRange();
+    return sentences.slice(range.start, range.end + 1).join(' ').trim();
+  }, [sentences, getSelectionRange]);
+
   // Copy current note to clipboard in Zettelkasten format
   const copyNoteToClipboard = useCallback(async () => {
     if (!notes?.length) return;
@@ -153,8 +191,9 @@ export default function NoteViewer({
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
-    // Skip if user is typing in an input
+    // Skip if user is typing in an input or comment modal is open
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (showKeyboardCommentModal) return;
     if (!notes?.length) return;
 
     // C key copies the current note (in swipe view or focus mode)
@@ -174,28 +213,105 @@ export default function NoteViewer({
     // F key toggles focus mode (only in swipe view)
     if ((e.key === 'f' || e.key === 'F') && viewMode === 'swipe') {
       e.preventDefault();
-      setFocusMode((prev) => !prev);
+      setFocusMode((prev) => {
+        if (!prev) {
+          // Entering focus mode, reset sentence selection
+          setSentenceCursor(0);
+          setSelectionStart(null);
+          setSelectionEnd(null);
+        }
+        return !prev;
+      });
       return;
     }
 
-    // Escape exits focus mode
+    // Escape exits focus mode and clears sentence selection
     if (e.key === 'Escape' && focusMode) {
       e.preventDefault();
       setFocusMode(false);
+      setSentenceCursor(0);
+      setSelectionStart(null);
+      setSelectionEnd(null);
       return;
     }
 
-    // J/K navigation works in swipe view and focus mode
+    // FOCUS MODE ONLY: Arrow keys for sentence navigation, H for highlight
+    if (focusMode && sentences.length > 0) {
+      // Arrow Down: move sentence cursor down OR extend selection
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Extend selection downward
+          setSelectionEnd((prev) => {
+            const current = prev ?? sentenceCursor;
+            return Math.min(current + 1, sentences.length - 1);
+          });
+          if (selectionStart === null) {
+            setSelectionStart(sentenceCursor);
+          }
+        } else {
+          // Single sentence navigation
+          setSentenceCursor((prev) => Math.min(prev + 1, sentences.length - 1));
+          setSelectionStart(null);
+          setSelectionEnd(null);
+        }
+        return;
+      }
+
+      // Arrow Up: move sentence cursor up OR extend selection
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Extend selection upward
+          setSelectionEnd((prev) => {
+            const current = prev ?? sentenceCursor;
+            return Math.max(current - 1, 0);
+          });
+          if (selectionStart === null) {
+            setSelectionStart(sentenceCursor);
+          }
+        } else {
+          // Single sentence navigation
+          setSentenceCursor((prev) => Math.max(prev - 1, 0));
+          setSelectionStart(null);
+          setSelectionEnd(null);
+        }
+        return;
+      }
+
+      // H key: open CommentModal with selected sentence(s)
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        const selectedText = getSelectedSentencesText();
+        if (selectedText) {
+          const currentNote = notes[Math.min(currentIndex, notes.length - 1)];
+          setKeyboardSelection({
+            text: selectedText,
+            sourceType: 'synthesizer',
+            noteId: currentNote.id,
+            noteTitle: currentNote.title,
+            sourceUrl: sourceUrl,
+            noteModel: currentNote.source_model,
+            sourceContent: currentNote.body,
+          });
+          setShowKeyboardCommentModal(true);
+        }
+        return;
+      }
+    }
+
+    // J/K navigation works in swipe view and focus mode (for note navigation)
     if (viewMode !== 'swipe' && !focusMode) return;
 
-    if (e.key === 'j' || e.key === 'J' || e.key === 'ArrowDown') {
+    if (e.key === 'j' || e.key === 'J') {
       e.preventDefault();
       setCurrentIndex((prev) => Math.min(prev + 1, notes.length - 1));
-    } else if (e.key === 'k' || e.key === 'K' || e.key === 'ArrowUp') {
+    } else if (e.key === 'k' || e.key === 'K') {
       e.preventDefault();
       setCurrentIndex((prev) => Math.max(prev - 1, 0));
     }
-  }, [viewMode, focusMode, notes?.length, copyNoteToClipboard, openTweetModal]);
+  }, [viewMode, focusMode, notes, currentIndex, sentences, sentenceCursor, selectionStart,
+      sourceUrl, showKeyboardCommentModal, copyNoteToClipboard, openTweetModal, getSelectedSentencesText]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -213,6 +329,44 @@ export default function NoteViewer({
   useEffect(() => {
     setCurrentIndex(0);
   }, [notes]);
+
+  // Compute currentNote early for use in effects
+  const safeIndexForEffects = notes?.length ? Math.min(currentIndex, notes.length - 1) : 0;
+  const currentNoteForEffects = notes?.[safeIndexForEffects];
+
+  // Parse sentences when current note changes
+  useEffect(() => {
+    if (currentNoteForEffects?.body) {
+      setSentences(parseSentences(currentNoteForEffects.body));
+      setSentenceCursor(0);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    } else {
+      setSentences([]);
+    }
+  }, [currentNoteForEffects?.body, parseSentences]);
+
+  // Scroll current sentence into view in focus mode
+  useEffect(() => {
+    if (focusMode && sentences.length > 0) {
+      const sentenceEl = document.querySelector(`[data-sentence-index="${sentenceCursor}"]`);
+      if (sentenceEl) {
+        sentenceEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [focusMode, sentenceCursor, sentences.length]);
+
+  // Handle keyboard comment save
+  const handleKeyboardCommentSave = useCallback(async (commentText) => {
+    if (!keyboardSelection || !onSaveComment) return;
+    try {
+      await onSaveComment(keyboardSelection, commentText);
+      setShowKeyboardCommentModal(false);
+      setKeyboardSelection(null);
+    } catch (error) {
+      console.error('Failed to save comment:', error);
+    }
+  }, [keyboardSelection, onSaveComment]);
 
   if (!notes || notes.length === 0) {
     return (
@@ -500,19 +654,45 @@ export default function NoteViewer({
               )}
 
               <div className="note-body">
-                <ResponseWithComments
-                  content={formatNoteBody(currentNote.body)}
-                  comments={currentNoteComments}
-                  sourceType="synthesizer"
-                  noteId={currentNote.id}
-                  noteTitle={currentNote.title}
-                  sourceUrl={sourceUrl}
-                  noteModel={currentNote.source_model}
-                  onEditComment={onEditComment}
-                  onDeleteComment={onDeleteComment}
-                  activeCommentId={activeCommentId}
-                  onSetActiveComment={onSetActiveComment}
-                />
+                {/* Keyboard sentence navigation view */}
+                {sentences.length > 0 ? (
+                  <div
+                    className="keyboard-sentence-container"
+                    data-source-type="synthesizer"
+                    data-note-id={currentNote.id}
+                    data-note-title={currentNote.title}
+                    data-source-url={sourceUrl}
+                    data-note-model={currentNote.source_model}
+                  >
+                    {sentences.map((sentence, index) => {
+                      const range = getSelectionRange();
+                      const isSelected = index >= range.start && index <= range.end;
+                      return (
+                        <p
+                          key={index}
+                          className={`keyboard-sentence ${isSelected ? 'selected' : ''}`}
+                          data-sentence-index={index}
+                        >
+                          {sentence}
+                        </p>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <ResponseWithComments
+                    content={formatNoteBody(currentNote.body)}
+                    comments={currentNoteComments}
+                    sourceType="synthesizer"
+                    noteId={currentNote.id}
+                    noteTitle={currentNote.title}
+                    sourceUrl={sourceUrl}
+                    noteModel={currentNote.source_model}
+                    onEditComment={onEditComment}
+                    onDeleteComment={onDeleteComment}
+                    activeCommentId={activeCommentId}
+                    onSetActiveComment={onSetActiveComment}
+                  />
+                )}
               </div>
             </div>
 
@@ -545,7 +725,7 @@ export default function NoteViewer({
             </div>
 
             <p className="focus-hint">
-              <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy, <kbd>X</kbd> tweet, <kbd>Esc</kbd> exit
+              <kbd>J</kbd>/<kbd>K</kbd> notes, <kbd>↑</kbd>/<kbd>↓</kbd> sentences, <kbd>Shift+↑↓</kbd> multi-select, <kbd>H</kbd> highlight, <kbd>C</kbd> copy, <kbd>X</kbd> tweet, <kbd>Esc</kbd> exit
             </p>
           </div>
         </div>
@@ -557,6 +737,18 @@ export default function NoteViewer({
           note={currentNote}
           sourceUrl={sourceUrl}
           onClose={closeTweetModal}
+        />
+      )}
+
+      {/* Keyboard-triggered Comment Modal */}
+      {showKeyboardCommentModal && keyboardSelection && (
+        <CommentModal
+          selection={keyboardSelection}
+          onSave={handleKeyboardCommentSave}
+          onCancel={() => {
+            setShowKeyboardCommentModal(false);
+            setKeyboardSelection(null);
+          }}
         />
       )}
     </div>

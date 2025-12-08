@@ -20,6 +20,7 @@ export default function SynthesizerInterface({
   // Comment-related props
   comments = [],
   onSelectionChange,
+  onSaveComment,
   onEditComment,
   onDeleteComment,
   activeCommentId,
@@ -41,8 +42,14 @@ export default function SynthesizerInterface({
     for (let i = conversation.messages.length - 1; i >= 0; i--) {
       const msg = conversation.messages[i];
       if (msg.role === 'assistant' && msg.notes && msg.notes.length > 0) {
+        // Ensure each note has an ID (for backward compatibility with older conversations)
+        const notesWithIds = msg.notes.map((note, index) => ({
+          ...note,
+          id: note.id || `note-${index + 1}`,
+        }));
+
         return {
-          notes: msg.notes,
+          notes: notesWithIds,
           sourceTitle: msg.source_title || conversation.synthesizer_config?.source_title,
           sourceType: msg.source_type || conversation.synthesizer_config?.source_type,
           sourceUrl: msg.source_url || conversation.synthesizer_config?.source_url,
@@ -232,6 +239,7 @@ export default function SynthesizerInterface({
               sourceContent={latestNotes.sourceContent}
               comments={comments}
               onSelectionChange={onSelectionChange}
+              onSaveComment={onSaveComment}
               onEditComment={onEditComment}
               onDeleteComment={onDeleteComment}
               activeCommentId={activeCommentId}
