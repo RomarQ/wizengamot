@@ -46,6 +46,25 @@
   text-align: center;
 }
 
+.btn-copy-slack {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.btn-copy-slack:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
 .btn-close {
   background: none;
   border: none;

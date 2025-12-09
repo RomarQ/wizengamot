@@ -70,17 +70,20 @@
   overflow-y: auto;
 }
 
-/* Action items section */
+/* Action items section - positioned above search bar */
 .search-actions {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
   background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .search-action {
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex: 1;
   gap: 8px;
   padding: 8px 12px;
   border-radius: 8px;

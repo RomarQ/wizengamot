@@ -247,6 +247,92 @@ export const api = {
     return response.json();
   },
 
+  // ==========================================================================
+  // Question Sets API Methods
+  // ==========================================================================
+
+  /**
+   * List all available question sets.
+   */
+  async listQuestionSets() {
+    const response = await fetch(`${API_BASE}/api/question-sets`);
+    if (!response.ok) {
+      throw new Error('Failed to list question sets');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific question set by filename.
+   * @param {string} filename - Question set filename (e.g., 'default-b2b-saas.md')
+   */
+  async getQuestionSet(filename) {
+    const response = await fetch(`${API_BASE}/api/question-sets/${filename}`);
+    if (!response.ok) {
+      throw new Error('Failed to get question set');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new question set.
+   * @param {string} title - Question set title
+   * @param {Object} questions - Questions as key-value pairs {key: questionText}
+   * @param {string} description - Optional description
+   * @param {Object} outputSchema - Optional output schema {key: description}
+   */
+  async createQuestionSet(title, questions, description = '', outputSchema = null) {
+    const response = await fetch(`${API_BASE}/api/question-sets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title,
+        questions,
+        description,
+        output_schema: outputSchema,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create question set');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update an existing question set.
+   * @param {string} filename - Question set filename
+   * @param {Object} updates - Fields to update: content, questions, description, output_schema
+   */
+  async updateQuestionSet(filename, updates) {
+    const response = await fetch(`${API_BASE}/api/question-sets/${filename}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update question set');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a question set.
+   * @param {string} filename - Question set filename
+   */
+  async deleteQuestionSet(filename) {
+    const response = await fetch(`${API_BASE}/api/question-sets/${filename}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete question set');
+    }
+    return response.json();
+  },
+
   /**
    * Create a comment on a response. Supports both Council and Synthesizer modes.
    * @param {string} conversationId - The conversation ID

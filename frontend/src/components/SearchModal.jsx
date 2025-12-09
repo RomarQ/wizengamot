@@ -64,13 +64,11 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
   // Apply filter to results
   const filteredResults = applyTypeFilter(results, activeFilter);
 
-  // Total items depends on what we're showing
-  // When showing filter suggestions: suggestions only
-  // Otherwise: 3 actions + results
+  // Navigation uses negative indices for actions, positive for results
+  // Actions: -3 (Settings), -2 (Theme), -1 (New Conv)
+  // Results: 0, 1, 2, ...
   const ACTION_COUNT = 3;
-  const totalItems = showingFilterSuggestions
-    ? filterSuggestions.length
-    : filteredResults.length + ACTION_COUNT;
+  const maxResultIndex = filteredResults.length - 1;
 
   // Focus input when modal opens
   useEffect(() => {
@@ -120,14 +118,42 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
     };
   }, [searchQuery, doSearch]);
 
-  // Keyboard navigation
+  // Keyboard navigation - bidirectional with negative indices for actions
   const handleKeyDown = (e) => {
+    if (showingFilterSuggestions) {
+      // Filter suggestions use simple positive indices
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(i => Math.min(i + 1, filterSuggestions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(i => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSelectByIndex(selectedIndex);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+      return;
+    }
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(i => Math.min(i + 1, totalItems - 1));
+      setSelectedIndex(i => {
+        // From actions, move toward results
+        if (i < 0) return i + 1;
+        // In results, move to next (cap at max)
+        return Math.min(i + 1, Math.max(0, maxResultIndex));
+      });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex(i => Math.max(i - 1, 0));
+      setSelectedIndex(i => {
+        // In results, can go to actions
+        if (i >= 0) return i - 1;
+        // In actions, cap at -ACTION_COUNT
+        return Math.max(i - 1, -ACTION_COUNT);
+      });
     } else if (e.key === 'Enter') {
       e.preventDefault();
       handleSelectByIndex(selectedIndex);
@@ -148,20 +174,21 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
       return;
     }
 
-    if (index === 0) {
+    // Actions use negative indices: -1 (New Conv), -2 (Theme), -3 (Settings)
+    if (index === -1) {
       // New Conversation
       onClose();
       onNewConversation();
-    } else if (index === 1) {
+    } else if (index === -2) {
       // Toggle Theme
       onToggleTheme?.();
-    } else if (index === 2) {
+    } else if (index === -3) {
       // Open Settings
       onClose();
       onOpenSettings?.();
-    } else {
-      // Search result (index - ACTION_COUNT)
-      const result = filteredResults[index - ACTION_COUNT];
+    } else if (index >= 0) {
+      // Search result
+      const result = filteredResults[index];
       if (result) {
         onSelectConversation(result.id);
         onClose();
@@ -190,6 +217,64 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
   return (
     <div className="search-modal-overlay" onClick={onClose}>
       <div className="search-modal" onClick={e => e.stopPropagation()}>
+        {/* Action items above search - ordered: Settings (top), Theme, New Conv (bottom/closest to search) */}
+        {!showingFilterSuggestions && (
+        <div className="search-actions">
+          {/* Settings - index -3 */}
+          <div
+            className={`search-action ${selectedIndex === -3 ? 'selected' : ''}`}
+            onClick={() => handleSelectByIndex(-3)}
+            onMouseEnter={() => setSelectedIndex(-3)}
+          >
+            <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span className="action-label">Settings</span>
+          </div>
+
+          {/* Toggle Theme - index -2 */}
+          <div
+            className={`search-action ${selectedIndex === -2 ? 'selected' : ''}`}
+            onClick={() => handleSelectByIndex(-2)}
+            onMouseEnter={() => setSelectedIndex(-2)}
+          >
+            {theme === 'dark' ? (
+              <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+            <span className="action-label">{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+            <kbd className="action-badge">{theme === 'dark' ? 'Light' : 'Dark'}</kbd>
+          </div>
+
+          {/* New Conversation - index -1 (closest to search bar) */}
+          <div
+            className={`search-action ${selectedIndex === -1 ? 'selected' : ''}`}
+            onClick={() => handleSelectByIndex(-1)}
+            onMouseEnter={() => setSelectedIndex(-1)}
+          >
+            <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span className="action-label">New Conversation</span>
+          </div>
+        </div>
+        )}
+
         <div className="search-input-wrapper">
           <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
@@ -228,64 +313,6 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
             </div>
           )}
 
-          {/* Action items - shown when not showing filter suggestions */}
-          {!showingFilterSuggestions && (
-          <div className="search-actions">
-            {/* New Conversation */}
-            <div
-              className={`search-action ${selectedIndex === 0 ? 'selected' : ''}`}
-              onClick={() => handleSelectByIndex(0)}
-              onMouseEnter={() => setSelectedIndex(0)}
-            >
-              <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span className="action-label">New Conversation</span>
-            </div>
-
-            {/* Toggle Theme */}
-            <div
-              className={`search-action ${selectedIndex === 1 ? 'selected' : ''}`}
-              onClick={() => handleSelectByIndex(1)}
-              onMouseEnter={() => setSelectedIndex(1)}
-            >
-              {theme === 'dark' ? (
-                <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-              ) : (
-                <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-              )}
-              <span className="action-label">{theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
-              <kbd className="action-badge">{theme === 'dark' ? 'Light' : 'Dark'}</kbd>
-            </div>
-
-            {/* Settings */}
-            <div
-              className={`search-action ${selectedIndex === 2 ? 'selected' : ''}`}
-              onClick={() => handleSelectByIndex(2)}
-              onMouseEnter={() => setSelectedIndex(2)}
-            >
-              <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-              <span className="action-label">Settings</span>
-            </div>
-          </div>
-          )}
-
           {!showingFilterSuggestions && <div className="search-divider" />}
 
           {!showingFilterSuggestions && (
@@ -305,9 +332,9 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
               {!isLoading && filteredResults.map((result, index) => (
                 <div
                   key={result.id}
-                  className={`search-result ${index + ACTION_COUNT === selectedIndex ? 'selected' : ''}`}
-                  onClick={() => handleSelectByIndex(index + ACTION_COUNT)}
-                  onMouseEnter={() => setSelectedIndex(index + ACTION_COUNT)}
+                  className={`search-result ${index === selectedIndex ? 'selected' : ''}`}
+                  onClick={() => handleSelectByIndex(index)}
+                  onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <div className="search-result-header">
                     <span className="search-result-title">{result.title}</span>

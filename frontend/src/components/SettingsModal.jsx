@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import PromptEditorModal from './PromptEditorModal';
+import QuestionSetManager from './QuestionSetManager';
 import './ConfigModal.css';
 import './SettingsModal.css';
 
@@ -395,6 +396,12 @@ export default function SettingsModal({ isOpen, onClose }) {
           >
             Synthesizer
           </button>
+          <button
+            className={`settings-tab ${activeTab === 'questionsets' ? 'active' : ''}`}
+            onClick={() => setActiveTab('questionsets')}
+          >
+            Question Sets
+          </button>
         </div>
 
         {/* API Keys Tab */}
@@ -711,6 +718,14 @@ export default function SettingsModal({ isOpen, onClose }) {
               )}
             </div>
           </>
+        )}
+
+        {/* Question Sets Tab */}
+        {activeTab === 'questionsets' && (
+          <div className="modal-section">
+            <h3>Question Sets</h3>
+            <QuestionSetManager />
+          </div>
         )}
 
         {error && <div className="settings-error">{error}</div>}

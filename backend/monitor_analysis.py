@@ -125,46 +125,72 @@ Extract customer information and return ONLY valid JSON:
 """
 
 
-QUESTION_SETS = {
-    "default_b2b_saas_v1": {
-        "icp": "Who is the ideal customer? What company size, industry, and role does this product target?",
-        "problem": "What problem does this product solve? What pain points does it address?",
-        "value_props": "What are the main value propositions? What benefits does the product claim to provide?",
-        "pricing": "What is the pricing model? Are there tiers? Is there a free tier or trial?",
-        "security": "What security or compliance claims are made? (SOC 2, HIPAA, GDPR, etc.)",
-        "themes": "What are the key messaging themes and positioning? How does the product differentiate itself?"
-    }
+from . import question_sets as qs_module
+
+
+# Hardcoded fallback for backwards compatibility
+_FALLBACK_QUESTION_SET = {
+    "icp": "Who is the ideal customer? What company size, industry, and role does this product target?",
+    "problem": "What problem does this product solve? What pain points does it address?",
+    "value_props": "What are the main value propositions? What benefits does the product claim to provide?",
+    "pricing": "What is the pricing model? Are there tiers? Is there a free tier or trial?",
+    "security": "What security or compliance claims are made? (SOC 2, HIPAA, GDPR, etc.)",
+    "themes": "What are the key messaging themes and positioning? How does the product differentiate itself?"
 }
 
 
-def get_question_set(name: str = "default_b2b_saas_v1") -> dict:
-    """Get a question set by name."""
-    return QUESTION_SETS.get(name, QUESTION_SETS["default_b2b_saas_v1"])
+def get_question_set(name: str = "default-b2b-saas") -> dict:
+    """
+    Get a question set by name, loading from files.
+    Falls back to hardcoded defaults if file not found.
+    """
+    # Try to load from file
+    qs = qs_module.get_question_set_by_name(name)
+    if qs and qs.get("questions"):
+        return qs["questions"]
+
+    # Fallback for backwards compatibility with old names
+    if name == "default_b2b_saas_v1":
+        qs = qs_module.get_question_set_by_name("default-b2b-saas")
+        if qs and qs.get("questions"):
+            return qs["questions"]
+
+    # Ultimate fallback to hardcoded
+    return _FALLBACK_QUESTION_SET
 
 
-ANALYSIS_PROMPT = """Analyze the following web page content and answer each question in JSON format.
+def build_analysis_prompt(content: str, questions: dict) -> str:
+    """
+    Build an analysis prompt dynamically based on the question set.
+    Generates the expected JSON schema from the question keys.
+    """
+    questions_text = "\n".join([
+        f"- {key}: {question}"
+        for key, question in questions.items()
+    ])
+
+    # Build dynamic schema example
+    schema_example = {key: f"your answer about {key}" for key in questions.keys()}
+    schema_example["summary"] = "A 1-2 sentence summary of the most important points"
+
+    # Format schema for prompt
+    schema_json = json.dumps(schema_example, indent=2)
+
+    return f"""Analyze the following web page content and answer each question in JSON format.
 Be concise but capture the key points. If information is not available, respond with "Not specified" or "Unknown".
 
 Content:
 {content}
 
 Questions to answer:
-{questions}
+{questions_text}
 
 Respond ONLY with valid JSON in this exact format:
-{{
-  "icp": "your answer about ideal customer profile",
-  "problem": "your answer about the problem solved",
-  "value_props": "your answer about value propositions",
-  "pricing": "your answer about pricing",
-  "security": "your answer about security/compliance",
-  "themes": "your answer about key themes",
-  "summary": "A 1-2 sentence summary of the most important points"
-}}
+{schema_json}
 """
 
 
-async def analyze_page(text: str, question_set_name: str = "default_b2b_saas_v1") -> Optional[dict]:
+async def analyze_page(text: str, question_set_name: str = "default-b2b-saas") -> Optional[dict]:
     """
     Analyze page content using LLM to extract structured information.
 
@@ -176,20 +202,12 @@ async def analyze_page(text: str, question_set_name: str = "default_b2b_saas_v1"
 
     question_set = get_question_set(question_set_name)
 
-    # Format questions for the prompt
-    questions_text = "\n".join([
-        f"- {key}: {question}"
-        for key, question in question_set.items()
-    ])
-
     # Truncate content if too long
     max_content_length = 15000
     content = text[:max_content_length] if len(text) > max_content_length else text
 
-    prompt = ANALYSIS_PROMPT.format(
-        content=content,
-        questions=questions_text
-    )
+    # Build prompt dynamically based on question set
+    prompt = build_analysis_prompt(content, question_set)
 
     response = await query_model(
         model="anthropic/claude-sonnet-4",
