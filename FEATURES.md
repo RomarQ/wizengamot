@@ -2,7 +2,8 @@
 
 Dec 9 - Branded splash screen with WIZENGAMOT logo and feature list
 Dec 9 - Customizable question sets so that you can tailor monitor analysis to specific criteria
-Dec 8 - Sentence highlighter in focus mode so that you can navigate notes with keyboard precision
+Dec 8 - Copy group of highlights to slack so that you can update your team about key passages and commentary
+Dec 8 - Sentence highlighter in focus mode so that you can highlight notes with keyboard precision
 Dec 8 - Apple Podcasts support so that you can synthesize notes from podcast episodes
 Dec 6 - Group tracker monitor so that you can track entities across multiple sources
 Dec 5 - Tweet generation so that you can share insights directly from your notes
