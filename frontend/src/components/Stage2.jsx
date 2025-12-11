@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { useState, useEffect } from 'react';
+import ResponseWithComments from './ResponseWithComments';
+import { SelectionHandler } from '../utils/SelectionHandler';
+import AddToContextButton from './AddToContextButton';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -14,12 +16,97 @@ function deAnonymizeText(text, labelToModel) {
   return result;
 }
 
-export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
+export default function Stage2({
+  rankings,
+  labelToModel,
+  aggregateRankings,
+  messageIndex,
+  comments,
+  contextSegments = [],
+  onSelectionChange,
+  onEditComment,
+  onDeleteComment,
+  activeCommentId,
+  onSetActiveComment,
+  onAddContextSegment,
+  onRemoveContextSegment
+}) {
   const [activeTab, setActiveTab] = useState(0);
+  const activeRanking = rankings?.[activeTab];
+  const rankingContent = activeRanking
+    ? deAnonymizeText(activeRanking.ranking, labelToModel)
+    : '';
 
-  if (!rankings || rankings.length === 0) {
+  useEffect(() => {
+    if (!activeRanking) return;
+
+    const handleMouseUp = () => {
+      const selection = SelectionHandler.getSelection();
+      if (
+        selection &&
+        selection.stage === 2 &&
+        selection.messageIndex === messageIndex
+      ) {
+        onSelectionChange({
+          ...selection,
+          stage: 2,
+          model: activeRanking.model,
+          messageIndex,
+          sourceContent: rankingContent,
+        });
+      }
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [onSelectionChange, activeRanking, rankingContent, messageIndex]);
+
+  // Listen for tab switch events from sidebar
+  useEffect(() => {
+    const handleSwitchToComment = (e) => {
+      if (e.detail.stage === 2 && rankings) {
+        const tabIndex = rankings.findIndex(r => r.model === e.detail.model);
+        if (tabIndex !== -1) {
+          setActiveTab(tabIndex);
+        }
+      }
+    };
+    
+    window.addEventListener('switchToComment', handleSwitchToComment);
+    return () => window.removeEventListener('switchToComment', handleSwitchToComment);
+  }, [rankings]);
+
+  if (!rankings || rankings.length === 0 || !activeRanking) {
     return null;
   }
+
+  const rankingComments = comments?.filter(
+    c => c.stage === 2 && c.model === activeRanking.model && c.message_index === messageIndex
+  ) || [];
+
+  // Check if active comment belongs to this response
+  const activeCommentForThisResponse = activeCommentId && rankingComments.some(c => c.id === activeCommentId)
+    ? activeCommentId
+    : null;
+
+  const segmentId = `stage2-${messageIndex}-${activeRanking.model}`;
+  const shortModelName = activeRanking.model.split('/')[1] || activeRanking.model;
+  const isSegmentSelected = contextSegments.some((segment) => segment.id === segmentId);
+
+  const handleContextToggle = () => {
+    if (isSegmentSelected) {
+      onRemoveContextSegment?.(segmentId);
+    } else {
+      onAddContextSegment?.({
+        id: segmentId,
+        stage: 2,
+        model: activeRanking.model,
+        messageIndex,
+        label: `Stage 2 • ${shortModelName}`,
+        content: rankingContent,
+      });
+    }
+  };
 
   return (
     <div className="stage stage2">
@@ -44,21 +131,35 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }) {
       </div>
 
       <div className="tab-content">
-        <div className="ranking-model">
-          {rankings[activeTab].model}
+        <div className="stage-toolbar">
+          <div className="ranking-model">
+            {activeRanking.model}
+          </div>
+          <AddToContextButton
+            isSelected={isSegmentSelected}
+            onToggle={handleContextToggle}
+            label="Stack This Ranking"
+          />
         </div>
-        <div className="ranking-content markdown-content">
-          <ReactMarkdown>
-            {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
-          </ReactMarkdown>
-        </div>
+        <ResponseWithComments
+          content={rankingContent}
+          comments={rankingComments}
+          messageIndex={messageIndex}
+          stage={2}
+          model={activeRanking.model}
+          onEditComment={onEditComment}
+          onDeleteComment={onDeleteComment}
+          activeCommentId={activeCommentForThisResponse}
+          onSetActiveComment={onSetActiveComment}
+          className="ranking-content"
+        />
 
-        {rankings[activeTab].parsed_ranking &&
-         rankings[activeTab].parsed_ranking.length > 0 && (
+        {activeRanking.parsed_ranking &&
+         activeRanking.parsed_ranking.length > 0 && (
           <div className="parsed-ranking">
             <strong>Extracted Ranking:</strong>
             <ol>
-              {rankings[activeTab].parsed_ranking.map((label, i) => (
+              {activeRanking.parsed_ranking.map((label, i) => (
                 <li key={i}>
                   {labelToModel && labelToModel[label]
                     ? labelToModel[label].split('/')[1] || labelToModel[label]

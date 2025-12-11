@@ -1,13 +1,95 @@
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { useState, useEffect } from 'react';
+import ResponseWithComments from './ResponseWithComments';
+import { SelectionHandler } from '../utils/SelectionHandler';
+import AddToContextButton from './AddToContextButton';
 import './Stage1.css';
 
-export default function Stage1({ responses }) {
+export default function Stage1({
+  responses,
+  messageIndex,
+  comments,
+  contextSegments = [],
+  onSelectionChange,
+  onEditComment,
+  onDeleteComment,
+  activeCommentId,
+  onSetActiveComment,
+  onAddContextSegment,
+  onRemoveContextSegment
+}) {
   const [activeTab, setActiveTab] = useState(0);
+  const activeResponse = responses?.[activeTab];
 
-  if (!responses || responses.length === 0) {
+  useEffect(() => {
+    if (!activeResponse) return;
+
+    const handleMouseUp = () => {
+      const selection = SelectionHandler.getSelection();
+      if (
+        selection &&
+        selection.stage === 1 &&
+        selection.messageIndex === messageIndex
+      ) {
+        onSelectionChange({
+          ...selection,
+          stage: 1,
+          model: activeResponse.model,
+          messageIndex,
+          sourceContent: activeResponse.response,
+        });
+      }
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [onSelectionChange, activeResponse, messageIndex]);
+
+  // Listen for tab switch events from sidebar
+  useEffect(() => {
+    const handleSwitchToComment = (e) => {
+      if (e.detail.stage === 1 && responses) {
+        const tabIndex = responses.findIndex(r => r.model === e.detail.model);
+        if (tabIndex !== -1) {
+          setActiveTab(tabIndex);
+        }
+      }
+    };
+    
+    window.addEventListener('switchToComment', handleSwitchToComment);
+    return () => window.removeEventListener('switchToComment', handleSwitchToComment);
+  }, [responses]);
+
+  if (!responses || responses.length === 0 || !activeResponse) {
     return null;
   }
+
+  const responseComments = comments?.filter(
+    c => c.stage === 1 && c.model === activeResponse.model && c.message_index === messageIndex
+  ) || [];
+
+  // Check if active comment belongs to this response
+  const activeCommentForThisResponse = activeCommentId && responseComments.some(c => c.id === activeCommentId)
+    ? activeCommentId
+    : null;
+
+  const segmentId = `stage1-${messageIndex}-${activeResponse.model}`;
+  const shortModelName = activeResponse.model.split('/')[1] || activeResponse.model;
+  const isSegmentSelected = contextSegments.some((segment) => segment.id === segmentId);
+
+  const handleContextToggle = () => {
+    if (isSegmentSelected) {
+      onRemoveContextSegment?.(segmentId);
+    } else {
+      onAddContextSegment?.({
+        id: segmentId,
+        stage: 1,
+        model: activeResponse.model,
+        messageIndex,
+        label: `Stage 1 • ${shortModelName}`,
+        content: activeResponse.response,
+      });
+    }
+  };
 
   return (
     <div className="stage stage1">
@@ -26,10 +108,26 @@ export default function Stage1({ responses }) {
       </div>
 
       <div className="tab-content">
-        <div className="model-name">{responses[activeTab].model}</div>
-        <div className="response-text markdown-content">
-          <ReactMarkdown>{responses[activeTab].response}</ReactMarkdown>
+        <div className="stage-toolbar">
+          <div className="model-name">{activeResponse.model}</div>
+          <AddToContextButton
+            isSelected={isSegmentSelected}
+            onToggle={handleContextToggle}
+            label="Add to Context"
+          />
         </div>
+        <ResponseWithComments
+          content={activeResponse.response}
+          comments={responseComments}
+          messageIndex={messageIndex}
+          stage={1}
+          model={activeResponse.model}
+          onEditComment={onEditComment}
+          onDeleteComment={onDeleteComment}
+          activeCommentId={activeCommentForThisResponse}
+          onSetActiveComment={onSetActiveComment}
+          className="response-text"
+        />
       </div>
     </div>
   );
