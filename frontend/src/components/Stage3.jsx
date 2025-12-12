@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import ResponseWithComments from './ResponseWithComments';
 import { SelectionHandler } from '../utils/SelectionHandler';
-import AddToContextButton from './AddToContextButton';
+import StageToolbar from './StageToolbar';
 import './Stage3.css';
 
 export default function Stage3({
@@ -77,16 +77,12 @@ export default function Stage3({
     <div className="stage stage3">
       <h3 className="stage-title">Stage 3: Final Council Answer</h3>
       <div className="final-response">
-        <div className="stage-toolbar">
-          <div className="chairman-label">
-            Chairman: {shortModelName}
-          </div>
-          <AddToContextButton
-            isSelected={isSegmentSelected}
-            onToggle={handleContextToggle}
-            label="Stack Final Answer"
-          />
-        </div>
+        <StageToolbar
+          modelName={`Chairman: ${shortModelName}`}
+          content={finalResponse.response}
+          isInContext={isSegmentSelected}
+          onToggleContext={handleContextToggle}
+        />
         <ResponseWithComments
           content={finalResponse.response}
           comments={stage3Comments}

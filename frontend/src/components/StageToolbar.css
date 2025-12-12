@@ -1,0 +1,47 @@
+.stage-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  border-radius: 6px 6px 0 0;
+}
+
+.stage-toolbar-model {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stage-toolbar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.stage-toolbar-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.stage-toolbar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.stage-toolbar-btn.active {
+  background: var(--primary-lighter);
+  color: var(--primary);
+}
+
+.stage-toolbar-btn.copied {
+  color: var(--success);
+}

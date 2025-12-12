@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ResponseWithComments from './ResponseWithComments';
 import { SelectionHandler } from '../utils/SelectionHandler';
-import AddToContextButton from './AddToContextButton';
+import StageToolbar from './StageToolbar';
 import './Stage2.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -131,16 +131,12 @@ export default function Stage2({
       </div>
 
       <div className="tab-content">
-        <div className="stage-toolbar">
-          <div className="ranking-model">
-            {activeRanking.model}
-          </div>
-          <AddToContextButton
-            isSelected={isSegmentSelected}
-            onToggle={handleContextToggle}
-            label="Stack This Ranking"
-          />
-        </div>
+        <StageToolbar
+          modelName={activeRanking.model}
+          content={rankingContent}
+          isInContext={isSegmentSelected}
+          onToggleContext={handleContextToggle}
+        />
         <ResponseWithComments
           content={rankingContent}
           comments={rankingComments}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ResponseWithComments from './ResponseWithComments';
 import { SelectionHandler } from '../utils/SelectionHandler';
-import AddToContextButton from './AddToContextButton';
+import StageToolbar from './StageToolbar';
 import './Stage1.css';
 
 export default function Stage1({
@@ -108,14 +108,12 @@ export default function Stage1({
       </div>
 
       <div className="tab-content">
-        <div className="stage-toolbar">
-          <div className="model-name">{activeResponse.model}</div>
-          <AddToContextButton
-            isSelected={isSegmentSelected}
-            onToggle={handleContextToggle}
-            label="Add to Context"
-          />
-        </div>
+        <StageToolbar
+          modelName={activeResponse.model}
+          content={activeResponse.response}
+          isInContext={isSegmentSelected}
+          onToggleContext={handleContextToggle}
+        />
         <ResponseWithComments
           content={activeResponse.response}
           comments={responseComments}
