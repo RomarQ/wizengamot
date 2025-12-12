@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import CouncilDiscussionView from './components/CouncilDiscussionView';
 import ConfigModal from './components/ConfigModal';
 import SettingsModal from './components/SettingsModal';
 import PromptManager from './components/PromptManager';
@@ -993,6 +994,19 @@ function App() {
             }
             loadConversations();
           }}
+        />
+      ) : currentConversation?.mode === 'council' && currentConversation?.messages?.some(m => m.role === 'assistant') ? (
+        <CouncilDiscussionView
+          conversation={currentConversation}
+          comments={comments}
+          contextSegments={contextSegments}
+          onSelectionChange={handleSelectionChange}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
+          activeCommentId={activeCommentId}
+          onSetActiveComment={handleSetActiveComment}
+          onAddContextSegment={handleAddContextSegment}
+          onRemoveContextSegment={handleRemoveContextSegment}
         />
       ) : (
         <ChatInterface

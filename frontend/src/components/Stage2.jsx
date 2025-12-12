@@ -29,9 +29,16 @@ export default function Stage2({
   activeCommentId,
   onSetActiveComment,
   onAddContextSegment,
-  onRemoveContextSegment
+  onRemoveContextSegment,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
 }) {
-  const [activeTab, setActiveTab] = useState(0);
+  // Use controlled or uncontrolled mode
+  const [internalActiveTab, setInternalActiveTab] = useState(0);
+  const isControlled = controlledActiveTab !== undefined;
+  const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
+  const setActiveTab = isControlled ? onActiveTabChange : setInternalActiveTab;
+
   const activeRanking = rankings?.[activeTab];
   const rankingContent = activeRanking
     ? deAnonymizeText(activeRanking.ranking, labelToModel)

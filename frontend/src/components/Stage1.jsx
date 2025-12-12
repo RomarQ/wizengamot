@@ -15,9 +15,16 @@ export default function Stage1({
   activeCommentId,
   onSetActiveComment,
   onAddContextSegment,
-  onRemoveContextSegment
+  onRemoveContextSegment,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
 }) {
-  const [activeTab, setActiveTab] = useState(0);
+  // Use controlled or uncontrolled mode
+  const [internalActiveTab, setInternalActiveTab] = useState(0);
+  const isControlled = controlledActiveTab !== undefined;
+  const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
+  const setActiveTab = isControlled ? onActiveTabChange : setInternalActiveTab;
+
   const activeResponse = responses?.[activeTab];
 
   useEffect(() => {
