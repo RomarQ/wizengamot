@@ -12,6 +12,7 @@ import SynthesizerInterface from './components/SynthesizerInterface';
 import MonitorInterface from './components/MonitorInterface';
 import VisualiserInterface from './components/VisualiserInterface';
 import SearchModal from './components/SearchModal';
+import ApiKeyWarning from './components/ApiKeyWarning';
 import { api } from './api';
 import { SelectionHandler } from './utils/SelectionHandler';
 import { buildHighlightsText, buildContextStackText } from './utils/tokenizer';
@@ -57,6 +58,13 @@ function App() {
 
   // Prompt labels for sidebar display
   const [promptLabels, setPromptLabels] = useState({});
+
+  // API key status for warnings
+  const [apiKeyStatus, setApiKeyStatus] = useState(null);
+  const [dismissedWarnings, setDismissedWarnings] = useState(() => ({
+    openrouter: localStorage.getItem('wizengamot:dismissed:openrouter-warning') === 'true',
+    firecrawl: localStorage.getItem('wizengamot:dismissed:firecrawl-warning') === 'true',
+  }));
 
   const getModelShortName = useCallback((model) => {
     return model?.split('/')[1] || model;
@@ -129,13 +137,31 @@ function App() {
     return segments;
   }, [comments, contextSegments, getModelShortName]);
 
-  // Load conversations, monitors, config, and prompt labels on mount
+  // Load conversations, monitors, config, prompt labels, and API key status on mount
   useEffect(() => {
     loadConversations();
     loadMonitors();
     loadConfig();
     loadPromptLabels();
+    loadApiKeyStatus();
   }, []);
+
+  const loadApiKeyStatus = async () => {
+    try {
+      const settings = await api.getSettings();
+      setApiKeyStatus({
+        openrouter: settings.api_key_configured,
+        firecrawl: settings.firecrawl_configured,
+      });
+    } catch (error) {
+      console.error('Failed to load API key status:', error);
+    }
+  };
+
+  const handleDismissWarning = (keyType) => {
+    localStorage.setItem(`wizengamot:dismissed:${keyType}-warning`, 'true');
+    setDismissedWarnings(prev => ({ ...prev, [keyType]: true }));
+  };
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -950,6 +976,22 @@ function App() {
         onResumeMonitor={handleResumeMonitor}
         onDeleteMonitor={handleDeleteMonitor}
       />
+      <div className="main-content">
+        {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
+          <ApiKeyWarning
+            keyType="openrouter"
+            onOpenSettings={() => setShowSettingsModal(true)}
+            onDismiss={() => handleDismissWarning('openrouter')}
+          />
+        )}
+        {apiKeyStatus && !apiKeyStatus.firecrawl && !dismissedWarnings.firecrawl && (
+          <ApiKeyWarning
+            keyType="firecrawl"
+            onOpenSettings={() => setShowSettingsModal(true)}
+            onDismiss={() => handleDismissWarning('firecrawl')}
+          />
+        )}
+      </div>
       {currentMonitor ? (
         <MonitorInterface
           monitor={currentMonitor}
@@ -1043,6 +1085,7 @@ function App() {
         onClose={() => {
           setShowSettingsModal(false);
           loadConfig(); // Reload config to pick up any model changes
+          loadApiKeyStatus(); // Reload API key status in case user added keys
         }}
       />
       {showPromptManager && (

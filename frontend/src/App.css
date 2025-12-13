@@ -15,6 +15,33 @@
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* API Key Warning Container */
+.main-content {
+  position: fixed;
+  top: 0;
+  left: 280px;
+  right: 0;
+  z-index: 100;
+  padding: 16px 24px 0 24px;
+  pointer-events: none;
+}
+
+.main-content:empty {
+  display: none;
+}
+
+.main-content > * {
+  pointer-events: auto;
+}
+
+.app.left-collapsed .main-content {
+  left: 48px;
+}
+
+.app.right-open .main-content {
+  right: 340px;
+}
+
 /* Floating Action Button for Review Context */
 .commit-button-fab {
   position: fixed;
