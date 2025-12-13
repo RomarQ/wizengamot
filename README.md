@@ -83,6 +83,26 @@ See [FEATURES.md](FEATURES.md) for the full changelog.
 - Python 3.10+
 - Node.js 18+
 - [uv](https://docs.astral.sh/uv/) for Python package management
+- ffmpeg (for YouTube/podcast transcription)
+
+### System Dependencies
+
+Wizengamot uses ffmpeg for YouTube and podcast transcription. Install it for your platform:
+
+**macOS:**
+```bash
+brew install ffmpeg
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update && sudo apt-get install ffmpeg
+```
+
+**Fedora:**
+```bash
+sudo dnf install ffmpeg
+```
 
 ### Installation
 
@@ -124,6 +144,28 @@ See [FEATURES.md](FEATURES.md) for the full changelog.
    ```
 
 5. Open http://localhost:5173
+
+### Verify Setup
+
+Run the dependency checker to verify your system is ready:
+
+```bash
+./scripts/check-deps.sh
+```
+
+This validates ffmpeg, uv, npm, Python/Node versions, and your `.env` configuration.
+
+### Optional: Pre-download Models
+
+YouTube and podcast transcription use OpenAI Whisper, and semantic search uses fastembed. These models download automatically on first use, but you can pre-download them to avoid delays:
+
+```bash
+./scripts/setup-models.sh
+```
+
+This downloads:
+- Whisper base model (~150MB) - for audio transcription
+- fastembed BAAI/bge-small-en-v1.5 (~50MB) - for semantic search
 
 ## Docker Deployment
 
