@@ -54,10 +54,12 @@ async def generate_zettels_single(
         return {
             "notes": [],
             "raw_response": "Error: Model failed to respond",
-            "model": model
+            "model": model,
+            "generation_id": None
         }
 
     raw_response = response.get("content", "")
+    generation_id = response.get("generation_id")
     notes = parse_zettels(raw_response)
 
     logger.info(f"Generated {len(notes)} Zettel notes")
@@ -65,7 +67,8 @@ async def generate_zettels_single(
     return {
         "notes": notes,
         "raw_response": raw_response,
-        "model": model
+        "model": model,
+        "generation_id": generation_id
     }
 
 
@@ -115,11 +118,15 @@ async def generate_zettels_council(
     # Collect all notes from all models
     all_notes = []
     model_responses = []
+    generation_ids = []
     note_counter = 1
 
     for model, response in responses.items():
         if response is not None:
             raw = response.get("content", "")
+            gen_id = response.get("generation_id")
+            if gen_id:
+                generation_ids.append(gen_id)
             notes = parse_zettels(raw)
 
             # Re-number notes and add source model
@@ -148,7 +155,8 @@ async def generate_zettels_council(
     return {
         "notes": all_notes,
         "model_responses": model_responses,
-        "models": council_models
+        "models": council_models,
+        "generation_ids": generation_ids
     }
 
 

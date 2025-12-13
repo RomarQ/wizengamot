@@ -111,6 +111,7 @@ Remember: Output the actual image, not a description."""
             response.raise_for_status()
 
             data = response.json()
+            generation_id = data.get("id")
 
             # Extract image data from response
             image_data = extract_image_from_response(data)
@@ -121,7 +122,8 @@ Remember: Output the actual image, not a description."""
                 return {
                     "error": f"No image generated. Model response: {text_content[:500]}",
                     "model": model,
-                    "style": style
+                    "style": style,
+                    "generation_id": generation_id
                 }
 
             # Save image to file
@@ -133,6 +135,7 @@ Remember: Output the actual image, not a description."""
                 "image_path": str(image_path),
                 "style": style,
                 "model": model,
+                "generation_id": generation_id,
                 "error": None
             }
 
@@ -240,6 +243,7 @@ Generate a new version of the infographic with the requested changes applied. Ou
             response.raise_for_status()
 
             data = response.json()
+            generation_id = data.get("id")
 
             # Extract image data from response
             image_data = extract_image_from_response(data)
@@ -249,7 +253,8 @@ Generate a new version of the infographic with the requested changes applied. Ou
                 return {
                     "error": f"No image generated. Model response: {text_content[:500]}",
                     "model": model,
-                    "style": style
+                    "style": style,
+                    "generation_id": generation_id
                 }
 
             # Save new image
@@ -261,15 +266,16 @@ Generate a new version of the infographic with the requested changes applied. Ou
                 "image_path": str(new_image_path),
                 "style": style,
                 "model": model,
+                "generation_id": generation_id,
                 "error": None
             }
 
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error editing diagram: {e.response.status_code} - {e.response.text}")
-        return {"error": f"API error: {e.response.status_code}"}
+        return {"error": f"API error: {e.response.status_code}", "generation_id": None}
     except Exception as e:
         logger.error(f"Failed to edit diagram: {e}")
-        return {"error": str(e)}
+        return {"error": str(e), "generation_id": None}
 
 
 def extract_image_from_response(response: Dict) -> Optional[bytes]:
@@ -608,10 +614,11 @@ async def spell_check_diagram(
             response.raise_for_status()
 
             data = response.json()
+            spell_check_gen_id = data.get("id")
             response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
             if not response_text:
-                return {"error": "No response from spell check model"}
+                return {"error": "No response from spell check model", "generation_ids": [spell_check_gen_id] if spell_check_gen_id else []}
 
             # Parse the response
             parsed = parse_spell_check_response(response_text)
@@ -626,7 +633,8 @@ async def spell_check_diagram(
                     "errors_found": parsed["errors_found"],
                     "corrected_prompt": "",
                     "has_errors": False,
-                    "error": None
+                    "error": None,
+                    "generation_ids": [spell_check_gen_id] if spell_check_gen_id else []
                 }
 
             # Stage 2: Regenerate with corrections using edit_diagram
@@ -640,12 +648,20 @@ async def spell_check_diagram(
                 model
             )
 
+            # Collect both generation IDs
+            generation_ids = []
+            if spell_check_gen_id:
+                generation_ids.append(spell_check_gen_id)
+            if edit_result.get("generation_id"):
+                generation_ids.append(edit_result["generation_id"])
+
             if edit_result.get("error"):
                 return {
                     "error": edit_result["error"],
                     "errors_found": parsed["errors_found"],
                     "corrected_prompt": parsed["corrected_prompt"],
-                    "has_errors": True
+                    "has_errors": True,
+                    "generation_ids": generation_ids
                 }
 
             return {
@@ -656,7 +672,8 @@ async def spell_check_diagram(
                 "errors_found": parsed["errors_found"],
                 "corrected_prompt": parsed["corrected_prompt"],
                 "has_errors": True,
-                "error": None
+                "error": None,
+                "generation_ids": generation_ids
             }
 
     except httpx.HTTPStatusError as e:

@@ -72,6 +72,7 @@ class ConversationMetadata(BaseModel):
     mode: str = "council"
     source_type: Optional[str] = None
     prompt_title: Optional[str] = None
+    total_cost: float = 0.0
 
 
 class Conversation(BaseModel):
@@ -324,8 +325,9 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 if stage3_result.get('generation_id'):
                     generation_ids.append(stage3_result['generation_id'])
 
-                # Fetch costs in parallel
+                # Fetch costs in parallel (wait briefly for OpenRouter to process)
                 if generation_ids:
+                    await asyncio.sleep(1.5)  # Wait for OpenRouter to process costs
                     cost_tasks = [openrouter.get_generation_cost(gid) for gid in generation_ids]
                     costs = await asyncio.gather(*cost_tasks)
 
@@ -964,6 +966,26 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         content_result.get("title")
     )
 
+    # Track costs (wait briefly for OpenRouter to process costs)
+    generation_ids = []
+    if request.use_council:
+        generation_ids = result.get("generation_ids", [])
+    else:
+        gen_id = result.get("generation_id")
+        if gen_id:
+            generation_ids.append(gen_id)
+
+    if generation_ids:
+        try:
+            await asyncio.sleep(1.5)  # Wait for OpenRouter to process costs
+            cost_tasks = [openrouter.get_generation_cost(gid) for gid in generation_ids]
+            costs = await asyncio.gather(*cost_tasks)
+            total_cost = sum(c for c in costs if c is not None)
+            if total_cost > 0:
+                storage.update_conversation_cost(conversation_id, total_cost)
+        except Exception as e:
+            print(f"Error tracking synthesizer cost: {e}")
+
     # Generate title from notes if first message
     generated_title = None
     if is_first_message and result.get("notes"):
@@ -1148,6 +1170,17 @@ async def visualise_content(conversation_id: str, request: VisualiseRequest):
         result.get("model")
     )
 
+    # Track cost (wait briefly for OpenRouter to process costs)
+    gen_id = result.get("generation_id")
+    if gen_id:
+        try:
+            await asyncio.sleep(1.5)  # Wait for OpenRouter to process costs
+            cost = await openrouter.get_generation_cost(gen_id)
+            if cost and cost > 0:
+                storage.update_conversation_cost(conversation_id, cost)
+        except Exception as e:
+            print(f"Error tracking visualiser cost: {e}")
+
     # Generate title if first message
     generated_title = None
     if is_first_message:
@@ -1224,6 +1257,17 @@ async def edit_visualisation(conversation_id: str, request: VisualiseEditRequest
         edit_prompt=request.edit_prompt
     )
 
+    # Track cost (wait briefly for OpenRouter to process costs)
+    gen_id = result.get("generation_id")
+    if gen_id:
+        try:
+            await asyncio.sleep(1.5)  # Wait for OpenRouter to process costs
+            cost = await openrouter.get_generation_cost(gen_id)
+            if cost and cost > 0:
+                storage.update_conversation_cost(conversation_id, cost)
+        except Exception as e:
+            print(f"Error tracking visualiser edit cost: {e}")
+
     return {
         "image_id": result["image_id"],
         "image_url": f"/api/images/{result['image_id']}",
@@ -1280,6 +1324,19 @@ async def spellcheck_visualisation(conversation_id: str, request: VisualiseSpell
 
     if result.get("error"):
         raise HTTPException(status_code=500, detail=result["error"])
+
+    # Track costs (spell check may have 1 or 2 API calls depending on whether errors were found)
+    generation_ids = result.get("generation_ids", [])
+    if generation_ids:
+        try:
+            await asyncio.sleep(1.5)  # Wait for OpenRouter to process costs
+            cost_tasks = [openrouter.get_generation_cost(gid) for gid in generation_ids if gid]
+            costs = await asyncio.gather(*cost_tasks)
+            total_cost = sum(c for c in costs if c is not None)
+            if total_cost > 0:
+                storage.update_conversation_cost(conversation_id, total_cost)
+        except Exception as e:
+            print(f"Error tracking spellcheck cost: {e}")
 
     # If no errors found, return response without creating new version
     if not result.get("has_errors"):
