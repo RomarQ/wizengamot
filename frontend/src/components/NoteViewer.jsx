@@ -570,7 +570,7 @@ export default function NoteViewer({
           </div>
 
           <p className="nav-hint">
-            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>C</kbd> copy note, <kbd>X</kbd> tweet
+            <kbd>J</kbd> / <kbd>K</kbd> navigate, <kbd>F</kbd> focus mode, <kbd>C</kbd> copy note, <kbd>X</kbd> tweet
           </p>
         </div>
       ) : (
