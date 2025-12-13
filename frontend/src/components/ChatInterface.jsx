@@ -5,6 +5,7 @@ import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import SystemPromptBadge from './SystemPromptBadge';
 import FeatureList from './FeatureList';
+import { api } from '../api';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -22,7 +23,21 @@ export default function ChatInterface({
   onRemoveContextSegment,
 }) {
   const [input, setInput] = useState('');
+  const [credits, setCredits] = useState(null);
   const messagesEndRef = useRef(null);
+
+  // Fetch credits on mount when showing empty state
+  useEffect(() => {
+    if (!conversation) {
+      api.getCredits()
+        .then(data => {
+          setCredits(data.remaining);
+        })
+        .catch(() => {
+          // Silently fail - don't show credits if fetch fails
+        });
+    }
+  }, [conversation]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,93 +67,127 @@ export default function ChatInterface({
     return (
       <div className="chat-interface">
         <div className="empty-state">
-          <div className="logo-container">
-            <svg className="council-logo" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                {/* Glow filter for center */}
-                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-                {/* Gradient for center sphere */}
-                <radialGradient id="sphereGradient" cx="40%" cy="40%">
-                  <stop offset="0%" stopColor="#fcd34d"/>
-                  <stop offset="50%" stopColor="#f59e0b"/>
-                  <stop offset="100%" stopColor="#d97706"/>
-                </radialGradient>
-                {/* Outer glow */}
-                <radialGradient id="outerGlow" cx="50%" cy="50%">
-                  <stop offset="0%" stopColor="#fef3c7" stopOpacity="0.8"/>
-                  <stop offset="100%" stopColor="#fef3c7" stopOpacity="0"/>
-                </radialGradient>
-              </defs>
+          <div className="empty-state-header">
+            <div className="logo-container">
+              <svg className="council-logo" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  {/* Glow filter for center */}
+                  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                  {/* Gradient for center sphere */}
+                  <radialGradient id="sphereGradient" cx="40%" cy="40%">
+                    <stop offset="0%" stopColor="#fcd34d"/>
+                    <stop offset="50%" stopColor="#f59e0b"/>
+                    <stop offset="100%" stopColor="#d97706"/>
+                  </radialGradient>
+                  {/* Outer glow */}
+                  <radialGradient id="outerGlow" cx="50%" cy="50%">
+                    <stop offset="0%" stopColor="#fef3c7" stopOpacity="0.8"/>
+                    <stop offset="100%" stopColor="#fef3c7" stopOpacity="0"/>
+                  </radialGradient>
+                </defs>
 
-              {/* Outer glow halo */}
-              <circle cx="100" cy="100" r="35" fill="url(#outerGlow)"/>
+                {/* Outer glow halo */}
+                <circle cx="100" cy="100" r="35" fill="url(#outerGlow)"/>
 
-              {/* Orbital rings - 5 ellipses at different rotations */}
-              {[0, 36, 72, 108, 144].map((rotation, i) => (
-                <ellipse
-                  key={`ring-${i}`}
-                  cx="100"
-                  cy="100"
-                  rx="80"
-                  ry="35"
-                  fill="none"
-                  stroke={i % 2 === 0 ? 'currentColor' : '#f59e0b'}
-                  strokeWidth="1.5"
-                  opacity={i % 2 === 0 ? 0.4 : 0.7}
-                  transform={`rotate(${rotation} 100 100)`}
-                />
-              ))}
-
-              {/* Nodes on orbits */}
-              {[
-                { angle: 30, ring: 0, isOrange: false },
-                { angle: 150, ring: 0, isOrange: false },
-                { angle: 270, ring: 0, isOrange: true },
-                { angle: 60, ring: 1, isOrange: true },
-                { angle: 180, ring: 1, isOrange: false },
-                { angle: 300, ring: 1, isOrange: false },
-                { angle: 0, ring: 2, isOrange: false },
-                { angle: 120, ring: 2, isOrange: true },
-                { angle: 240, ring: 2, isOrange: false },
-                { angle: 45, ring: 3, isOrange: false },
-                { angle: 165, ring: 3, isOrange: true },
-                { angle: 285, ring: 3, isOrange: false },
-                { angle: 90, ring: 4, isOrange: true },
-                { angle: 210, ring: 4, isOrange: false },
-                { angle: 330, ring: 4, isOrange: false },
-              ].map((node, i) => {
-                const ringRotation = [0, 36, 72, 108, 144][node.ring];
-                const rad = (node.angle) * Math.PI / 180;
-                const x = 80 * Math.cos(rad);
-                const y = 35 * Math.sin(rad);
-                const rotRad = ringRotation * Math.PI / 180;
-                const finalX = 100 + x * Math.cos(rotRad) - y * Math.sin(rotRad);
-                const finalY = 100 + x * Math.sin(rotRad) + y * Math.cos(rotRad);
-                return (
-                  <circle
-                    key={`node-${i}`}
-                    cx={finalX}
-                    cy={finalY}
-                    r="4"
-                    fill={node.isOrange ? '#f59e0b' : 'currentColor'}
-                    opacity={node.isOrange ? 1 : 0.6}
+                {/* Orbital rings - 5 ellipses at different rotations */}
+                {[0, 36, 72, 108, 144].map((rotation, i) => (
+                  <ellipse
+                    key={`ring-${i}`}
+                    cx="100"
+                    cy="100"
+                    rx="80"
+                    ry="35"
+                    fill="none"
+                    stroke={i % 2 === 0 ? 'currentColor' : '#f59e0b'}
+                    strokeWidth="1.5"
+                    opacity={i % 2 === 0 ? 0.4 : 0.7}
+                    transform={`rotate(${rotation} 100 100)`}
                   />
-                );
-              })}
+                ))}
 
-              {/* Center glowing sphere */}
-              <circle cx="100" cy="100" r="18" fill="url(#sphereGradient)" filter="url(#glow)"/>
-            </svg>
-            <h1 className="brand-title">WIZENGAMOT</h1>
-            <p className="brand-tagline">A personal agentic sounding board</p>
+                {/* Nodes on orbits */}
+                {[
+                  { angle: 30, ring: 0, isOrange: false },
+                  { angle: 150, ring: 0, isOrange: false },
+                  { angle: 270, ring: 0, isOrange: true },
+                  { angle: 60, ring: 1, isOrange: true },
+                  { angle: 180, ring: 1, isOrange: false },
+                  { angle: 300, ring: 1, isOrange: false },
+                  { angle: 0, ring: 2, isOrange: false },
+                  { angle: 120, ring: 2, isOrange: true },
+                  { angle: 240, ring: 2, isOrange: false },
+                  { angle: 45, ring: 3, isOrange: false },
+                  { angle: 165, ring: 3, isOrange: true },
+                  { angle: 285, ring: 3, isOrange: false },
+                  { angle: 90, ring: 4, isOrange: true },
+                  { angle: 210, ring: 4, isOrange: false },
+                  { angle: 330, ring: 4, isOrange: false },
+                ].map((node, i) => {
+                  const ringRotation = [0, 36, 72, 108, 144][node.ring];
+                  const rad = (node.angle) * Math.PI / 180;
+                  const x = 80 * Math.cos(rad);
+                  const y = 35 * Math.sin(rad);
+                  const rotRad = ringRotation * Math.PI / 180;
+                  const finalX = 100 + x * Math.cos(rotRad) - y * Math.sin(rotRad);
+                  const finalY = 100 + x * Math.sin(rotRad) + y * Math.cos(rotRad);
+                  return (
+                    <circle
+                      key={`node-${i}`}
+                      cx={finalX}
+                      cy={finalY}
+                      r="4"
+                      fill={node.isOrange ? '#f59e0b' : 'currentColor'}
+                      opacity={node.isOrange ? 1 : 0.6}
+                    />
+                  );
+                })}
+
+                {/* Center glowing sphere */}
+                <circle cx="100" cy="100" r="18" fill="url(#sphereGradient)" filter="url(#glow)"/>
+              </svg>
+              <h1 className="brand-title">WIZENGAMOT</h1>
+              <p className="brand-tagline">A personal agentic sounding board</p>
+            </div>
+            {credits !== null && (
+              <div className={`credits-display ${credits < 2 ? 'warning' : ''}`}>
+                {credits < 2 ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L1 21h22L12 2zm0 3.5L19.5 19H4.5L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/>
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="6" x2="12" y2="18"/>
+                    <path d="M9 12h6"/>
+                  </svg>
+                )}
+                ${credits.toFixed(2)} remaining
+              </div>
+            )}
+            <div className="author-links">
+              <a href="https://github.com/jayfarei" target="_blank" rel="noopener noreferrer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+              </a>
+              <a href="https://x.com/jayfarei" target="_blank" rel="noopener noreferrer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                @jayfarei
+              </a>
+            </div>
           </div>
-          <FeatureList />
+          <div className="empty-state-content">
+            <FeatureList />
+          </div>
         </div>
       </div>
     );
