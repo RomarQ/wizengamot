@@ -439,6 +439,12 @@
   opacity: 0.5;
 }
 
+.meta-cost {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+}
+
 .source-type-badge {
   font-size: 10px;
   padding: 1px 5px;
@@ -477,13 +483,72 @@
 }
 
 .sidebar-footer {
-  padding: 8px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Collapsed footer: vertical stack like top section */
+.sidebar.collapsed .sidebar-footer {
+  flex-direction: column;
+  padding: 8px;
+  gap: 2px;
+}
+
+.footer-icon-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
-.sidebar.collapsed .sidebar-footer {
-  border-top: none;
+.footer-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Expand to full width when collapsed for consistent click targets */
+.sidebar.collapsed .footer-icon-btn {
+  width: 100%;
+  padding: 10px 8px;
+}
+
+.footer-credits {
+  font-size: 13px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Show credits in collapsed state too, just the number */
+.sidebar.collapsed .footer-credits {
+  font-size: 11px;
+  padding: 6px 0;
+}
+
+.footer-credits.warning {
+  color: #f59e0b;
+}
+
+.footer-credits.warning svg {
+  color: #f59e0b;
 }
 
 /* Loading indicator for in-progress conversations */

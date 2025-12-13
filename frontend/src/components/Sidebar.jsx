@@ -71,6 +71,8 @@ export default function Sidebar({
   onDeleteConversation,
   onOpenSettings,
   onOpenSearch,
+  onGoHome,
+  credits,
   collapsed,
   onToggleCollapse,
   isLoading,
@@ -249,6 +251,12 @@ export default function Sidebar({
                             </div>
                             <div className="conversation-meta">
                               <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                              {conv.total_cost > 0 && (
+                                <>
+                                  <span className="meta-separator">·</span>
+                                  <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                </>
+                              )}
                               {conv.thread_count > 0 && (
                                 <>
                                   <span className="meta-separator">·</span>
@@ -334,6 +342,12 @@ export default function Sidebar({
                             </div>
                             <div className="conversation-meta">
                               <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                              {conv.total_cost > 0 && (
+                                <>
+                                  <span className="meta-separator">·</span>
+                                  <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                </>
+                              )}
                               {conv.source_type && (
                                 <>
                                   <span className="meta-separator">·</span>
@@ -419,6 +433,12 @@ export default function Sidebar({
                             </div>
                             <div className="conversation-meta">
                               <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                              {conv.total_cost > 0 && (
+                                <>
+                                  <span className="meta-separator">·</span>
+                                  <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                </>
+                              )}
                               {conv.source_type && (
                                 <>
                                   <span className="meta-separator">·</span>
@@ -437,14 +457,29 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* Settings button - always in DOM */}
+      {/* Footer with home, credits, settings */}
       <div className="sidebar-footer">
-        <button className="sidebar-action-btn" onClick={onOpenSettings} title="Settings">
+        <button className="footer-icon-btn" onClick={onGoHome} title="Home">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </button>
+        {credits !== null && (
+          <span className={`footer-credits ${credits < 2 ? 'warning' : ''}`}>
+            {credits < 2 && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L1 21h22L12 2zm0 3.5L19.5 19H4.5L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/>
+              </svg>
+            )}
+            ${credits.toFixed(2)}
+          </span>
+        )}
+        <button className="footer-icon-btn" onClick={onOpenSettings} title="Settings">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          <span className="action-text">Settings</span>
         </button>
       </div>
     </div>

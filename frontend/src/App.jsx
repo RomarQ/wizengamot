@@ -62,6 +62,9 @@ function App() {
 
   // API key status for warnings
   const [apiKeyStatus, setApiKeyStatus] = useState(null);
+
+  // Credits for sidebar display
+  const [credits, setCredits] = useState(null);
   const [dismissedWarnings, setDismissedWarnings] = useState(() => ({
     openrouter: localStorage.getItem('wizengamot:dismissed:openrouter-warning') === 'true',
     firecrawl: localStorage.getItem('wizengamot:dismissed:firecrawl-warning') === 'true',
@@ -138,13 +141,14 @@ function App() {
     return segments;
   }, [comments, contextSegments, getModelShortName]);
 
-  // Load conversations, monitors, config, prompt labels, and API key status on mount
+  // Load conversations, monitors, config, prompt labels, API key status, and credits on mount
   useEffect(() => {
     loadConversations();
     loadMonitors();
     loadConfig();
     loadPromptLabels();
     loadApiKeyStatus();
+    loadCredits();
   }, []);
 
   const loadApiKeyStatus = async () => {
@@ -156,6 +160,15 @@ function App() {
       });
     } catch (error) {
       console.error('Failed to load API key status:', error);
+    }
+  };
+
+  const loadCredits = async () => {
+    try {
+      const data = await api.getCredits();
+      setCredits(data.remaining);
+    } catch (error) {
+      // Silently fail - don't show credits if fetch fails
     }
   };
 
@@ -281,6 +294,13 @@ function App() {
 
   const handleNewConversation = () => {
     setShowModeSelector(true);
+  };
+
+  const handleGoHome = () => {
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
   };
 
   const handleModeSelect = async (mode) => {
@@ -964,6 +984,8 @@ function App() {
         onDeleteConversation={handleDeleteConversation}
         onOpenSettings={() => setShowSettingsModal(true)}
         onOpenSearch={() => setShowSearchModal(true)}
+        onGoHome={handleGoHome}
+        credits={credits}
         collapsed={leftSidebarCollapsed}
         onToggleCollapse={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
         isLoading={isLoading}
