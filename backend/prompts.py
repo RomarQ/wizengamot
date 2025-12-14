@@ -9,6 +9,9 @@ from typing import List, Dict, Optional
 # Prompts directory - configurable for Docker
 PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", "prompts"))
 
+# Stage prompt files to exclude from system prompts list
+STAGE_PROMPT_FILES = {"ranking.md", "chairman.md"}
+
 # Config directory for labels storage
 CONFIG_DIR = Path(os.getenv("CONFIG_DIR", "data/config"))
 LABELS_FILE = CONFIG_DIR / "prompt_labels.json"
@@ -37,22 +40,42 @@ def get_prompt_filename(title: str) -> str:
         filename += '.md'
     return filename
 
-def list_prompts() -> List[Dict[str, str]]:
+def list_prompts(mode: Optional[str] = None) -> List[Dict[str, str]]:
     """
-    List all available prompts.
-    Returns list of dicts with 'filename', 'title', and 'content'.
+    List all available prompts, optionally filtered by mode.
+
+    Args:
+        mode: Optional filter - 'council' or 'synthesizer'.
+              If None, returns prompts from root directory (backwards compat).
+
+    Returns:
+        List of dicts with 'filename', 'title', 'content', and 'mode'.
     """
     ensure_prompts_dir()
     prompts = []
 
-    for filepath in sorted(PROMPTS_DIR.glob("*.md")):
+    # Determine which directory to search
+    if mode and mode in ('council', 'synthesizer'):
+        search_dir = PROMPTS_DIR / mode
+        if not search_dir.exists():
+            return []
+    else:
+        # Root directory for backwards compatibility
+        search_dir = PROMPTS_DIR
+
+    for filepath in sorted(search_dir.glob("*.md")):
+        # Skip stage prompt files when listing council prompts
+        if mode == 'council' and filepath.name in STAGE_PROMPT_FILES:
+            continue
+
         try:
             content = filepath.read_text(encoding='utf-8')
             title = extract_title_from_markdown(content)
             prompts.append({
                 "filename": filepath.name,
                 "title": title,
-                "content": content
+                "content": content,
+                "mode": mode or "root"
             })
         except Exception as e:
             print(f"Error reading prompt {filepath}: {e}")
@@ -60,13 +83,26 @@ def list_prompts() -> List[Dict[str, str]]:
 
     return prompts
 
-def get_prompt(filename: str) -> Optional[Dict[str, str]]:
+def get_prompt(filename: str, mode: Optional[str] = None) -> Optional[Dict[str, str]]:
     """
     Get a specific prompt by filename.
-    Returns dict with 'filename', 'title', and 'content', or None if not found.
+
+    Args:
+        filename: The prompt filename
+        mode: Optional mode ('council' or 'synthesizer') to look in subdirectory
+
+    Returns:
+        Dict with 'filename', 'title', 'content', and 'mode', or None if not found.
     """
     ensure_prompts_dir()
-    filepath = PROMPTS_DIR / filename
+
+    # Determine base directory
+    if mode and mode in ('council', 'synthesizer'):
+        base_dir = PROMPTS_DIR / mode
+    else:
+        base_dir = PROMPTS_DIR
+
+    filepath = base_dir / filename
 
     if not filepath.exists() or not filepath.is_file():
         return None
@@ -77,17 +113,26 @@ def get_prompt(filename: str) -> Optional[Dict[str, str]]:
         return {
             "filename": filename,
             "title": title,
-            "content": content
+            "content": content,
+            "mode": mode or "root"
         }
     except Exception as e:
         print(f"Error reading prompt {filepath}: {e}")
         return None
 
-def create_prompt(title: str, content: str) -> Dict[str, str]:
+def create_prompt(title: str, content: str, mode: Optional[str] = None) -> Dict[str, str]:
     """
     Create a new prompt file.
-    Returns dict with 'filename', 'title', and 'content'.
-    Raises ValueError if file already exists.
+
+    Args:
+        title: The prompt title
+        content: The prompt content
+        mode: Optional mode ('council' or 'synthesizer') for subdirectory
+
+    Returns:
+        Dict with 'filename', 'title', 'content', and 'mode'.
+    Raises:
+        ValueError if file already exists.
     """
     ensure_prompts_dir()
 
@@ -96,7 +141,15 @@ def create_prompt(title: str, content: str) -> Dict[str, str]:
         content = f"# {title}\n\n{content.strip()}"
 
     filename = get_prompt_filename(title)
-    filepath = PROMPTS_DIR / filename
+
+    # Determine base directory
+    if mode and mode in ('council', 'synthesizer'):
+        base_dir = PROMPTS_DIR / mode
+        base_dir.mkdir(exist_ok=True)
+    else:
+        base_dir = PROMPTS_DIR
+
+    filepath = base_dir / filename
 
     if filepath.exists():
         raise ValueError(f"Prompt file '{filename}' already exists")
@@ -106,17 +159,33 @@ def create_prompt(title: str, content: str) -> Dict[str, str]:
     return {
         "filename": filename,
         "title": title,
-        "content": content
+        "content": content,
+        "mode": mode or "root"
     }
 
-def update_prompt(filename: str, content: str) -> Dict[str, str]:
+def update_prompt(filename: str, content: str, mode: Optional[str] = None) -> Dict[str, str]:
     """
     Update an existing prompt file.
-    Returns dict with 'filename', 'title', and 'content'.
-    Raises ValueError if file doesn't exist.
+
+    Args:
+        filename: The prompt filename
+        content: The new prompt content
+        mode: Optional mode ('council' or 'synthesizer') for subdirectory
+
+    Returns:
+        Dict with 'filename', 'title', 'content', and 'mode'.
+    Raises:
+        ValueError if file doesn't exist.
     """
     ensure_prompts_dir()
-    filepath = PROMPTS_DIR / filename
+
+    # Determine base directory
+    if mode and mode in ('council', 'synthesizer'):
+        base_dir = PROMPTS_DIR / mode
+    else:
+        base_dir = PROMPTS_DIR
+
+    filepath = base_dir / filename
 
     if not filepath.exists():
         raise ValueError(f"Prompt file '{filename}' does not exist")
@@ -127,24 +196,45 @@ def update_prompt(filename: str, content: str) -> Dict[str, str]:
     return {
         "filename": filename,
         "title": title,
-        "content": content
+        "content": content,
+        "mode": mode or "root"
     }
 
-def delete_prompt(filename: str) -> bool:
+def delete_prompt(filename: str, mode: Optional[str] = None) -> bool:
     """
     Delete a prompt file.
-    Returns True if successful, raises ValueError if file doesn't exist.
+
+    Args:
+        filename: The prompt filename
+        mode: Optional mode ('council' or 'synthesizer') for subdirectory
+
+    Returns:
+        True if successful.
+    Raises:
+        ValueError if file doesn't exist.
     """
     ensure_prompts_dir()
-    filepath = PROMPTS_DIR / filename
+
+    # Determine base directory
+    if mode and mode in ('council', 'synthesizer'):
+        base_dir = PROMPTS_DIR / mode
+    else:
+        base_dir = PROMPTS_DIR
+
+    filepath = base_dir / filename
 
     if not filepath.exists():
         raise ValueError(f"Prompt file '{filename}' does not exist")
 
     filepath.unlink()
 
-    # Also remove label if exists
+    # Also remove label if exists (use mode-prefixed key)
+    label_key = f"{mode}/{filename}" if mode else filename
     labels = load_labels()
+    if label_key in labels:
+        del labels[label_key]
+        save_labels(labels)
+    # Also check old-style key for backwards compat
     if filename in labels:
         del labels[filename]
         save_labels(labels)
@@ -224,19 +314,27 @@ Reply with exactly one word:"""
     return "General"  # Fallback
 
 
-async def list_prompts_with_labels() -> List[Dict[str, str]]:
+async def list_prompts_with_labels(mode: Optional[str] = None) -> List[Dict[str, str]]:
     """
     List all prompts with their labels.
     Lazily generates labels for prompts that don't have one.
+
+    Args:
+        mode: Optional filter - 'council' or 'synthesizer'.
     """
     import asyncio
 
-    prompts_list = list_prompts()
+    prompts_list = list_prompts(mode)
     labels = load_labels()
     pending_labels = []
 
     for prompt in prompts_list:
-        if prompt["filename"] in labels:
+        # Use mode-prefixed key for labels
+        label_key = f"{mode}/{prompt['filename']}" if mode else prompt["filename"]
+        if label_key in labels:
+            prompt["short_label"] = labels[label_key]
+        elif prompt["filename"] in labels:
+            # Backwards compat: try old-style key
             prompt["short_label"] = labels[prompt["filename"]]
         else:
             # Queue for lazy generation
@@ -249,8 +347,9 @@ async def list_prompts_with_labels() -> List[Dict[str, str]]:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for prompt, label in zip(pending_labels, results):
+            label_key = f"{mode}/{prompt['filename']}" if mode else prompt["filename"]
             if isinstance(label, str):
-                set_label(prompt["filename"], label)
+                set_label(label_key, label)
                 prompt["short_label"] = label
             else:
                 # On error, use a fallback
@@ -259,22 +358,24 @@ async def list_prompts_with_labels() -> List[Dict[str, str]]:
     return prompts_list
 
 
-async def create_prompt_with_label(title: str, content: str) -> Dict[str, str]:
+async def create_prompt_with_label(title: str, content: str, mode: Optional[str] = None) -> Dict[str, str]:
     """
     Create a new prompt and generate its label.
 
     Args:
         title: The prompt title
         content: The prompt content
+        mode: Optional mode ('council' or 'synthesizer') for subdirectory
 
     Returns:
-        Dict with filename, title, content, and short_label
+        Dict with filename, title, content, mode, and short_label
     """
-    prompt = create_prompt(title, content)
+    prompt = create_prompt(title, content, mode)
 
-    # Generate and store label
+    # Generate and store label with mode-prefixed key
     label = await generate_label(title, content)
-    set_label(prompt["filename"], label)
+    label_key = f"{mode}/{prompt['filename']}" if mode else prompt["filename"]
+    set_label(label_key, label)
     prompt["short_label"] = label
 
     return prompt
