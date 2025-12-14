@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from .config import DATA_DIR
@@ -155,11 +155,14 @@ def list_conversations() -> List[Dict[str, Any]]:
                         if msg.get("role") == "assistant" and msg.get("source_type"):
                             conv_meta["source_type"] = msg["source_type"]
                             break
-                # For visualiser, extract source_type from first user message
+                # For visualiser, extract source_type and diagram_style from first user message
                 if conv_meta["mode"] == "visualiser":
                     for msg in data.get("messages", []):
-                        if msg.get("role") == "user" and msg.get("source_type"):
-                            conv_meta["source_type"] = msg["source_type"]
+                        if msg.get("role") == "user":
+                            if msg.get("source_type"):
+                                conv_meta["source_type"] = msg["source_type"]
+                            if msg.get("style"):
+                                conv_meta["diagram_style"] = msg["style"]
                             break
                 # Include status in metadata (with defaults for existing conversations)
                 conv_meta["status"] = {
@@ -750,3 +753,115 @@ def add_visualiser_message(
     conversation["messages"].append(message)
 
     save_conversation(conversation)
+
+
+# =============================================================================
+# Usage Statistics
+# =============================================================================
+
+def get_usage_stats() -> Dict[str, Any]:
+    """
+    Get aggregated usage statistics across all conversations.
+
+    Returns:
+        Dict with:
+            - total_spent: Total cost across all conversations
+            - by_mode: Dict mapping mode to total cost
+            - conversation_count: Number of conversations
+            - top_conversations: List of 5 most expensive conversations
+            - daily_spending: List of daily spending for last 30 days with mode breakdown
+    """
+    ensure_data_dir()
+
+    total_spent = 0.0
+    by_mode = {
+        "council": 0.0,
+        "synthesizer": 0.0,
+        "monitor": 0.0,
+        "visualiser": 0.0
+    }
+    conversation_count = 0
+    conversations_with_cost = []
+
+    # Track daily spending by mode
+    daily_by_mode: Dict[str, Dict[str, float]] = {}  # date -> {mode -> cost}
+    daily_count: Dict[str, int] = {}  # date -> conversation count
+
+    for filename in os.listdir(DATA_DIR):
+        if filename.endswith('.json'):
+            try:
+                path = os.path.join(DATA_DIR, filename)
+                with open(path, 'r') as f:
+                    data = json.load(f)
+
+                conversation_count += 1
+                cost = data.get("total_cost", 0.0)
+                mode = data.get("mode", "council")
+                created_at = data.get("created_at", "")
+
+                total_spent += cost
+                if mode in by_mode:
+                    by_mode[mode] += cost
+
+                # Track daily spending
+                if created_at and cost > 0:
+                    # Extract date from ISO timestamp
+                    date_str = created_at[:10]  # "2024-12-01T..." -> "2024-12-01"
+                    if date_str not in daily_by_mode:
+                        daily_by_mode[date_str] = {
+                            "council": 0.0,
+                            "synthesizer": 0.0,
+                            "monitor": 0.0,
+                            "visualiser": 0.0
+                        }
+                        daily_count[date_str] = 0
+                    if mode in daily_by_mode[date_str]:
+                        daily_by_mode[date_str][mode] += cost
+                    daily_count[date_str] += 1
+
+                if cost > 0:
+                    conversations_with_cost.append({
+                        "id": data["id"],
+                        "title": data.get("title", "Untitled"),
+                        "mode": mode,
+                        "cost": cost,
+                        "created_at": data.get("created_at")
+                    })
+            except (json.JSONDecodeError, IOError, KeyError):
+                # Skip malformed files
+                continue
+
+    # Sort by cost descending and take top 5
+    top_conversations = sorted(
+        conversations_with_cost,
+        key=lambda x: x["cost"],
+        reverse=True
+    )[:5]
+
+    # Build daily_spending array for last 30 days
+    daily_spending = []
+    today = datetime.utcnow().date()
+    for i in range(29, -1, -1):  # 29 days ago to today
+        date = today - timedelta(days=i)
+        date_str = date.isoformat()
+        mode_costs = daily_by_mode.get(date_str, {
+            "council": 0.0,
+            "synthesizer": 0.0,
+            "monitor": 0.0,
+            "visualiser": 0.0
+        })
+        total_day = sum(mode_costs.values())
+        daily_spending.append({
+            "date": date_str,
+            "total": round(total_day, 4),
+            "by_mode": {k: round(v, 4) for k, v in mode_costs.items()},
+            "count": daily_count.get(date_str, 0)
+        })
+
+    return {
+        "total_spent": round(total_spent, 4),
+        "by_mode": {k: round(v, 4) for k, v in by_mode.items()},
+        "conversation_count": conversation_count,
+        "top_conversations": top_conversations,
+        "daily_spending": daily_spending
+    }

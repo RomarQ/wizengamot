@@ -7,8 +7,9 @@ import re
 from pathlib import Path
 from typing import List, Dict, Optional
 
-# Question sets directory - configurable for Docker
-QUESTION_SETS_DIR = Path(os.getenv("QUESTION_SETS_DIR", "question_sets"))
+# Question sets directory - now under prompts/monitor for consistency
+PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", "prompts"))
+QUESTION_SETS_DIR = PROMPTS_DIR / "monitor"
 
 
 def ensure_question_sets_dir():

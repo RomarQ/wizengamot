@@ -510,3 +510,96 @@ def get_visualiser_settings() -> Dict[str, Any]:
         "default_model": get_visualiser_model(),
         "diagram_styles": get_diagram_styles()
     }
+
+
+# =============================================================================
+# Model Testing and Dependencies
+# =============================================================================
+
+def get_model_dependencies(model_id: str) -> Dict[str, Any]:
+    """
+    Check which features use a specific model.
+
+    Args:
+        model_id: The model identifier to check
+
+    Returns:
+        Dict with dependencies info and whether model can be removed
+    """
+    settings = load_settings()
+
+    deps = {
+        "council_members": model_id in settings.get("council_models", get_model_pool()),
+        "chairman": settings.get("chairman_model", DEFAULT_CHAIRMAN_MODEL) == model_id,
+        "synthesizer": settings.get("synthesizer_model", DEFAULT_SYNTHESIZER_MODEL) == model_id,
+        "visualiser": settings.get("visualiser_model", DEFAULT_VISUALISER_MODEL) == model_id,
+    }
+
+    active = [k for k, v in deps.items() if v]
+    return {
+        "model": model_id,
+        "dependencies": deps,
+        "can_remove": len(active) == 0,
+        "replacement_required": active
+    }
+
+
+def replace_model(old_model: str, new_model: str, remove_old: bool = True) -> Dict[str, Any]:
+    """
+    Replace a model with another across all its usages.
+
+    Args:
+        old_model: Model to replace
+        new_model: Model to use instead
+        remove_old: Whether to remove old model from pool after replacement
+
+    Returns:
+        Dict with replacement results
+    """
+    settings = load_settings()
+    pool = settings.get("model_pool", DEFAULT_MODEL_POOL)
+    replaced_in = []
+
+    # Ensure new model is in pool
+    if new_model not in pool:
+        pool.append(new_model)
+        settings["model_pool"] = pool
+
+    # Replace in council models
+    council_models = settings.get("council_models", pool.copy())
+    if old_model in council_models:
+        council_models = [new_model if m == old_model else m for m in council_models]
+        # Remove duplicates while preserving order
+        seen = set()
+        council_models = [m for m in council_models if not (m in seen or seen.add(m))]
+        settings["council_models"] = council_models
+        replaced_in.append("council_members")
+
+    # Replace chairman
+    if settings.get("chairman_model", DEFAULT_CHAIRMAN_MODEL) == old_model:
+        settings["chairman_model"] = new_model
+        replaced_in.append("chairman")
+
+    # Replace synthesizer
+    if settings.get("synthesizer_model", DEFAULT_SYNTHESIZER_MODEL) == old_model:
+        settings["synthesizer_model"] = new_model
+        replaced_in.append("synthesizer")
+
+    # Replace visualiser
+    if settings.get("visualiser_model", DEFAULT_VISUALISER_MODEL) == old_model:
+        settings["visualiser_model"] = new_model
+        replaced_in.append("visualiser")
+
+    # Remove old model from pool if requested
+    if remove_old and old_model in pool:
+        pool = [m for m in pool if m != old_model]
+        settings["model_pool"] = pool
+
+    save_settings(settings)
+
+    return {
+        "old_model": old_model,
+        "new_model": new_model,
+        "replaced_in": replaced_in,
+        "removed_from_pool": remove_old
+    }

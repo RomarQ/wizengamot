@@ -12,8 +12,8 @@ import httpx
 from .settings import (
     get_openrouter_api_key,
     get_visualiser_model,
-    get_diagram_style,
 )
+from .diagram_styles import get_diagram_style
 from .config import OPENROUTER_API_URL
 
 logger = logging.getLogger(__name__)

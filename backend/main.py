@@ -9,7 +9,7 @@ import uuid
 import json
 import asyncio
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 
 app = FastAPI(title="LLM Council API")
@@ -62,6 +62,12 @@ class SendMessageRequest(BaseModel):
     content: str
 
 
+class ConversationStatus(BaseModel):
+    """Conversation status."""
+    state: str = "idle"
+    is_unread: bool = False
+
+
 class ConversationMetadata(BaseModel):
     """Conversation metadata for list view."""
     id: str
@@ -72,6 +78,8 @@ class ConversationMetadata(BaseModel):
     mode: str = "council"
     source_type: Optional[str] = None
     prompt_title: Optional[str] = None
+    diagram_style: Optional[str] = None
+    status: Optional[ConversationStatus] = None
     total_cost: float = 0.0
 
 
@@ -619,9 +627,13 @@ async def continue_thread(conversation_id: str, thread_id: str, request: Continu
 # Prompt Management Endpoints
 
 @app.get("/api/prompts")
-async def list_prompts_endpoint():
-    """List all available system prompts with their labels."""
-    return await prompts.list_prompts_with_labels()
+async def list_prompts_endpoint(mode: Optional[str] = None):
+    """List all available system prompts with their labels.
+
+    Args:
+        mode: Optional filter - 'council' or 'synthesizer' for subdirectory prompts.
+    """
+    return await prompts.list_prompts_with_labels(mode)
 
 
 @app.get("/api/prompts/labels")
@@ -631,9 +643,14 @@ async def get_prompt_labels():
 
 
 @app.get("/api/prompts/{filename}")
-async def get_prompt(filename: str):
-    """Get a specific prompt by filename."""
-    prompt = prompts.get_prompt(filename)
+async def get_prompt(filename: str, mode: Optional[str] = None):
+    """Get a specific prompt by filename.
+
+    Args:
+        filename: The prompt filename
+        mode: Optional mode ('council' or 'synthesizer') for subdirectory
+    """
+    prompt = prompts.get_prompt(filename, mode)
     if prompt is None:
         raise HTTPException(status_code=404, detail="Prompt not found")
     return prompt
@@ -643,13 +660,18 @@ class CreatePromptRequest(BaseModel):
     """Request to create a new prompt."""
     title: str
     content: str
+    mode: Optional[str] = None
 
 
 @app.post("/api/prompts")
 async def create_prompt_endpoint(request: CreatePromptRequest):
-    """Create a new prompt file with auto-generated label."""
+    """Create a new prompt file with auto-generated label.
+
+    Args:
+        request: Contains title, content, and optional mode ('council' or 'synthesizer')
+    """
     try:
-        return await prompts.create_prompt_with_label(request.title, request.content)
+        return await prompts.create_prompt_with_label(request.title, request.content, request.mode)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -657,22 +679,33 @@ async def create_prompt_endpoint(request: CreatePromptRequest):
 class UpdatePromptRequest(BaseModel):
     """Request to update an existing prompt."""
     content: str
+    mode: Optional[str] = None
 
 
 @app.put("/api/prompts/{filename}")
 async def update_prompt(filename: str, request: UpdatePromptRequest):
-    """Update an existing prompt file."""
+    """Update an existing prompt file.
+
+    Args:
+        filename: The prompt filename
+        request: Contains content and optional mode
+    """
     try:
-        return prompts.update_prompt(filename, request.content)
+        return prompts.update_prompt(filename, request.content, request.mode)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.delete("/api/prompts/{filename}")
-async def delete_prompt(filename: str):
-    """Delete a prompt file."""
+async def delete_prompt(filename: str, mode: Optional[str] = None):
+    """Delete a prompt file.
+
+    Args:
+        filename: The prompt filename
+        mode: Optional mode ('council' or 'synthesizer') for subdirectory
+    """
     try:
-        prompts.delete_prompt(filename)
+        prompts.delete_prompt(filename, mode)
         return {"success": True}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -772,6 +805,59 @@ async def get_credits():
     return credits_data
 
 
+@app.get("/api/usage-stats")
+async def get_usage_stats():
+    """Get aggregated usage statistics across all conversations."""
+    return storage.get_usage_stats()
+
+
+# =============================================================================
+# Stage Prompts Endpoints
+# =============================================================================
+
+from . import stage_prompts
+
+
+@app.get("/api/stage-prompts")
+async def list_stage_prompts():
+    """List all stage prompts with their status."""
+    return stage_prompts.list_stage_prompts()
+
+
+@app.get("/api/stage-prompts/{prompt_type}")
+async def get_stage_prompt(prompt_type: str):
+    """Get a specific stage prompt (ranking or chairman)."""
+    try:
+        return stage_prompts.get_stage_prompt(prompt_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class UpdateStagePromptRequest(BaseModel):
+    """Request to update a stage prompt."""
+    content: str
+
+
+@app.put("/api/stage-prompts/{prompt_type}")
+async def update_stage_prompt(prompt_type: str, request: UpdateStagePromptRequest):
+    """Update a stage prompt with custom content."""
+    if not request.content or not request.content.strip():
+        raise HTTPException(status_code=400, detail="Content is required")
+    try:
+        return stage_prompts.update_stage_prompt(prompt_type, request.content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/stage-prompts/{prompt_type}/reset")
+async def reset_stage_prompt(prompt_type: str):
+    """Reset a stage prompt to the built-in default."""
+    try:
+        return stage_prompts.reset_stage_prompt(prompt_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 class UpdateApiKeyRequest(BaseModel):
     """Request to update the OpenRouter API key."""
     api_key: str
@@ -845,6 +931,70 @@ async def update_model_pool(request: UpdateModelPoolRequest):
         settings.set_chairman_model(request.models[0])
 
     return {"success": True, "model_pool": request.models}
+
+
+class TestModelRequest(BaseModel):
+    """Request to test a model."""
+    model: str
+
+
+@app.post("/api/settings/test-model")
+async def test_model(request: TestModelRequest):
+    """
+    Test if a model is accessible by sending a simple ping.
+    Returns success/failure with timing information.
+    """
+    import time
+
+    if not request.model:
+        raise HTTPException(status_code=400, detail="Model is required")
+
+    try:
+        start = time.time()
+        messages = [{"role": "user", "content": "Reply with the single word: pong"}]
+        response = await openrouter.query_model(request.model, messages, timeout=30.0)
+        elapsed = (time.time() - start) * 1000
+
+        if response and response.get('content'):
+            return {
+                "success": True,
+                "model": request.model,
+                "response_time_ms": int(elapsed)
+            }
+        return {
+            "success": False,
+            "model": request.model,
+            "error": "Empty response from model"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "model": request.model,
+            "error": str(e)
+        }
+
+
+@app.get("/api/settings/model-dependencies/{model_id:path}")
+async def get_model_dependencies(model_id: str):
+    """Check which features use a specific model."""
+    return settings.get_model_dependencies(model_id)
+
+
+class ReplaceModelRequest(BaseModel):
+    """Request to replace a model across all usages."""
+    old_model: str
+    new_model: str
+    remove_old: bool = True
+
+
+@app.post("/api/settings/replace-model")
+async def replace_model(request: ReplaceModelRequest):
+    """Replace a model with another across all its usages."""
+    if not request.old_model or not request.new_model:
+        raise HTTPException(status_code=400, detail="Both old_model and new_model are required")
+
+    result = settings.replace_model(request.old_model, request.new_model, request.remove_old)
+    return result
 
 
 class UpdateCouncilModelsRequest(BaseModel):
@@ -1099,7 +1249,7 @@ async def visualise_content(conversation_id: str, request: VisualiseRequest):
         raise HTTPException(status_code=400, detail="Conversation is not in visualiser mode")
 
     # Validate style against configured styles
-    available_styles = settings.get_diagram_styles()
+    available_styles = diagram_styles.list_diagram_styles()
     if request.style not in available_styles:
         raise HTTPException(status_code=400, detail=f"Invalid style. Must be one of: {list(available_styles.keys())}")
 
@@ -1432,7 +1582,7 @@ async def download_image(image_id: str, filename: str = "diagram.png"):
 @app.get("/api/settings/visualiser")
 async def get_visualiser_settings_endpoint():
     """Get visualiser-specific settings including diagram styles."""
-    styles = settings.get_diagram_styles()
+    styles = diagram_styles.list_diagram_styles()
     return {
         "default_model": settings.get_visualiser_model(),
         "diagram_styles": styles
@@ -1461,13 +1611,13 @@ async def update_visualiser_model(request: UpdateVisualiserModelRequest):
 @app.get("/api/settings/visualiser/styles")
 async def get_diagram_styles_endpoint():
     """Get all diagram styles."""
-    return settings.get_diagram_styles()
+    return diagram_styles.list_diagram_styles()
 
 
 @app.get("/api/settings/visualiser/styles/{style_id}")
 async def get_diagram_style_endpoint(style_id: str):
     """Get a specific diagram style."""
-    style = settings.get_diagram_style(style_id)
+    style = diagram_styles.get_diagram_style(style_id)
     if not style:
         raise HTTPException(status_code=404, detail="Style not found")
     return {"id": style_id, **style}
@@ -1478,6 +1628,7 @@ class CreateDiagramStyleRequest(BaseModel):
     id: str
     name: str
     description: str
+    icon: str = "image"
     prompt: str
 
 
@@ -1488,10 +1639,11 @@ async def create_diagram_style_endpoint(request: CreateDiagramStyleRequest):
     if not request.id or not all(c.isalnum() or c == '_' for c in request.id):
         raise HTTPException(status_code=400, detail="Style ID must contain only letters, numbers, and underscores")
 
-    success = settings.create_diagram_style(
+    success = diagram_styles.create_diagram_style(
         request.id,
         request.name,
         request.description,
+        request.icon,
         request.prompt
     )
 
@@ -1504,6 +1656,7 @@ async def create_diagram_style_endpoint(request: CreateDiagramStyleRequest):
             "id": request.id,
             "name": request.name,
             "description": request.description,
+            "icon": request.icon,
             "prompt": request.prompt
         }
     }
@@ -1513,6 +1666,7 @@ class UpdateDiagramStyleRequest(BaseModel):
     """Request to update a diagram style."""
     name: str
     description: str
+    icon: str = "image"
     prompt: str
 
 
@@ -1520,14 +1674,15 @@ class UpdateDiagramStyleRequest(BaseModel):
 async def update_diagram_style_endpoint(style_id: str, request: UpdateDiagramStyleRequest):
     """Update an existing diagram style."""
     # Check if style exists
-    existing = settings.get_diagram_style(style_id)
+    existing = diagram_styles.get_diagram_style(style_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Style not found")
 
-    settings.update_diagram_style(
+    diagram_styles.update_diagram_style(
         style_id,
         request.name,
         request.description,
+        request.icon,
         request.prompt
     )
 
@@ -1537,6 +1692,7 @@ async def update_diagram_style_endpoint(style_id: str, request: UpdateDiagramSty
             "id": style_id,
             "name": request.name,
             "description": request.description,
+            "icon": request.icon,
             "prompt": request.prompt
         }
     }
@@ -1545,7 +1701,7 @@ async def update_diagram_style_endpoint(style_id: str, request: UpdateDiagramSty
 @app.delete("/api/settings/visualiser/styles/{style_id}")
 async def delete_diagram_style_endpoint(style_id: str):
     """Delete a diagram style."""
-    success = settings.delete_diagram_style(style_id)
+    success = diagram_styles.delete_diagram_style(style_id)
     if not success:
         raise HTTPException(status_code=400, detail="Cannot delete style (not found or is the last style)")
     return {"success": True}
