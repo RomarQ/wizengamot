@@ -160,12 +160,30 @@
   pointer-events: none;
 }
 
-.section-header {
+.sidebar .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   padding: 12px 16px 6px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.sidebar .section-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.sidebar .section-header-icon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .section-list {
@@ -351,6 +369,9 @@
 }
 
 .conversation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   padding: 10px 12px;
   margin-bottom: 2px;
   border-radius: 8px;
@@ -367,6 +388,7 @@
 }
 
 .conversation-content {
+  flex: 1;
   min-width: 0;
 }
 
@@ -457,6 +479,13 @@
 .source-type-label {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.style-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  margin-right: 4px;
 }
 
 .prompt-label-badge {
@@ -551,6 +580,18 @@
   color: #f59e0b;
 }
 
+/* Collapsed sidebar warning state - amber background highlight */
+.sidebar.collapsed .footer-credits.warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* Hide warning icon in collapsed to save space, show just colored background */
+.sidebar.collapsed .footer-credits svg {
+  display: none;
+}
+
 /* Loading indicator for in-progress conversations */
 .conversation-item.loading {
   background: var(--bg-secondary);
@@ -607,6 +648,57 @@
   border-radius: 50%;
   flex-shrink: 0;
   margin-right: 6px;
+}
+
+/* Inline delete confirmation */
+.conversation-item.pending-delete {
+  background: var(--bg-hover);
+}
+
+.delete-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.delete-confirm-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.delete-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.delete-confirm-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease;
+}
+
+.delete-confirm-btn.yes {
+  background: var(--error, #ef4444);
+  color: white;
+}
+
+.delete-confirm-btn.yes:hover {
+  opacity: 0.9;
+}
+
+.delete-confirm-btn.no {
+  background: var(--bg-tertiary, var(--bg-hover));
+  color: var(--text-primary);
+}
+
+.delete-confirm-btn.no:hover {
+  background: var(--bg-active);
 }
 
 /* Title animation */

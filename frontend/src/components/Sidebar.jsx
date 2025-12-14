@@ -1,6 +1,48 @@
 import { useState, useRef, useEffect } from 'react';
+import * as LucideIcons from 'lucide-react';
 import './Sidebar.css';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
+
+// Helper to get Lucide icon component from name
+function getIconComponent(iconName) {
+  if (!iconName) return LucideIcons.Image;
+  const pascalCase = iconName
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+  return LucideIcons[pascalCase] || LucideIcons.Image;
+}
+
+// Mode icons for conversation entries
+const MODE_ICONS = {
+  council: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="7" r="4" />
+      <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+      <circle cx="4" cy="9" r="2.5" />
+      <path d="M1 19a4 4 0 0 1 6 0" />
+      <circle cx="20" cy="9" r="2.5" />
+      <path d="M17 19a4 4 0 0 1 6 0" />
+    </svg>
+  ),
+  synthesizer: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="9" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  ),
+  visualiser: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  ),
+};
 
 function getSourceTypeLabel(sourceType) {
   const labels = {
@@ -85,7 +127,19 @@ export default function Sidebar({
   onPauseMonitor,
   onResumeMonitor,
   onDeleteMonitor,
+  visualiserSettings,
 }) {
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+
+  // Click outside to cancel delete confirmation
+  useEffect(() => {
+    if (!pendingDeleteId) return;
+
+    const handleClickOutside = () => setPendingDeleteId(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [pendingDeleteId]);
+
   return (
     <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       {/* Top actions - always visible */}
@@ -201,7 +255,10 @@ export default function Sidebar({
             {/* Council section */}
             {conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser').length > 0 && (
               <div className="sidebar-section scrollable">
-                <div className="section-header">Council</div>
+                <div className="section-header">
+                  <span className="section-header-icon">{MODE_ICONS.council}</span>
+                  Council
+                </div>
                 <div className="section-list">
                   {conversations
                     .filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')
@@ -214,68 +271,93 @@ export default function Sidebar({
                           key={conv.id}
                           className={`conversation-item ${
                             conv.id === currentConversationId ? 'active' : ''
-                          } ${isCurrentAndLoading ? 'loading' : ''}`}
-                          onClick={() => onSelectConversation(conv.id)}
+                          } ${isCurrentAndLoading ? 'loading' : ''} ${pendingDeleteId === conv.id ? 'pending-delete' : ''}`}
+                          onClick={() => pendingDeleteId !== conv.id && onSelectConversation(conv.id)}
                         >
-                          <div className="conversation-content">
-                            <div className="conversation-title-row">
-                              {isCurrentAndLoading && (
-                                <span className="loading-indicator">
-                                  <span className="loading-dot"></span>
-                                  <span className="loading-dot"></span>
-                                  <span className="loading-dot"></span>
-                                </span>
-                              )}
-                              {conv.status?.is_unread && !isCurrentAndLoading && (
-                                <span className="unread-dot" />
-                              )}
-                              <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
-                                <TypewriterTitle
-                                  text={conv.title || 'New Conversation'}
-                                  isAnimating={shouldAnimate}
-                                  onAnimationComplete={onTitleAnimationComplete}
-                                />
-                              </span>
-                              <button
-                                className="conversation-delete-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm('Delete this conversation?')) {
+                          {pendingDeleteId === conv.id ? (
+                            <div className="delete-confirm" onClick={(e) => e.stopPropagation()}>
+                              <span className="delete-confirm-text">Delete?</span>
+                              <div className="delete-confirm-actions">
+                                <button
+                                  className="delete-confirm-btn yes"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     onDeleteConversation(conv.id);
-                                  }
-                                }}
-                                title="Delete conversation"
-                              >
-                                ×
-                              </button>
+                                    setPendingDeleteId(null);
+                                  }}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  className="delete-confirm-btn no"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteId(null);
+                                  }}
+                                >
+                                  No
+                                </button>
+                              </div>
                             </div>
-                            <div className="conversation-meta">
-                              <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
-                              {conv.total_cost > 0 && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
-                                </>
-                              )}
-                              {conv.thread_count > 0 && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="turns-indicator">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                                    </svg>
-                                    {conv.thread_count}
+                          ) : (
+                            <div className="conversation-content">
+                              <div className="conversation-title-row">
+                                {isCurrentAndLoading && (
+                                  <span className="loading-indicator">
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
                                   </span>
-                                </>
-                              )}
-                              {conv.prompt_title && promptLabels[conv.prompt_title] && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="source-type-label">{promptLabels[conv.prompt_title]}</span>
-                                </>
-                              )}
+                                )}
+                                {conv.status?.is_unread && !isCurrentAndLoading && (
+                                  <span className="unread-dot" />
+                                )}
+                                <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
+                                  <TypewriterTitle
+                                    text={conv.title || 'New Conversation'}
+                                    isAnimating={shouldAnimate}
+                                    onAnimationComplete={onTitleAnimationComplete}
+                                  />
+                                </span>
+                                <button
+                                  className="conversation-delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteId(conv.id);
+                                  }}
+                                  title="Delete conversation"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                              <div className="conversation-meta">
+                                <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                                {conv.total_cost > 0 && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                  </>
+                                )}
+                                {conv.thread_count > 0 && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="turns-indicator">
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                      </svg>
+                                      {conv.thread_count}
+                                    </span>
+                                  </>
+                                )}
+                                {conv.prompt_title && promptLabels[conv.prompt_title] && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="source-type-label">{promptLabels[conv.prompt_title]}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })}
@@ -292,7 +374,10 @@ export default function Sidebar({
             {/* Notes section */}
             {conversations.filter(c => c.mode === 'synthesizer').length > 0 && (
               <div className="sidebar-section scrollable">
-                <div className="section-header">Notes</div>
+                <div className="section-header">
+                  <span className="section-header-icon">{MODE_ICONS.synthesizer}</span>
+                  Notes
+                </div>
                 <div className="section-list">
                   {conversations
                     .filter(c => c.mode === 'synthesizer')
@@ -305,68 +390,93 @@ export default function Sidebar({
                           key={conv.id}
                           className={`conversation-item ${
                             conv.id === currentConversationId ? 'active' : ''
-                          } ${isCurrentAndLoading ? 'loading' : ''}`}
-                          onClick={() => onSelectConversation(conv.id)}
+                          } ${isCurrentAndLoading ? 'loading' : ''} ${pendingDeleteId === conv.id ? 'pending-delete' : ''}`}
+                          onClick={() => pendingDeleteId !== conv.id && onSelectConversation(conv.id)}
                         >
-                          <div className="conversation-content">
-                            <div className="conversation-title-row">
-                              {isCurrentAndLoading && (
-                                <span className="loading-indicator">
-                                  <span className="loading-dot"></span>
-                                  <span className="loading-dot"></span>
-                                  <span className="loading-dot"></span>
-                                </span>
-                              )}
-                              {conv.status?.is_unread && !isCurrentAndLoading && (
-                                <span className="unread-dot" />
-                              )}
-                              <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
-                                <TypewriterTitle
-                                  text={conv.title || 'New Conversation'}
-                                  isAnimating={shouldAnimate}
-                                  onAnimationComplete={onTitleAnimationComplete}
-                                />
-                              </span>
-                              <button
-                                className="conversation-delete-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm('Delete this conversation?')) {
+                          {pendingDeleteId === conv.id ? (
+                            <div className="delete-confirm" onClick={(e) => e.stopPropagation()}>
+                              <span className="delete-confirm-text">Delete?</span>
+                              <div className="delete-confirm-actions">
+                                <button
+                                  className="delete-confirm-btn yes"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     onDeleteConversation(conv.id);
-                                  }
-                                }}
-                                title="Delete conversation"
-                              >
-                                ×
-                              </button>
+                                    setPendingDeleteId(null);
+                                  }}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  className="delete-confirm-btn no"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteId(null);
+                                  }}
+                                >
+                                  No
+                                </button>
+                              </div>
                             </div>
-                            <div className="conversation-meta">
-                              <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
-                              {conv.total_cost > 0 && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
-                                </>
-                              )}
-                              {conv.source_type && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="source-type-label">{getSourceTypeLabel(conv.source_type)}</span>
-                                </>
-                              )}
-                              {conv.thread_count > 0 && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="turns-indicator">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                                    </svg>
-                                    {conv.thread_count}
+                          ) : (
+                            <div className="conversation-content">
+                              <div className="conversation-title-row">
+                                {isCurrentAndLoading && (
+                                  <span className="loading-indicator">
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
                                   </span>
-                                </>
-                              )}
+                                )}
+                                {conv.status?.is_unread && !isCurrentAndLoading && (
+                                  <span className="unread-dot" />
+                                )}
+                                <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
+                                  <TypewriterTitle
+                                    text={conv.title || 'New Conversation'}
+                                    isAnimating={shouldAnimate}
+                                    onAnimationComplete={onTitleAnimationComplete}
+                                  />
+                                </span>
+                                <button
+                                  className="conversation-delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteId(conv.id);
+                                  }}
+                                  title="Delete conversation"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                              <div className="conversation-meta">
+                                <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                                {conv.total_cost > 0 && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                  </>
+                                )}
+                                {conv.source_type && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="source-type-label">{getSourceTypeLabel(conv.source_type)}</span>
+                                  </>
+                                )}
+                                {conv.thread_count > 0 && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="turns-indicator">
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                      </svg>
+                                      {conv.thread_count}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })}
@@ -383,7 +493,10 @@ export default function Sidebar({
             {/* Visualiser section */}
             {conversations.filter(c => c.mode === 'visualiser').length > 0 && (
               <div className="sidebar-section scrollable">
-                <div className="section-header">Visualiser</div>
+                <div className="section-header">
+                  <span className="section-header-icon">{MODE_ICONS.visualiser}</span>
+                  Visualiser
+                </div>
                 <div className="section-list">
                   {conversations
                     .filter(c => c.mode === 'visualiser')
@@ -396,57 +509,92 @@ export default function Sidebar({
                           key={conv.id}
                           className={`conversation-item ${
                             conv.id === currentConversationId ? 'active' : ''
-                          } ${isCurrentAndLoading ? 'loading' : ''}`}
-                          onClick={() => onSelectConversation(conv.id)}
+                          } ${isCurrentAndLoading ? 'loading' : ''} ${pendingDeleteId === conv.id ? 'pending-delete' : ''}`}
+                          onClick={() => pendingDeleteId !== conv.id && onSelectConversation(conv.id)}
                         >
-                          <div className="conversation-content">
-                            <div className="conversation-title-row">
-                              {isCurrentAndLoading && (
-                                <span className="loading-indicator">
-                                  <span className="loading-dot"></span>
-                                  <span className="loading-dot"></span>
-                                  <span className="loading-dot"></span>
-                                </span>
-                              )}
-                              {conv.status?.is_unread && !isCurrentAndLoading && (
-                                <span className="unread-dot" />
-                              )}
-                              <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
-                                <TypewriterTitle
-                                  text={conv.title || 'New Conversation'}
-                                  isAnimating={shouldAnimate}
-                                  onAnimationComplete={onTitleAnimationComplete}
-                                />
-                              </span>
-                              <button
-                                className="conversation-delete-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm('Delete this conversation?')) {
+                          {pendingDeleteId === conv.id ? (
+                            <div className="delete-confirm" onClick={(e) => e.stopPropagation()}>
+                              <span className="delete-confirm-text">Delete?</span>
+                              <div className="delete-confirm-actions">
+                                <button
+                                  className="delete-confirm-btn yes"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     onDeleteConversation(conv.id);
-                                  }
-                                }}
-                                title="Delete conversation"
-                              >
-                                ×
-                              </button>
+                                    setPendingDeleteId(null);
+                                  }}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  className="delete-confirm-btn no"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteId(null);
+                                  }}
+                                >
+                                  No
+                                </button>
+                              </div>
                             </div>
-                            <div className="conversation-meta">
-                              <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
-                              {conv.total_cost > 0 && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
-                                </>
-                              )}
-                              {conv.source_type && (
-                                <>
-                                  <span className="meta-separator">·</span>
-                                  <span className="source-type-label">{getVisualiserSourceLabel(conv.source_type)}</span>
-                                </>
-                              )}
+                          ) : (
+                            <div className="conversation-content">
+                              <div className="conversation-title-row">
+                                {isCurrentAndLoading && (
+                                  <span className="loading-indicator">
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
+                                    <span className="loading-dot"></span>
+                                  </span>
+                                )}
+                                {conv.status?.is_unread && !isCurrentAndLoading && (
+                                  <span className="unread-dot" />
+                                )}
+                                <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
+                                  <TypewriterTitle
+                                    text={conv.title || 'New Conversation'}
+                                    isAnimating={shouldAnimate}
+                                    onAnimationComplete={onTitleAnimationComplete}
+                                  />
+                                </span>
+                                <button
+                                  className="conversation-delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingDeleteId(conv.id);
+                                  }}
+                                  title="Delete conversation"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                              <div className="conversation-meta">
+                                <span className="meta-timestamp">{formatRelativeTime(conv.created_at)}</span>
+                                {conv.total_cost > 0 && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    <span className="meta-cost">${conv.total_cost.toFixed(3)}</span>
+                                  </>
+                                )}
+                                {(conv.diagram_style || conv.source_type) && (
+                                  <>
+                                    <span className="meta-separator">·</span>
+                                    {conv.diagram_style && visualiserSettings?.diagram_styles?.[conv.diagram_style] && (
+                                      <span className="style-icon" title={visualiserSettings.diagram_styles[conv.diagram_style].name}>
+                                        {(() => {
+                                          const IconComponent = getIconComponent(visualiserSettings.diagram_styles[conv.diagram_style].icon);
+                                          return <IconComponent size={12} />;
+                                        })()}
+                                      </span>
+                                    )}
+                                    {conv.source_type && (
+                                      <span className="source-type-label">{getVisualiserSourceLabel(conv.source_type)}</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })}

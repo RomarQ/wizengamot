@@ -60,6 +60,9 @@ function App() {
   // Prompt labels for sidebar display
   const [promptLabels, setPromptLabels] = useState({});
 
+  // Visualiser settings for style icons in sidebar
+  const [visualiserSettings, setVisualiserSettings] = useState(null);
+
   // API key status for warnings
   const [apiKeyStatus, setApiKeyStatus] = useState(null);
 
@@ -141,7 +144,7 @@ function App() {
     return segments;
   }, [comments, contextSegments, getModelShortName]);
 
-  // Load conversations, monitors, config, prompt labels, API key status, and credits on mount
+  // Load conversations, monitors, config, prompt labels, API key status, credits, and visualiser settings on mount
   useEffect(() => {
     loadConversations();
     loadMonitors();
@@ -149,6 +152,7 @@ function App() {
     loadPromptLabels();
     loadApiKeyStatus();
     loadCredits();
+    loadVisualiserSettings();
   }, []);
 
   const loadApiKeyStatus = async () => {
@@ -212,6 +216,15 @@ function App() {
       setPromptLabels(labels);
     } catch (error) {
       console.error('Failed to load prompt labels:', error);
+    }
+  };
+
+  const loadVisualiserSettings = async () => {
+    try {
+      const settings = await api.getVisualiserSettings();
+      setVisualiserSettings(settings);
+    } catch (error) {
+      console.error('Failed to load visualiser settings:', error);
     }
   };
 
@@ -998,6 +1011,7 @@ function App() {
         onPauseMonitor={handlePauseMonitor}
         onResumeMonitor={handleResumeMonitor}
         onDeleteMonitor={handleDeleteMonitor}
+        visualiserSettings={visualiserSettings}
       />
       <div className="main-content">
         {apiKeyStatus && !apiKeyStatus.openrouter && !dismissedWarnings.openrouter && (
