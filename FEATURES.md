@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 18 - OTA updates so you can update the app with one click from the landing page
 Dec 18 - Redesigned synthesizer onboarding with stepped keyboard-driven flow for easier content processing
 Dec 18 - Deliberation mode for Synthesizer, enabling council-based collaborative note generation from content
 Dec 18 - Create diagrams from highlights in Review Context sidebar
