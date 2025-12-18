@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown';
 import { api } from '../api';
 import NoteViewer from './NoteViewer';
+import DeliberationNoteViewer from './DeliberationNoteViewer';
 import './SynthesizerInterface.css';
 
 /**
@@ -34,6 +35,13 @@ export default function SynthesizerInterface({
   const [viewMode, setViewMode] = useState('notes'); // 'notes' or 'conversation'
   const [inputMode, setInputMode] = useState('url'); // 'url' or 'text'
   const [textContent, setTextContent] = useState('');
+  const [generationMode, setGenerationMode] = useState('single'); // 'single' or 'deliberation'
+  // Model selection for deliberation mode
+  const [availableModels, setAvailableModels] = useState([]);
+  const [selectedModels, setSelectedModels] = useState([]);
+  const [chairmanModel, setChairmanModel] = useState('');
+  const [defaultCouncilModels, setDefaultCouncilModels] = useState([]);
+  const [defaultChairman, setDefaultChairman] = useState('');
   const urlInputRef = useRef(null);
   const textInputRef = useRef(null);
   const containerRef = useRef(null);
@@ -58,7 +66,13 @@ export default function SynthesizerInterface({
           sourceType: msg.source_type || conversation.synthesizer_config?.source_type,
           sourceUrl: msg.source_url || conversation.synthesizer_config?.source_url,
           // Support both new source_content and legacy source_content_preview
-          sourceContent: msg.source_content || msg.source_content_preview || null
+          sourceContent: msg.source_content || msg.source_content_preview || null,
+          // Deliberation mode data
+          isDeliberation: msg.mode === 'deliberation',
+          deliberation: msg.deliberation || null,
+          stage3Raw: msg.stage3_raw || null,
+          models: msg.models || null,
+          chairmanModel: msg.chairman_model || null,
         };
       }
     }
@@ -93,6 +107,64 @@ export default function SynthesizerInterface({
   // Helper to get short model name
   const getModelShortName = (model) => model?.split('/').pop() || model;
 
+  // Fetch available models when deliberation mode is selected
+  useEffect(() => {
+    if (generationMode === 'deliberation' && availableModels.length === 0) {
+      const fetchModels = async () => {
+        try {
+          const settings = await api.getModelSettings();
+          setAvailableModels(settings.model_pool || []);
+          setDefaultCouncilModels(settings.council_models || []);
+          setDefaultChairman(settings.chairman || '');
+          // Set defaults
+          setSelectedModels(settings.council_models || settings.model_pool || []);
+          setChairmanModel(settings.chairman || (settings.model_pool?.[0] || ''));
+        } catch (err) {
+          console.error('Failed to fetch models:', err);
+        }
+      };
+      fetchModels();
+    }
+  }, [generationMode, availableModels.length]);
+
+  // Toggle model selection
+  const handleToggleModel = (model) => {
+    if (selectedModels.includes(model)) {
+      // Don't allow deselecting all models
+      if (selectedModels.length > 1) {
+        setSelectedModels(selectedModels.filter(m => m !== model));
+      }
+    } else {
+      setSelectedModels([...selectedModels, model]);
+    }
+  };
+
+  // Keyboard handler for step navigation
+  const handleStepKeyDown = (e, step) => {
+    const toggleButtons = e.target.closest('.synth-toggle-buttons')?.querySelectorAll('.synth-toggle-btn');
+
+    if (e.key === 'Tab' && toggleButtons) {
+      // Tab cycles within the step
+      e.preventDefault();
+      const currentIndex = Array.from(toggleButtons).indexOf(e.target);
+      const nextIndex = (currentIndex + 1) % toggleButtons.length;
+      toggleButtons[nextIndex].focus();
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.click(); // Select current option
+
+      // Advance to next step
+      if (step === 'mode') {
+        document.querySelector('.synth-step-source .synth-toggle-btn')?.focus();
+      } else if (step === 'source') {
+        const targetRef = inputMode === 'url' ? urlInputRef : textInputRef;
+        targetRef.current?.focus();
+      }
+    }
+  };
+
   // Auto-paste URL from clipboard on mount
   useEffect(() => {
     const tryPasteClipboard = async () => {
@@ -117,33 +189,17 @@ export default function SynthesizerInterface({
     }
   }, [latestNotes, inputMode]);
 
-  // Tab key handler to toggle between URL and Text modes
-  const handleGlobalKeyDown = useCallback((e) => {
-    // Tab toggles mode when not processing and no notes yet
-    if (e.key === 'Tab' && !latestNotes && !isProcessing) {
-      e.preventDefault();
-      setInputMode(prev => prev === 'url' ? 'text' : 'url');
-    }
-  }, [latestNotes, isProcessing]);
 
-  // Add global keydown listener for Tab toggle
-  useEffect(() => {
-    if (!latestNotes) {
-      window.addEventListener('keydown', handleGlobalKeyDown);
-      return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-    }
-  }, [latestNotes, handleGlobalKeyDown]);
-
-  // Focus appropriate input when mode changes
+  // Focus first step button on mount (keyboard-driven flow)
   useEffect(() => {
     if (!latestNotes && !isProcessing) {
-      if (inputMode === 'url' && urlInputRef.current) {
-        urlInputRef.current.focus();
-      } else if (inputMode === 'text' && textInputRef.current) {
-        textInputRef.current.focus();
+      // Focus the first toggle button for keyboard navigation
+      const firstButton = document.querySelector('.synth-step-mode .synth-toggle-btn');
+      if (firstButton) {
+        firstButton.focus();
       }
     }
-  }, [inputMode, latestNotes, isProcessing]);
+  }, [latestNotes, isProcessing]);
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -196,15 +252,23 @@ export default function SynthesizerInterface({
         setProcessingStage('Processing pasted text...');
       }
 
-      setProcessingStage('Generating Zettelkasten notes...');
+      // Update stage message based on generation mode
+      if (generationMode === 'deliberation') {
+        setProcessingStage('Stage 1: Models generating notes...');
+      } else {
+        setProcessingStage('Generating Zettelkasten notes...');
+      }
 
       const result = await api.synthesize(
         conversation.id,
         inputMode === 'url' ? url.trim() : null,
         comment.trim() || null,
         null, // Use default model
-        false, // Single model mode
-        inputMode === 'text' ? textContent.trim() : null
+        false, // Single model mode (use_council)
+        inputMode === 'text' ? textContent.trim() : null,
+        generationMode === 'deliberation', // use_deliberation
+        generationMode === 'deliberation' ? selectedModels : null, // council_models
+        generationMode === 'deliberation' ? chairmanModel : null // chairman_model
       );
 
       // Update conversation with new message
@@ -282,20 +346,41 @@ export default function SynthesizerInterface({
 
           {/* Notes View */}
           {viewMode === 'notes' && (
-            <NoteViewer
-              notes={latestNotes.notes}
-              sourceTitle={latestNotes.sourceTitle}
-              sourceType={latestNotes.sourceType}
-              sourceUrl={conversation?.synthesizer_config?.source_url || latestNotes.sourceUrl}
-              sourceContent={latestNotes.sourceContent}
-              comments={comments}
-              onSelectionChange={onSelectionChange}
-              onSaveComment={onSaveComment}
-              onEditComment={onEditComment}
-              onDeleteComment={onDeleteComment}
-              activeCommentId={activeCommentId}
-              onSetActiveComment={onSetActiveComment}
-            />
+            latestNotes.isDeliberation ? (
+              <DeliberationNoteViewer
+                notes={latestNotes.notes}
+                deliberation={latestNotes.deliberation}
+                stage3Raw={latestNotes.stage3Raw}
+                sourceTitle={latestNotes.sourceTitle}
+                sourceType={latestNotes.sourceType}
+                sourceUrl={conversation?.synthesizer_config?.source_url || latestNotes.sourceUrl}
+                sourceContent={latestNotes.sourceContent}
+                models={latestNotes.models}
+                chairmanModel={latestNotes.chairmanModel}
+                comments={comments}
+                onSelectionChange={onSelectionChange}
+                onSaveComment={onSaveComment}
+                onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
+                activeCommentId={activeCommentId}
+                onSetActiveComment={onSetActiveComment}
+              />
+            ) : (
+              <NoteViewer
+                notes={latestNotes.notes}
+                sourceTitle={latestNotes.sourceTitle}
+                sourceType={latestNotes.sourceType}
+                sourceUrl={conversation?.synthesizer_config?.source_url || latestNotes.sourceUrl}
+                sourceContent={latestNotes.sourceContent}
+                comments={comments}
+                onSelectionChange={onSelectionChange}
+                onSaveComment={onSaveComment}
+                onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
+                activeCommentId={activeCommentId}
+                onSetActiveComment={onSetActiveComment}
+              />
+            )
           )}
 
           {/* Conversation View */}
@@ -364,36 +449,125 @@ export default function SynthesizerInterface({
               </svg>
             </div>
             <h2>Transform Content into Notes</h2>
-            <p>
-              {inputMode === 'url'
-                ? 'Paste a YouTube video, podcast episode, or article URL to generate atomic Zettelkasten notes'
-                : 'Paste text content directly when URLs block bot scraping'}
-            </p>
+            <p>Generate atomic Zettelkasten notes from any content</p>
+            <p className="synth-keyboard-hint"><kbd>Tab</kbd> switch <kbd>Enter</kbd> next</p>
           </div>
 
-          {/* Mode toggle indicator */}
-          <div className="synth-mode-toggle">
-            <div className="synth-mode-buttons">
+          {/* Step 1: Mode selection */}
+          <div className="synth-step synth-step-mode">
+            <div className="synth-step-header">
+              <span className="synth-step-number">1</span>
+              <span className="synth-step-label">Mode</span>
+            </div>
+            <div className="synth-toggle-buttons">
               <button
                 type="button"
-                className={`synth-mode-btn ${inputMode === 'url' ? 'active' : ''}`}
+                className={`synth-toggle-btn ${generationMode === 'single' ? 'active' : ''}`}
+                onClick={() => setGenerationMode('single')}
+                onKeyDown={(e) => handleStepKeyDown(e, 'mode')}
+                disabled={isProcessing}
+              >
+                Single
+              </button>
+              <button
+                type="button"
+                className={`synth-toggle-btn ${generationMode === 'deliberation' ? 'active' : ''}`}
+                onClick={() => setGenerationMode('deliberation')}
+                onKeyDown={(e) => handleStepKeyDown(e, 'mode')}
+                disabled={isProcessing}
+              >
+                Council
+              </button>
+            </div>
+            <p className="synth-step-desc">
+              {generationMode === 'single'
+                ? 'One model generates all notes from the content.'
+                : 'Multiple models generate notes, review each other\'s work, then a chairman synthesizes the best.'}
+            </p>
+
+            {/* Collapsible Council Settings */}
+            {generationMode === 'deliberation' && availableModels.length > 0 && (
+              <details className="synth-council-settings">
+                <summary>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Council Settings
+                  <span className="synth-settings-preview">
+                    {selectedModels.length} models, {getModelShortName(chairmanModel)} chairman
+                  </span>
+                </summary>
+                <div className="synth-settings-content">
+                  <div className="synth-model-section">
+                    <h4>Council Members</h4>
+                    <div className="synth-model-checkboxes">
+                      {availableModels.map((model) => (
+                        <label key={model} className="synth-checkbox-label">
+                          <input
+                            type="checkbox"
+                            tabIndex={-1}
+                            checked={selectedModels.includes(model)}
+                            onChange={() => handleToggleModel(model)}
+                            disabled={isProcessing}
+                          />
+                          <span>{getModelShortName(model)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="synth-model-section">
+                    <h4>Chairman</h4>
+                    <select
+                      className="synth-chairman-select"
+                      tabIndex={-1}
+                      value={chairmanModel}
+                      onChange={(e) => setChairmanModel(e.target.value)}
+                      disabled={isProcessing}
+                    >
+                      {availableModels.map((model) => (
+                        <option key={model} value={model}>
+                          {getModelShortName(model)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </details>
+            )}
+          </div>
+
+          {/* Step 2: Source selection */}
+          <div className="synth-step synth-step-source">
+            <div className="synth-step-header">
+              <span className="synth-step-number">2</span>
+              <span className="synth-step-label">Source</span>
+            </div>
+            <div className="synth-toggle-buttons">
+              <button
+                type="button"
+                className={`synth-toggle-btn ${inputMode === 'url' ? 'active' : ''}`}
                 onClick={() => setInputMode('url')}
+                onKeyDown={(e) => handleStepKeyDown(e, 'source')}
                 disabled={isProcessing}
               >
                 URL
               </button>
               <button
                 type="button"
-                className={`synth-mode-btn ${inputMode === 'text' ? 'active' : ''}`}
+                className={`synth-toggle-btn ${inputMode === 'text' ? 'active' : ''}`}
                 onClick={() => setInputMode('text')}
+                onKeyDown={(e) => handleStepKeyDown(e, 'source')}
                 disabled={isProcessing}
               >
                 Text
               </button>
             </div>
-            <span className="synth-mode-hint">
-              <kbd>Tab</kbd> to switch
-            </span>
+            <p className="synth-step-desc">
+              {inputMode === 'url'
+                ? 'Paste a YouTube, podcast, PDF, or article URL.'
+                : 'Paste text directly when URLs block bot scraping.'}
+            </p>
           </div>
 
           <form className="synthesizer-form" onSubmit={handleSubmit}>

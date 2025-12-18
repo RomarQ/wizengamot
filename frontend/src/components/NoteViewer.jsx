@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import ResponseWithComments from './ResponseWithComments';
 import TweetModal from './TweetModal';
 import CommentModal from './CommentModal';
@@ -27,8 +28,15 @@ export default function NoteViewer({
   onDeleteComment,
   activeCommentId,
   onSetActiveComment,
+  // Council deliberation props - for displaying badges
+  isDeliberation = false,
+  modelCount,
+  chairmanModel,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
+
+  // Helper to get short model name
+  const getModelShortName = (model) => model?.split('/').pop() || model;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
@@ -536,20 +544,36 @@ export default function NoteViewer({
       {/* Header */}
       <div className="note-viewer-header">
         <div className="note-viewer-source">
+          {/* Source type badge */}
           {sourceType && (
             <span className={`source-badge source-${sourceType}`}>
-              {sourceType === 'youtube' ? 'YouTube' : sourceType === 'podcast' ? 'Podcast' : 'Article'}
+              {sourceType === 'youtube' ? 'YOUTUBE' : sourceType === 'podcast' ? 'PODCAST' : 'ARTICLE'}
             </span>
           )}
+
+          {/* Council icon */}
+          {isDeliberation && (
+            <span className="council-icon" title="Council Deliberation">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="7" r="4" />
+                <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+                <circle cx="4" cy="9" r="2.5" />
+                <path d="M1 19a4 4 0 0 1 6 0" />
+                <circle cx="20" cy="9" r="2.5" />
+                <path d="M17 19a4 4 0 0 1 6 0" />
+              </svg>
+            </span>
+          )}
+
           {sourceTitle && <span className="source-title">{sourceTitle}</span>}
 
-          {/* Source Info Button */}
-          {(sourceUrl || sourceContent) && (
+          {/* Info Button - contains council details and source actions */}
+          {(sourceUrl || sourceContent || isDeliberation) && (
             <div className="source-info-container" ref={sourceInfoRef}>
               <button
                 className="source-info-btn"
                 onClick={() => setShowSourceInfo(!showSourceInfo)}
-                title="View source info"
+                title="View info"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
@@ -560,6 +584,17 @@ export default function NoteViewer({
 
               {showSourceInfo && (
                 <div className="source-info-dropdown">
+                  {/* Council deliberation info */}
+                  {isDeliberation && (
+                    <div className="source-info-section council-info">
+                      {modelCount && <span className="model-count">{modelCount} models</span>}
+                      {chairmanModel && (
+                        <span className="chairman-info">Chairman: {getModelShortName(chairmanModel)}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Source URL link */}
                   {sourceUrl && (
                     <a
                       href={sourceUrl}
@@ -576,6 +611,8 @@ export default function NoteViewer({
                       Open Source URL
                     </a>
                   )}
+
+                  {/* Copy source content */}
                   {sourceContent && (
                     <button
                       className="source-info-item"
@@ -806,13 +843,13 @@ export default function NoteViewer({
                       const range = getSelectionRange();
                       const isSelected = index >= range.start && index <= range.end;
                       return (
-                        <p
+                        <div
                           key={index}
-                          className={`keyboard-sentence ${isSelected ? 'selected' : ''}`}
+                          className={`keyboard-sentence ${isSelected ? 'selected' : ''} markdown-content`}
                           data-sentence-index={index}
                         >
-                          {sentence}
-                        </p>
+                          <ReactMarkdown>{sentence}</ReactMarkdown>
+                        </div>
                       );
                     })}
                   </div>

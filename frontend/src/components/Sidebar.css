@@ -678,6 +678,30 @@
   margin-right: 6px;
 }
 
+/* Council deliberation icon for synthesizer notes */
+.council-deliberation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: var(--accent-primary, #4a90e2);
+  opacity: 0.85;
+}
+
+.council-deliberation-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.conversation-item.active .council-deliberation-icon {
+  opacity: 1;
+}
+
+.conversation-item:hover .council-deliberation-icon {
+  opacity: 1;
+}
+
 /* Inline delete confirmation */
 .conversation-item.pending-delete {
   background: var(--bg-hover);

@@ -432,6 +432,18 @@ export default function Sidebar({
                                 {conv.status?.is_unread && !isCurrentAndLoading && (
                                   <span className="unread-dot" />
                                 )}
+                                {conv.is_deliberation && !isCurrentAndLoading && (
+                                  <span className="council-deliberation-icon" title="Council Deliberation">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="7" r="4" />
+                                      <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+                                      <circle cx="4" cy="9" r="2.5" />
+                                      <path d="M1 19a4 4 0 0 1 6 0" />
+                                      <circle cx="20" cy="9" r="2.5" />
+                                      <path d="M17 19a4 4 0 0 1 6 0" />
+                                    </svg>
+                                  </span>
+                                )}
                                 <span className={`conversation-title ${shouldAnimate ? 'animating' : ''}`}>
                                   <TypewriterTitle
                                     text={conv.title || 'New Conversation'}

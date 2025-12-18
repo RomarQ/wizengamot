@@ -86,15 +86,16 @@
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
-  background: var(--bg-secondary);
-  border: 2px solid var(--border-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 2px 8px var(--shadow);
   transition: all 0.2s ease;
 }
 
 .gallery-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  border-color: var(--primary);
+  box-shadow: 0 8px 24px var(--shadow), 0 0 0 1px var(--visualiser-primary);
+  border-color: var(--visualiser-primary);
 }
 
 .gallery-item img {
@@ -115,7 +116,7 @@
   left: 0;
   right: 0;
   padding: 12px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+  background: linear-gradient(to top, var(--overlay-bg), transparent);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -146,13 +147,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--border-primary);
+  border: 2px dashed var(--border-secondary);
   background: transparent;
+  box-shadow: none;
 }
 
 .gallery-item-add:hover {
-  border-color: var(--primary);
+  border-color: var(--visualiser-primary);
   background: var(--bg-hover);
+  box-shadow: none;
 }
 
 .gallery-add-icon {
@@ -166,7 +169,7 @@
 }
 
 .gallery-item-add:hover .gallery-add-icon {
-  color: var(--primary);
+  color: var(--visualiser-primary);
   transform: scale(1.1);
 }
 
@@ -190,14 +193,15 @@
 
 /* Modal */
 .image-modal {
-  background: var(--bg-primary);
+  background: var(--bg-elevated);
   border-radius: 16px;
   max-width: 90vw;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 24px 48px var(--shadow), 0 0 0 1px var(--border-secondary);
 }
 
 .image-modal-loading {
@@ -239,8 +243,8 @@
   font-weight: 500;
   padding: 4px 10px;
   border-radius: 12px;
-  background: var(--primary-light);
-  color: var(--primary);
+  background: var(--visualiser-badge-bg);
+  color: var(--visualiser-badge-text);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -280,7 +284,7 @@
   justify-content: center;
   min-height: 0;
   padding: 24px;
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
 }
 
 .image-modal-image-container {
@@ -296,7 +300,7 @@
   max-height: 60vh;
   object-fit: contain;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px var(--shadow);
 }
 
 /* Navigation Buttons */
@@ -321,7 +325,7 @@
 .image-modal-nav:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--primary);
+  border-color: var(--visualiser-primary);
 }
 
 .image-modal-nav.prev {
@@ -360,7 +364,7 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
   padding: 4px 10px;
   border-radius: 6px;
   flex-shrink: 0;
@@ -380,8 +384,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--primary);
-  color: white;
+  background: var(--visualiser-primary);
+  color: var(--text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -392,7 +396,7 @@
 }
 
 .image-modal-open-btn:hover {
-  background: var(--primary-dark);
+  background: var(--visualiser-primary-hover);
 }
 
 .image-modal-open-btn svg {

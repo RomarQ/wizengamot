@@ -58,6 +58,65 @@
   color: var(--council-badge-text);
 }
 
+/* Council icon */
+.council-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.council-icon svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+/* Council deliberation badges (for dropdown) */
+.deliberation-badge {
+  background: linear-gradient(135deg, #4a90e2 0%, #7c4dff 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.model-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Dropdown section styles */
+.source-info-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.source-info-section:last-child {
+  border-bottom: none;
+}
+
+.source-info-section.council-info {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.chairman-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* Source Info Button & Dropdown */
 .source-info-container {
   position: relative;
@@ -212,17 +271,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
-  overflow: hidden;
+  padding: 24px;
+  overflow-y: auto;
 }
 
 .note-card {
   background: var(--bg-elevated);
   border-radius: 12px;
   box-shadow: 0 4px 20px var(--shadow);
-  padding: 32px 40px;
+  padding: 24px 32px;
   width: 100%;
-  max-width: 900px;
+  max-width: 800px;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -290,6 +349,12 @@
 
 .note-body p:last-child {
   margin-bottom: 0;
+}
+
+/* Hide horizontal rules in note content */
+.note-body hr,
+.note-card hr {
+  display: none;
 }
 
 /* Navigation */
@@ -678,4 +743,9 @@
 
 .keyboard-sentence.highlight-created {
   animation: sentenceHighlightPulse 0.6s ease-out;
+}
+
+/* Remove default margins from ReactMarkdown paragraphs inside sentences */
+.keyboard-sentence p {
+  margin: 0;
 }
