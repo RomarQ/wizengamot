@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import CouncilStatus from './CouncilStatus';
 import SystemPromptBadge from './SystemPromptBadge';
 import FeatureList from './FeatureList';
 import { api } from '../api';
@@ -378,12 +379,7 @@ export default function ChatInterface({
                   <div className="message-label">LLM Council</div>
 
                   {/* Stage 1 */}
-                  {msg.loading?.stage1 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Running Stage 1: Collecting individual responses...</span>
-                    </div>
-                  )}
+                  {msg.loading?.stage1 && <CouncilStatus stage={1} />}
                   {msg.stage1 && (
                     <Stage1
                       responses={msg.stage1}
@@ -401,12 +397,7 @@ export default function ChatInterface({
                   )}
 
                   {/* Stage 2 */}
-                  {msg.loading?.stage2 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Running Stage 2: Peer rankings...</span>
-                    </div>
-                  )}
+                  {msg.loading?.stage2 && <CouncilStatus stage={2} />}
                   {msg.stage2 && (
                     <Stage2
                       rankings={msg.stage2}
@@ -426,12 +417,7 @@ export default function ChatInterface({
                   )}
 
                   {/* Stage 3 */}
-                  {msg.loading?.stage3 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Running Stage 3: Final synthesis...</span>
-                    </div>
-                  )}
+                  {msg.loading?.stage3 && <CouncilStatus stage={3} />}
                   {msg.stage3 && (
                     <Stage3
                       finalResponse={msg.stage3}

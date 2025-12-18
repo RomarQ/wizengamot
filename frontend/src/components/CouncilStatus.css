@@ -1,0 +1,72 @@
+.council-status {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.council-status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.stage-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.stage-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.council-status-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.council-status-message {
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.council-status-message.visible {
+  opacity: 1;
+}
+
+.stage-progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.progress-dot {
+  color: var(--text-muted);
+  transition: color 0.3s ease;
+}
+
+.progress-dot.active {
+  color: var(--primary);
+}
+
+.progress-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border-primary);
+  border-radius: 1px;
+}
