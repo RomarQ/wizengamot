@@ -30,7 +30,7 @@ Multi-model deliberation with anonymous peer review.
 
 **Example prompts:**
 - "Should we pivot from B2B to B2C? Here's our current metrics: [data]"
-- "Review this investment pitch and identify the three biggest weaknesses, solicit a panel of investors and founders"
+- "Review this investment pitch and identify the three biggest weaknesses"
 - "Debate: Is a microservices architecture right for a team of 5 engineers, solicit an engineering panel?"
 
 ### Synthesizer
