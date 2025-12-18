@@ -1280,9 +1280,9 @@ function App() {
         <ConversationGallery
           mode="council"
           items={conversations.filter(c => c.mode !== 'synthesizer' && c.mode !== 'visualiser')}
-          onSelectConversation={(id) => {
+          onSelectConversation={async (id) => {
+            await handleSelectConversation(id);
             setShowCouncilGallery(false);
-            handleSelectConversation(id);
           }}
           onClose={() => setShowCouncilGallery(false)}
           onNewItem={handleNewCouncilFromGallery}
@@ -1292,18 +1292,18 @@ function App() {
         <ConversationGallery
           mode="synthesizer"
           items={conversations.filter(c => c.mode === 'synthesizer')}
-          onSelectConversation={(id) => {
+          onSelectConversation={async (id) => {
+            await handleSelectConversation(id);
             setShowNotesGallery(false);
-            handleSelectConversation(id);
           }}
           onClose={() => setShowNotesGallery(false)}
           onNewItem={handleNewNoteFromGallery}
         />
       ) : showImageGallery ? (
         <ImageGallery
-          onSelectConversation={(id) => {
+          onSelectConversation={async (id) => {
+            await handleSelectConversation(id);
             setShowImageGallery(false);
-            handleSelectConversation(id);
           }}
           onClose={() => setShowImageGallery(false)}
           onNewVisualisation={() => {

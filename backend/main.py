@@ -15,6 +15,7 @@ import os
 
 from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .summarizer import generate_summary
 
 app = FastAPI(title="LLM Council API")
 
@@ -85,6 +86,10 @@ class ConversationMetadata(BaseModel):
     diagram_style: Optional[str] = None
     status: Optional[ConversationStatus] = None
     total_cost: float = 0.0
+    summary: Optional[str] = None
+    is_deliberation: Optional[bool] = None
+    latest_image_id: Optional[str] = None
+    image_count: Optional[int] = None
 
 
 class Conversation(BaseModel):
@@ -353,6 +358,9 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         stage3_result
     )
 
+    # Generate summary for gallery preview (fire and forget)
+    asyncio.create_task(_generate_council_summary(conversation_id, stage3_result.get('content', '')))
+
     # Return the complete response with metadata
     return {
         "stage1": stage1_results,
@@ -360,6 +368,31 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         "stage3": stage3_result,
         "metadata": metadata
     }
+
+
+async def _generate_council_summary(conversation_id: str, stage3_content: str):
+    """Background task to generate council summary."""
+    try:
+        if stage3_content:
+            summary = await generate_summary(stage3_content, 'council')
+            if summary:
+                storage.update_conversation_summary(conversation_id, summary)
+    except Exception as e:
+        print(f"Error generating council summary: {e}")
+
+
+async def _generate_synthesizer_summary(conversation_id: str, notes: List[Dict[str, Any]]):
+    """Background task to generate synthesizer summary from notes."""
+    try:
+        if notes:
+            # Combine note bodies for summary
+            notes_content = "\n\n".join([note.get('body', '') for note in notes if note.get('body')])
+            if notes_content:
+                summary = await generate_summary(notes_content, 'synthesizer')
+                if summary:
+                    storage.update_conversation_summary(conversation_id, summary)
+    except Exception as e:
+        print(f"Error generating synthesizer summary: {e}")
 
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
@@ -473,6 +506,9 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 # Save accumulated cost to conversation
                 if total_message_cost > 0:
                     storage.update_conversation_cost(conversation_id, total_message_cost)
+
+                # Generate summary for gallery preview (fire and forget)
+                asyncio.create_task(_generate_council_summary(conversation_id, stage3_result.get('content', '')))
 
     return StreamingResponse(
         event_generator(),
@@ -1331,6 +1367,10 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
                 storage.update_conversation_cost(conversation_id, total_cost)
         except Exception as e:
             print(f"Error tracking synthesizer cost: {e}")
+
+    # Generate summary for gallery preview (fire and forget)
+    if result.get("notes"):
+        asyncio.create_task(_generate_synthesizer_summary(conversation_id, result["notes"]))
 
     # Generate title from notes if first message
     generated_title = None

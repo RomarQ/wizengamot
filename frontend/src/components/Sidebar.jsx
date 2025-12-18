@@ -129,6 +129,8 @@ export default function Sidebar({
   onDeleteMonitor,
   visualiserSettings,
   onOpenImageGallery,
+  onOpenCouncilGallery,
+  onOpenNotesGallery,
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
@@ -259,6 +261,21 @@ export default function Sidebar({
                 <div className="section-header">
                   <span className="section-header-icon">{MODE_ICONS.council}</span>
                   Council
+                  <button
+                    className="section-header-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenCouncilGallery?.();
+                    }}
+                    title="View all council discussions"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                  </button>
                 </div>
                 <div className="section-list">
                   {conversations
@@ -378,6 +395,21 @@ export default function Sidebar({
                 <div className="section-header">
                   <span className="section-header-icon">{MODE_ICONS.synthesizer}</span>
                   Notes
+                  <button
+                    className="section-header-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenNotesGallery?.();
+                    }}
+                    title="View all notes"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                  </button>
                 </div>
                 <div className="section-list">
                   {conversations

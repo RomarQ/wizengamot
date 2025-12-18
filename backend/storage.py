@@ -180,6 +180,15 @@ def list_conversations() -> List[Dict[str, Any]]:
                 }
                 # Include total cost for display (default to 0 for backwards compat)
                 conv_meta["total_cost"] = data.get("total_cost", 0.0)
+                # Include summary for gallery preview (if exists)
+                if data.get("summary"):
+                    conv_meta["summary"] = data["summary"]
+                # Include is_deliberation for synthesizer notes
+                if conv_meta["mode"] == "synthesizer":
+                    for msg in data.get("messages", []):
+                        if msg.get("role") == "assistant" and msg.get("mode") == "deliberation":
+                            conv_meta["is_deliberation"] = True
+                            break
                 conversations.append(conv_meta)
 
     # Sort by creation time, newest first
@@ -330,6 +339,22 @@ def update_conversation_cost(conversation_id: str, cost_to_add: float):
     current_cost = conversation.get("total_cost", 0.0)
     conversation["total_cost"] = current_cost + cost_to_add
 
+    save_conversation(conversation)
+
+
+def update_conversation_summary(conversation_id: str, summary: str):
+    """
+    Update the summary of a conversation (for gallery preview).
+
+    Args:
+        conversation_id: Conversation identifier
+        summary: Brief summary text for gallery card preview
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    conversation["summary"] = summary
     save_conversation(conversation)
 
 
