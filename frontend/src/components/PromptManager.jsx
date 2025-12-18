@@ -1,18 +1,42 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import PromptEditor from './PromptEditor';
 import './PromptManager.css';
 
+// Catppuccin-based color palette for label badges
+const LABEL_COLORS = [
+  { bg: 'rgba(30, 102, 245, 0.15)', text: '#1e66f5' },   // blue
+  { bg: 'rgba(64, 160, 43, 0.15)', text: '#40a02b' },    // green
+  { bg: 'rgba(254, 100, 11, 0.15)', text: '#fe640b' },   // peach
+  { bg: 'rgba(136, 57, 239, 0.15)', text: '#8839ef' },   // mauve
+  { bg: 'rgba(23, 146, 153, 0.15)', text: '#179299' },   // teal
+  { bg: 'rgba(234, 118, 203, 0.15)', text: '#ea76cb' },  // pink
+  { bg: 'rgba(223, 142, 29, 0.15)', text: '#df8e1d' },   // yellow
+  { bg: 'rgba(4, 165, 229, 0.15)', text: '#04a5e5' },    // sky
+];
+
+function getLabelColors(label) {
+  if (!label) return LABEL_COLORS[0];
+  const hash = label.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return LABEL_COLORS[hash % LABEL_COLORS.length];
+}
+
 /**
- * Full-featured prompt management component with list, create, edit, and delete.
+ * Prompt selector component for choosing system prompts.
  */
-export default function PromptManager({ onSelect, onClose, mode = 'council' }) {
+export default function PromptManager({ onSelect, onClose, onOpenSettings, mode = 'council' }) {
   const [prompts, setPrompts] = useState([]);
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState(null);
+
+  // Escape key handler
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   useEffect(() => {
     loadPrompts();
@@ -44,54 +68,6 @@ export default function PromptManager({ onSelect, onClose, mode = 'council' }) {
     onSelect(null);
   };
 
-  const handleCreateNew = () => {
-    setEditingPrompt(null);
-    setShowEditor(true);
-  };
-
-  const handleEdit = (prompt) => {
-    setEditingPrompt(prompt);
-    setShowEditor(true);
-  };
-
-  const handleDelete = async (prompt) => {
-    if (!confirm(`Are you sure you want to delete "${prompt.title}"?`)) {
-      return;
-    }
-
-    try {
-      await api.deletePrompt(prompt.filename, mode);
-      await loadPrompts();
-      if (selectedPrompt?.filename === prompt.filename) {
-        setSelectedPrompt(prompts[0] || null);
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleEditorSave = async () => {
-    setShowEditor(false);
-    setEditingPrompt(null);
-    await loadPrompts();
-  };
-
-  const handleEditorCancel = () => {
-    setShowEditor(false);
-    setEditingPrompt(null);
-  };
-
-  if (showEditor) {
-    return (
-      <PromptEditor
-        prompt={editingPrompt}
-        onSave={handleEditorSave}
-        onCancel={handleEditorCancel}
-        mode={mode}
-      />
-    );
-  }
-
   if (loading) {
     return (
       <div className="prompt-manager-overlay">
@@ -103,13 +79,20 @@ export default function PromptManager({ onSelect, onClose, mode = 'council' }) {
   }
 
   return (
-    <div className="prompt-manager-overlay">
-      <div className="prompt-manager">
+    <div className="prompt-manager-overlay" onClick={onClose}>
+      <div className="prompt-manager" onClick={(e) => e.stopPropagation()}>
         <div className="prompt-manager-header">
           <h2>Select System Prompt</h2>
-          <button onClick={handleCreateNew} className="btn-create">
-            + New Prompt
-          </button>
+          <div className="prompt-manager-header-actions">
+            {onOpenSettings && (
+              <button onClick={onOpenSettings} className="btn-settings-link">
+                Edit in Settings
+              </button>
+            )}
+            <button onClick={onClose} className="btn-close" title="Close (Esc)">
+              ×
+            </button>
+          </div>
         </div>
 
         <p className="prompt-manager-description">
@@ -121,51 +104,40 @@ export default function PromptManager({ onSelect, onClose, mode = 'council' }) {
         {prompts.length === 0 ? (
           <div className="no-prompts">
             <p>No prompts available yet.</p>
-            <button onClick={handleCreateNew} className="btn-primary">
-              Create Your First Prompt
-            </button>
+            {onOpenSettings && (
+              <button onClick={onOpenSettings} className="btn-primary">
+                Create in Settings
+              </button>
+            )}
           </div>
         ) : (
           <div className="prompt-manager-content">
             <div className="prompt-list">
-              {prompts.map((prompt) => (
-                <div
-                  key={prompt.filename}
-                  className={`prompt-item ${
-                    selectedPrompt?.filename === prompt.filename ? 'selected' : ''
-                  }`}
-                  onClick={() => setSelectedPrompt(prompt)}
-                >
-                  <div className="prompt-item-header">
+              {prompts.map((prompt) => {
+                const colors = getLabelColors(prompt.short_label);
+                return (
+                  <div
+                    key={prompt.filename}
+                    className={`prompt-item ${
+                      selectedPrompt?.filename === prompt.filename ? 'selected' : ''
+                    }`}
+                    onClick={() => setSelectedPrompt(prompt)}
+                  >
                     <div className="prompt-item-title">{prompt.title}</div>
-                    <div className="prompt-item-actions">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(prompt);
-                        }}
-                        className="btn-icon"
-                        title="Edit"
+                    {prompt.short_label && (
+                      <span
+                        className="prompt-label-badge"
+                        style={{ backgroundColor: colors.bg, color: colors.text }}
                       >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(prompt);
-                        }}
-                        className="btn-icon"
-                        title="Delete"
-                      >
-                        🗑️
-                      </button>
+                        {prompt.short_label}
+                      </span>
+                    )}
+                    <div className="prompt-item-preview">
+                      {prompt.content.split('\n').slice(1, 3).join(' ').substring(0, 100)}...
                     </div>
                   </div>
-                  <div className="prompt-item-preview">
-                    {prompt.content.split('\n').slice(1, 3).join(' ').substring(0, 120)}...
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {selectedPrompt && (
