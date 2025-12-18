@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 18 - Animated status messages during council deliberation
 Dec 17 - Thread conversations with context sidebar for continuing discussions with individual council members
 Dec 16 - Catppuccin color scheme for light and dark modes
 Dec 16 - Paste raw text directly into Synthesizer when URLs block scraping
