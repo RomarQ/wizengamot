@@ -1,0 +1,112 @@
+.update-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.update-status.loading,
+.update-status.error {
+  color: var(--text-muted);
+}
+
+.version-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.version-label {
+  color: var(--text-secondary);
+}
+
+.version-commit {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 12px;
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.version-date {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.update-available {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-badge {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Dark mode */
+[data-theme="dark"] .update-badge {
+  background: #422006;
+  color: #fcd34d;
+}
+
+.update-button {
+  background: var(--primary-color, #4a90e2);
+  color: white;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.update-button:hover:not(:disabled) {
+  background: var(--primary-hover, #357abd);
+}
+
+.update-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.up-to-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  font-size: 12px;
+}
+
+[data-theme="dark"] .up-to-date {
+  color: #34d399;
+}
+
+.update-message {
+  color: var(--primary-color, #4a90e2);
+  font-size: 12px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.update-error {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+[data-theme="dark"] .update-error {
+  color: #f87171;
+}

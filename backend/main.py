@@ -8,6 +8,10 @@ from typing import List, Dict, Any, Optional
 import uuid
 import json
 import asyncio
+import subprocess
+import threading
+import time
+import os
 
 from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
@@ -102,6 +106,101 @@ class Conversation(BaseModel):
 async def root():
     """Health check endpoint."""
     return {"status": "ok", "service": "LLM Council API"}
+
+
+def _get_project_root() -> str:
+    """Get the project root directory (where .git is located)."""
+    # backend/main.py -> project root is two levels up
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _run_git_command(args: List[str]) -> tuple[bool, str]:
+    """Run a git command and return (success, output)."""
+    try:
+        result = subprocess.run(
+            ["git"] + args,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=_get_project_root()
+        )
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        return False, result.stderr.strip()
+    except Exception as e:
+        return False, str(e)
+
+
+def _parse_git_log(output: str) -> dict:
+    """Parse git log output in format: hash|date|message."""
+    parts = output.split("|", 2)
+    if len(parts) >= 3:
+        return {
+            "commit": parts[0][:7],
+            "full_commit": parts[0],
+            "date": parts[1],
+            "message": parts[2]
+        }
+    return {"commit": "", "full_commit": "", "date": "", "message": ""}
+
+
+@app.get("/api/version")
+async def get_version():
+    """Get local and remote git version info for OTA updates."""
+    # Get local commit info
+    success, local_output = _run_git_command(["log", "-1", "--format=%H|%ai|%s"])
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to get local version: {local_output}")
+    local = _parse_git_log(local_output)
+
+    # Fetch remote updates (quiet mode)
+    _run_git_command(["fetch", "origin", "master", "--quiet"])
+
+    # Get remote commit info
+    success, remote_output = _run_git_command(["log", "-1", "origin/master", "--format=%H|%ai|%s"])
+    if not success:
+        # Remote might not exist, return local only
+        return {
+            "local": local,
+            "remote": None,
+            "behind": 0,
+            "up_to_date": True
+        }
+    remote = _parse_git_log(remote_output)
+
+    # Count commits behind
+    success, count_output = _run_git_command(["rev-list", "HEAD..origin/master", "--count"])
+    behind = int(count_output) if success and count_output.isdigit() else 0
+
+    return {
+        "local": local,
+        "remote": remote,
+        "behind": behind,
+        "up_to_date": behind == 0
+    }
+
+
+@app.post("/api/update")
+async def trigger_update():
+    """Trigger git pull and restart the server."""
+    # Run git pull
+    success, output = _run_git_command(["pull", "origin", "master"])
+
+    if not success:
+        return {"success": False, "error": output}
+
+    # Schedule server restart in background
+    def restart_server():
+        time.sleep(1)
+        os._exit(0)
+
+    threading.Thread(target=restart_server, daemon=True).start()
+
+    return {
+        "success": True,
+        "output": output,
+        "message": "Update successful. Server restarting..."
+    }
 
 
 @app.get("/api/config")

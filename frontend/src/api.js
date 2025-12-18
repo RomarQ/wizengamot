@@ -44,6 +44,32 @@ export const api = {
   },
 
   /**
+   * Get version info for OTA updates.
+   * Returns local commit, remote commit, and how many commits behind.
+   */
+  async getVersion() {
+    const response = await fetch(`${API_BASE}/api/version`);
+    if (!response.ok) {
+      throw new Error('Failed to get version');
+    }
+    return response.json();
+  },
+
+  /**
+   * Trigger git pull and server restart.
+   * Server will restart after successful pull.
+   */
+  async triggerUpdate() {
+    const response = await fetch(`${API_BASE}/api/update`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger update');
+    }
+    return response.json();
+  },
+
+  /**
    * List all conversations.
    */
   async listConversations() {
