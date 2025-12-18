@@ -53,20 +53,31 @@ fi
 # Set environment variables to suppress warnings
 export TOKENIZERS_PARALLELISM=false
 
-# Start backend
+# Start backend with auto-restart (dev process manager)
+# This mimics Docker's supervisord behavior for seamless updates
 echo "Starting backend on http://localhost:8001..."
-uv run python -m backend.main &
+(
+    # Handle signals to cleanly terminate child process
+    trap 'kill $CHILD_PID 2>/dev/null; exit 0' SIGINT SIGTERM
+
+    while true; do
+        uv run python -m backend.main &
+        CHILD_PID=$!
+        wait $CHILD_PID
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -eq 0 ]; then
+            echo -e "${YELLOW}Backend exited (code 0), restarting...${NC}"
+            sleep 1
+        else
+            echo -e "${RED}Backend crashed (code $EXIT_CODE), restarting in 3s...${NC}"
+            sleep 3
+        fi
+    done
+) &
 BACKEND_PID=$!
 
 # Wait for backend to start
 sleep 2
-
-# Check if backend started successfully
-if ! kill -0 $BACKEND_PID 2>/dev/null; then
-    echo -e "${RED}Backend failed to start${NC}"
-    echo "Check the error messages above for details."
-    exit 1
-fi
 
 # Start frontend
 echo "Starting frontend on http://localhost:5173..."
@@ -86,7 +97,9 @@ echo "Press Ctrl+C to stop both servers"
 cleanup() {
     echo ""
     echo "Shutting down..."
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    # Kill process groups to ensure child processes (Python backend) are also terminated
+    kill -- -$BACKEND_PID 2>/dev/null || kill $BACKEND_PID 2>/dev/null
+    kill $FRONTEND_PID 2>/dev/null
     wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
     echo "Done."
     exit 0
