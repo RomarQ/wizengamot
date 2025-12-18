@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 18 - Keyboard shortcuts for council configuration modal
 Dec 18 - Animated status messages during council deliberation
 Dec 17 - Thread conversations with context sidebar for continuing discussions with individual council members
 Dec 16 - Catppuccin color scheme for light and dark modes
