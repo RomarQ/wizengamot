@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 18 - Deliberation mode for Synthesizer, enabling council-based collaborative note generation from content
 Dec 18 - Create diagrams from highlights in Review Context sidebar
 Dec 18 - Image gallery grid view for browsing generated visualizations
 Dec 18 - Real-time cost and prompt label updates in sidebar
