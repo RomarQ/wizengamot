@@ -867,6 +867,68 @@ export const api = {
   },
 
   // ==========================================================================
+  // Synthesizer Stage Prompts API Methods
+  // ==========================================================================
+
+  /**
+   * List all synthesizer stage prompts (ranking and chairman for deliberation).
+   */
+  async listSynthStagePrompts() {
+    const response = await fetch(`${API_BASE}/api/synth-stage-prompts`);
+    if (!response.ok) {
+      throw new Error('Failed to list synthesizer stage prompts');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific synthesizer stage prompt.
+   * @param {string} promptType - 'ranking' or 'chairman'
+   */
+  async getSynthStagePrompt(promptType) {
+    const response = await fetch(`${API_BASE}/api/synth-stage-prompts/${promptType}`);
+    if (!response.ok) {
+      throw new Error('Failed to get synthesizer stage prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a synthesizer stage prompt.
+   * @param {string} promptType - 'ranking' or 'chairman'
+   * @param {string} content - The new prompt content
+   */
+  async updateSynthStagePrompt(promptType, content) {
+    const response = await fetch(`${API_BASE}/api/synth-stage-prompts/${promptType}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to update synthesizer stage prompt');
+    }
+    return response.json();
+  },
+
+  /**
+   * Reset a synthesizer stage prompt to the built-in default.
+   * @param {string} promptType - 'ranking' or 'chairman'
+   */
+  async resetSynthStagePrompt(promptType) {
+    const response = await fetch(`${API_BASE}/api/synth-stage-prompts/${promptType}/reset`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to reset synthesizer stage prompt');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
   // Synthesizer API Methods
   // ==========================================================================
 

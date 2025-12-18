@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../../api';
 import PromptEditorModal from '../../PromptEditorModal';
+import StagePromptEditorModal from '../StagePromptEditorModal';
 import './SynthesizerSection.css';
 
 export default function SynthesizerSection({
@@ -18,6 +19,7 @@ export default function SynthesizerSection({
   const [editingPromptContent, setEditingPromptContent] = useState('');
   const [editingPromptTitle, setEditingPromptTitle] = useState('');
   const [isNewPrompt, setIsNewPrompt] = useState(false);
+  const [editingStagePrompt, setEditingStagePrompt] = useState(null);
 
   // Filter prompts to only show synthesizer prompts
   const synthesizerPrompts = prompts.filter((p) => p.mode === 'synthesizer');
@@ -232,6 +234,49 @@ export default function SynthesizerSection({
           )}
         </div>
       </div>
+
+      {/* Stage Prompts for Deliberation Mode */}
+      <div className="modal-section">
+        <h3>Stage Prompts</h3>
+        <p className="section-description">
+          Customize the prompts used for ranking and synthesis in deliberation mode
+        </p>
+
+        <div className="stage-prompts-list">
+          <div className="stage-prompt-item">
+            <div className="stage-prompt-info">
+              <span className="stage-prompt-title">Stage 2: Ranking Prompt</span>
+              <span className="stage-prompt-desc">Used when models evaluate each other&apos;s notes</span>
+            </div>
+            <button
+              className="btn-small btn-secondary"
+              onClick={() => setEditingStagePrompt('ranking')}
+            >
+              Edit
+            </button>
+          </div>
+          <div className="stage-prompt-item">
+            <div className="stage-prompt-info">
+              <span className="stage-prompt-title">Stage 3: Chairman Prompt</span>
+              <span className="stage-prompt-desc">Used for final note synthesis</span>
+            </div>
+            <button
+              className="btn-small btn-secondary"
+              onClick={() => setEditingStagePrompt('chairman')}
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <StagePromptEditorModal
+        isOpen={!!editingStagePrompt}
+        onClose={() => setEditingStagePrompt(null)}
+        promptType={editingStagePrompt}
+        mode="synthesizer"
+      />
 
       <PromptEditorModal
         isOpen={showPromptEditor}

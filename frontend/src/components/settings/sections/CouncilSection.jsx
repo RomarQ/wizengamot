@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../../api';
-import StagePromptEditor from '../StagePromptEditor';
+import StagePromptEditorModal from '../StagePromptEditorModal';
 import PromptEditorModal from '../../PromptEditorModal';
 import './CouncilSection.css';
 
@@ -227,15 +227,14 @@ export default function CouncilSection({
           </div>
         </div>
 
-        {editingStagePrompt && (
-          <div className="stage-prompt-editor-wrapper">
-            <StagePromptEditor
-              promptType={editingStagePrompt}
-              onClose={() => setEditingStagePrompt(null)}
-            />
-          </div>
-        )}
       </div>
+
+      <StagePromptEditorModal
+        isOpen={!!editingStagePrompt}
+        onClose={() => setEditingStagePrompt(null)}
+        promptType={editingStagePrompt}
+        mode="council"
+      />
 
       {/* System Prompts */}
       <div className="modal-section">

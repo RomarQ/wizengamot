@@ -924,6 +924,7 @@ async def get_usage_stats():
 # =============================================================================
 
 from . import stage_prompts
+from . import synthesizer_stage_prompts
 
 
 @app.get("/api/stage-prompts")
@@ -962,6 +963,45 @@ async def reset_stage_prompt(prompt_type: str):
     """Reset a stage prompt to the built-in default."""
     try:
         return stage_prompts.reset_stage_prompt(prompt_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# =============================================================================
+# Synthesizer Stage Prompts Endpoints
+# =============================================================================
+
+@app.get("/api/synth-stage-prompts")
+async def list_synth_stage_prompts():
+    """List all synthesizer stage prompts with their status."""
+    return synthesizer_stage_prompts.list_synth_stage_prompts()
+
+
+@app.get("/api/synth-stage-prompts/{prompt_type}")
+async def get_synth_stage_prompt(prompt_type: str):
+    """Get a specific synthesizer stage prompt (ranking or chairman)."""
+    try:
+        return synthesizer_stage_prompts.get_synth_stage_prompt(prompt_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/api/synth-stage-prompts/{prompt_type}")
+async def update_synth_stage_prompt(prompt_type: str, request: UpdateStagePromptRequest):
+    """Update a synthesizer stage prompt with custom content."""
+    if not request.content or not request.content.strip():
+        raise HTTPException(status_code=400, detail="Content is required")
+    try:
+        return synthesizer_stage_prompts.update_synth_stage_prompt(prompt_type, request.content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/synth-stage-prompts/{prompt_type}/reset")
+async def reset_synth_stage_prompt(prompt_type: str):
+    """Reset a synthesizer stage prompt to the built-in default."""
+    try:
+        return synthesizer_stage_prompts.reset_synth_stage_prompt(prompt_type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
