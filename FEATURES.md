@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 18 - Grid galleries with AI-generated summaries for browsing Council conversations and Notes
 Dec 18 - Cmd+. keyboard shortcut opens settings, Escape closes modals
 Dec 18 - Editable stage prompts for Synthesizer deliberation
 Dec 18 - Improved deliberation panel with keyboard shortcuts, clickable headers, and numbered reading order badges
