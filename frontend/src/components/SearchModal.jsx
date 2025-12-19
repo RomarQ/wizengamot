@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { api } from '../api';
 import './SearchModal.css';
 
@@ -85,13 +85,20 @@ function applyTypeFilter(results, filter) {
   });
 }
 
-export default function SearchModal({ isOpen, onClose, onSelectConversation, onNewConversation, theme, onToggleTheme, onOpenSettings }) {
+export default function SearchModal({ isOpen, onClose, conversations = [], onSelectConversation, onNewConversation, theme, onToggleTheme, onOpenSettings }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
+
+  // Derive 5 most recent conversations for quick access
+  const recentConversations = useMemo(() => {
+    return [...conversations]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 5);
+  }, [conversations]);
 
   // Parse filter from query
   const { filter: activeFilter, query: searchQuery } = parseFilterAndQuery(query);
@@ -103,11 +110,15 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
   // Apply filter to results
   const filteredResults = applyTypeFilter(results, activeFilter);
 
+  // Determine which items to show: search results or recent conversations
+  const showingRecent = !query && !isLoading && recentConversations.length > 0;
+  const displayItems = showingRecent ? recentConversations : filteredResults;
+
   // Navigation uses negative indices for actions, positive for results
   // Actions: -3 (Settings), -2 (Theme), -1 (New Conv)
   // Results: 0, 1, 2, ...
   const ACTION_COUNT = 3;
-  const maxResultIndex = filteredResults.length - 1;
+  const maxResultIndex = displayItems.length - 1;
 
   // Focus input when modal opens
   useEffect(() => {
@@ -226,10 +237,10 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
       onClose();
       onOpenSettings?.();
     } else if (index >= 0) {
-      // Search result
-      const result = filteredResults[index];
-      if (result) {
-        onSelectConversation(result);
+      // Search result or recent conversation
+      const item = displayItems[index];
+      if (item) {
+        onSelectConversation(item);
         onClose();
       }
     }
@@ -368,34 +379,40 @@ export default function SearchModal({ isOpen, onClose, onSelectConversation, onN
                 </div>
               )}
 
-              {!isLoading && filteredResults.map((result, index) => (
+              {/* Show recent conversations when no query */}
+              {showingRecent && (
+                <div className="search-section-label">Recent</div>
+              )}
+
+              {!isLoading && displayItems.map((item, index) => (
                 <div
-                  key={result.id}
+                  key={item.id}
                   className={`search-result ${index === selectedIndex ? 'selected' : ''}`}
                   onClick={() => handleSelectByIndex(index)}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <div className="search-result-header">
-                    <span className="search-result-title">{result.title}</span>
-                    <span className={`search-result-mode ${result.mode}`}>
+                    <span className="search-result-title">{item.title}</span>
+                    <span className={`search-result-mode ${item.mode}`}>
                       <span className="search-result-mode-icon">
-                        {MODE_ICONS[result.mode]}
+                        {MODE_ICONS[item.mode]}
                       </span>
-                      {MODE_LABELS[result.mode] || result.mode}
+                      {MODE_LABELS[item.mode] || item.mode}
                     </span>
                   </div>
                   <div className="search-result-meta">
-                    <span className="search-result-time">{formatRelativeTime(result.created_at)}</span>
-                    {result.similarity && (
+                    <span className="search-result-time">{formatRelativeTime(item.created_at)}</span>
+                    {item.similarity && (
                       <span className="search-result-score">
-                        {Math.round(result.similarity * 100)}% match
+                        {Math.round(item.similarity * 100)}% match
                       </span>
                     )}
                   </div>
                 </div>
               ))}
 
-              {!query && !isLoading && (
+              {/* Fallback hint when no conversations exist */}
+              {!query && !isLoading && recentConversations.length === 0 && (
                 <div className="search-hint-text">
                   Type to search, or @ to filter by type
                 </div>

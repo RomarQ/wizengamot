@@ -1505,6 +1505,7 @@ function App() {
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
+        conversations={conversations}
         onSelectConversation={(result) => {
           handleSelectConversation(result);
           setShowSearchModal(false);
