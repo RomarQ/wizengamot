@@ -1,7 +1,59 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../api';
 import ImageGalleryModal from './ImageGalleryModal';
 import './ImageGallery.css';
+
+// Date grouping helper
+function groupByDate(items) {
+  const groups = {};
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thisWeekStart = new Date(today);
+  thisWeekStart.setDate(today.getDate() - today.getDay());
+  const lastWeekStart = new Date(thisWeekStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+  items.forEach(item => {
+    const date = new Date(item.createdAt);
+    const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    let groupKey;
+
+    if (itemDate >= today) {
+      groupKey = 'Today';
+    } else if (itemDate >= thisWeekStart) {
+      groupKey = 'This Week';
+    } else if (itemDate >= lastWeekStart) {
+      groupKey = 'Last Week';
+    } else {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      groupKey = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    if (!groups[groupKey]) groups[groupKey] = [];
+    groups[groupKey].push(item);
+  });
+
+  // Sort groups in chronological order (most recent first)
+  const orderedKeys = ['Today', 'This Week', 'Last Week'];
+  const monthGroups = Object.keys(groups)
+    .filter(k => !orderedKeys.includes(k))
+    .sort((a, b) => {
+      const [monthA, yearA] = a.split(' ');
+      const [monthB, yearB] = b.split(' ');
+      if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA);
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      return monthNames.indexOf(monthB) - monthNames.indexOf(monthA);
+    });
+
+  const sortedGroups = {};
+  [...orderedKeys, ...monthGroups].forEach(key => {
+    if (groups[key]) sortedGroups[key] = groups[key];
+  });
+
+  return sortedGroups;
+}
 
 export default function ImageGallery({ onSelectConversation, onClose, onNewVisualisation }) {
   const [galleryItems, setGalleryItems] = useState([]);
@@ -36,6 +88,9 @@ export default function ImageGallery({ onSelectConversation, onClose, onNewVisua
     loadImages();
   }, []);
 
+  // Group items by date
+  const groupedItems = useMemo(() => groupByDate(galleryItems), [galleryItems]);
+
   const handleImageClick = (item) => {
     setSelectedImage(item);
   };
@@ -63,39 +118,50 @@ export default function ImageGallery({ onSelectConversation, onClose, onNewVisua
       ) : error ? (
         <div className="gallery-error">{error}</div>
       ) : (
-        <div className="image-gallery-grid">
-          {galleryItems.map(item => (
-            <div
-              key={item.conversationId}
-              className="gallery-item"
-              onClick={() => handleImageClick(item)}
-            >
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                loading="lazy"
-              />
-              <div className="gallery-item-overlay">
-                <span className="gallery-item-title">{item.title}</span>
-                {item.imageCount > 1 && (
-                  <span className="gallery-item-versions">
-                    {item.imageCount} versions
-                  </span>
-                )}
+        <div className="image-gallery-content">
+          {Object.entries(groupedItems).map(([groupName, items]) => (
+            <div key={groupName} className="image-gallery-date-group">
+              <div className="image-gallery-date-header">{groupName}</div>
+              <div className="image-gallery-grid">
+                {items.map(item => (
+                  <div
+                    key={item.conversationId}
+                    className="gallery-item"
+                    onClick={() => handleImageClick(item)}
+                  >
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      loading="lazy"
+                    />
+                    <div className="gallery-item-overlay">
+                      <span className="gallery-item-title">{item.title}</span>
+                      {item.imageCount > 1 && (
+                        <span className="gallery-item-versions">
+                          {item.imageCount} versions
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
 
           {/* Add new visualisation button */}
-          <div
-            className="gallery-item gallery-item-add"
-            onClick={onNewVisualisation}
-          >
-            <div className="gallery-add-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
+          <div className="image-gallery-date-group">
+            <div className="image-gallery-grid">
+              <div
+                className="gallery-item gallery-item-add"
+                onClick={onNewVisualisation}
+              >
+                <div className="gallery-add-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
         </div>

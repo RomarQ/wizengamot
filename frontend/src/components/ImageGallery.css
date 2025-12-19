@@ -68,14 +68,38 @@
   color: var(--error);
 }
 
-/* Grid Layout - fills available space */
-.image-gallery-grid {
+/* Content Area with scroll */
+.image-gallery-content {
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 24px;
+}
+
+/* Date Group Sections */
+.image-gallery-date-group {
+  margin-bottom: 32px;
+  min-width: 0;
+  width: 100%;
+}
+
+.image-gallery-date-group:last-child {
+  margin-bottom: 0;
+}
+
+.image-gallery-date-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding-left: 4px;
+}
+
+/* Grid Layout */
+.image-gallery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
-  padding: 20px;
-  overflow-y: auto;
   align-content: start;
 }
 
@@ -406,10 +430,13 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .image-gallery-content {
+    padding: 12px;
+  }
+
   .image-gallery-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 12px;
-    padding: 12px;
   }
 
   .image-modal {

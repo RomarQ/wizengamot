@@ -105,6 +105,16 @@
   --tag-lavender: #7287fd;
   --tag-pink: #ea76cb;
   --tag-sapphire: #209fb5;
+
+  /* Card header colors (semi-transparent overlays) */
+  --card-header-council: rgba(30, 102, 245, 0.15);
+  --card-header-synthesizer: rgba(64, 160, 43, 0.15);
+  --card-header-youtube: rgba(210, 15, 57, 0.15);
+  --card-header-article: rgba(30, 102, 245, 0.12);
+  --card-header-podcast: rgba(136, 57, 239, 0.15);
+  --card-header-pdf: rgba(254, 100, 11, 0.15);
+  --card-header-arxiv: rgba(185, 28, 28, 0.15);
+  --card-header-text: rgba(108, 111, 133, 0.12);
 }
 
 [data-theme="dark"] {
@@ -205,6 +215,16 @@
   --tag-lavender: #b7bdf8;
   --tag-pink: #f5bde6;
   --tag-sapphire: #7dc4e4;
+
+  /* Card header colors (semi-transparent overlays) */
+  --card-header-council: rgba(138, 173, 244, 0.2);
+  --card-header-synthesizer: rgba(166, 218, 149, 0.2);
+  --card-header-youtube: rgba(237, 135, 150, 0.2);
+  --card-header-article: rgba(138, 173, 244, 0.15);
+  --card-header-podcast: rgba(198, 160, 246, 0.2);
+  --card-header-pdf: rgba(245, 169, 127, 0.2);
+  --card-header-arxiv: rgba(237, 135, 150, 0.18);
+  --card-header-text: rgba(165, 173, 203, 0.12);
 }
 
 * {

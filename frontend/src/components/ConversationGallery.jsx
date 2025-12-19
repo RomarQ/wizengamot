@@ -39,6 +39,18 @@ function getSourceTypeBadgeClass(sourceType) {
   return `conversation-gallery-badge source-${sourceType}`;
 }
 
+function getHeaderClass(mode, item) {
+  if (mode === 'council') {
+    return 'header-council';
+  }
+  // For synthesizer mode, use source_type
+  const sourceType = item?.source_type;
+  if (sourceType) {
+    return `header-${sourceType}`;
+  }
+  return 'header-synthesizer';
+}
+
 // Date grouping helper
 function groupByDate(items) {
   const groups = {};
@@ -145,11 +157,10 @@ export default function ConversationGallery({
         className={`conversation-gallery-card ${mode}`}
         onClick={() => handleCardClick(item)}
       >
-        <div className="conversation-gallery-card-content">
+        <div className={`conversation-gallery-card-header ${getHeaderClass(mode, item)}`}>
           <div className="conversation-gallery-card-title">
             {item.title || (isCouncil ? 'New Conversation' : 'New Note')}
           </div>
-
           {hasBadges && (
             <div className="conversation-gallery-badges">
               {!isCouncil && item.source_type && (
@@ -185,6 +196,8 @@ export default function ConversationGallery({
               )}
             </div>
           )}
+        </div>
+        <div className="conversation-gallery-card-content">
 
           {item.summary && (
             <div className="conversation-gallery-card-summary">
@@ -253,31 +266,93 @@ export default function ConversationGallery({
       </header>
 
       <div className="conversation-gallery-content">
-        {Object.entries(groupedItems).map(([groupName, groupItems]) => (
-          <div key={groupName} className="conversation-gallery-date-group">
-            <div className="conversation-gallery-date-header">{groupName}</div>
-            <div className="conversation-gallery-grid">
-              {groupItems.map(item => renderCard(item))}
-            </div>
-          </div>
-        ))}
+        {viewMode === 'list' ? (
+          <table className="conversation-gallery-table">
+            <thead>
+              <tr>
+                <th className="table-col-name">Name</th>
+                <th className="table-col-tags">Type</th>
+                <th className="table-col-price">Cost</th>
+                <th className="table-col-date">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(groupedItems).map(([groupName, groupItems]) => (
+                <>
+                  <tr key={`group-${groupName}`} className="table-group-header">
+                    <td colSpan="4">{groupName}</td>
+                  </tr>
+                  {groupItems.map(item => {
+                    const isCouncil = mode === 'council';
+                    const title = item.title || (isCouncil ? 'New Conversation' : 'New Note');
+                    return (
+                      <tr
+                        key={item.id}
+                        className="table-row"
+                        onClick={() => handleCardClick(item)}
+                      >
+                        <td className="table-cell-name">
+                          <div className="table-cell-content">
+                            <div className="table-title">{title}</div>
+                            {item.summary && (
+                              <div className="table-preview">{item.summary}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="table-cell-tags">
+                          {!isCouncil && item.source_type && (
+                            <span className={`table-tag ${item.source_type}`}>
+                              {getSourceTypeLabel(item.source_type)}
+                            </span>
+                          )}
+                          {isCouncil && (
+                            <span className="table-tag council">Council</span>
+                          )}
+                        </td>
+                        <td className="table-cell-price">
+                          {item.total_cost > 0 ? `$${item.total_cost.toFixed(3)}` : '-'}
+                        </td>
+                        <td className="table-cell-date">
+                          {formatRelativeTime(item.created_at)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <>
+            {Object.entries(groupedItems).map(([groupName, groupItems]) => (
+              <div key={groupName} className="conversation-gallery-date-group">
+                <div className="conversation-gallery-date-header">{groupName}</div>
+                <div className="conversation-gallery-grid">
+                  {groupItems.map(item => renderCard(item))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
 
         {/* Add new button - in its own section */}
-        <div className="conversation-gallery-date-group">
-          <div className="conversation-gallery-grid">
-            <div
-              className={`conversation-gallery-card conversation-gallery-card-add ${mode}`}
-              onClick={onNewItem}
-            >
-              <div className="conversation-gallery-add-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+        {viewMode !== 'list' && (
+          <div className="conversation-gallery-date-group">
+            <div className="conversation-gallery-grid">
+              <div
+                className={`conversation-gallery-card conversation-gallery-card-add ${mode}`}
+                onClick={onNewItem}
+              >
+                <div className="conversation-gallery-add-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
     </div>
