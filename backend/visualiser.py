@@ -48,7 +48,8 @@ def get_diagram_style_prompt(style: str) -> Optional[str]:
 async def generate_diagram(
     content: str,
     style: str,
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    custom_prompt: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generate a diagram image from content using specified style.
@@ -57,6 +58,7 @@ async def generate_diagram(
         content: Source content to visualize
         style: Diagram style key (bento, whiteboard, system_diagram, napkin, cheatsheet, cartoon, or custom)
         model: Model to use (defaults to configured visualiser model)
+        custom_prompt: Optional custom prompt to use instead of style-based prompt
 
     Returns:
         {
@@ -74,10 +76,13 @@ async def generate_diagram(
     if not api_key:
         return {"error": "No OpenRouter API key configured"}
 
-    # Get style prompt
-    style_prompt = get_diagram_style_prompt(style)
-    if not style_prompt:
-        return {"error": f"Unknown diagram style: {style}"}
+    # Use custom prompt if provided, otherwise get from style
+    if custom_prompt:
+        style_prompt = custom_prompt
+    else:
+        style_prompt = get_diagram_style_prompt(style)
+        if not style_prompt:
+            return {"error": f"Unknown diagram style: {style}"}
 
     # Build the full prompt - append content to the style prompt
     # The style prompts end with "Context for the infographic:"
