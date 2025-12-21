@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+Dec 21 - Custom prompts for diagram generation
 Dec 21 - Podcast mode for audio explanations of notes
 Dec 19 - Quick access to recent conversations in Cmd+K search
 Dec 19 - Gallery list view and colored card headers for easier browsing
