@@ -7,8 +7,12 @@ import CouncilStatus from './CouncilStatus';
 import SystemPromptBadge from './SystemPromptBadge';
 import FeatureList from './FeatureList';
 import UpdateStatus from './UpdateStatus';
+import AutoExpandTextarea from './AutoExpandTextarea';
+import MarkdownInput from './MarkdownInput';
+import ModelInfoPopover from './ModelInfoPopover';
 import { api } from '../api';
 import './ChatInterface.css';
+import './CouncilDiscussionView.css';
 
 export default function ChatInterface({
   conversation,
@@ -25,11 +29,23 @@ export default function ChatInterface({
   onRemoveContextSegment,
   onContinueThread,
   onSelectThread,
+  onOpenSettings,
 }) {
   const [input, setInput] = useState('');
   const [credits, setCredits] = useState(null);
   const [threadInputs, setThreadInputs] = useState({}); // { threadId: inputValue }
   const messagesEndRef = useRef(null);
+  const markdownInputRef = useRef(null);
+
+  // Header bar responsive state
+  const [showModelPopover, setShowModelPopover] = useState(false);
+  const [popoverType, setPopoverType] = useState(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
+  const [isCompactMode, setIsCompactMode] = useState(false);
+  const councilButtonRef = useRef(null);
+  const chairmanButtonRef = useRef(null);
+  const headerBarRef = useRef(null);
+  const headerConfigRef = useRef(null);
 
   // Fetch credits on mount when showing empty state
   useEffect(() => {
@@ -52,19 +68,17 @@ export default function ChatInterface({
     scrollToBottom();
   }, [conversation]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (input.trim() && !isLoading) {
-      onSendMessage(input);
-      setInput('');
+  const handleSubmit = (eOrContent) => {
+    // Handle both form event and direct content from MarkdownInput
+    if (eOrContent?.preventDefault) {
+      eOrContent.preventDefault();
     }
-  };
 
-  const handleKeyDown = (e) => {
-    // Submit on Enter (without Shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
+    const content = typeof eOrContent === 'string' ? eOrContent : input;
+    if (content.trim() && !isLoading) {
+      onSendMessage(content);
+      setInput('');
+      markdownInputRef.current?.clear?.();
     }
   };
 
@@ -110,6 +124,96 @@ export default function ChatInterface({
       comments: msg.comments || [],
       contextSegments: msg.context_segments || [],
     });
+  };
+
+  // Detect compact mode when header content would wrap
+  useEffect(() => {
+    const headerConfig = headerConfigRef.current;
+    if (!headerConfig) return;
+
+    const SINGLE_LINE_HEIGHT = 30;
+
+    const checkOverflow = () => {
+      if (isCompactMode) return;
+      const configHeight = headerConfig.offsetHeight;
+      const needsCompact = configHeight > SINGLE_LINE_HEIGHT;
+      if (needsCompact) {
+        setIsCompactMode(true);
+      }
+    };
+
+    const checkCanExpand = () => {
+      if (!isCompactMode) return;
+      const headerBar = headerBarRef.current;
+      if (!headerBar) return;
+
+      const promptLabel = headerBar.querySelector('.header-prompt-label');
+      const promptWidth = promptLabel ? promptLabel.offsetWidth + 16 : 0;
+
+      const headerBarStyle = getComputedStyle(headerBar);
+      const headerBarPadding = parseFloat(headerBarStyle.paddingLeft) + parseFloat(headerBarStyle.paddingRight);
+      const gap = parseFloat(headerBarStyle.gap) || 16;
+
+      const availableWidth = headerBar.offsetWidth - promptWidth - headerBarPadding - gap * 2;
+
+      const councilConfig = conversation?.council_config;
+      if (!councilConfig) return;
+
+      const councilText = councilConfig.council_models.map(m => m.split('/')[1] || m).join(', ');
+      const chairmanText = councilConfig.chairman_model.split('/')[1] || councilConfig.chairman_model;
+      const estimatedWidth = (councilText.length + chairmanText.length) * 7 + 180;
+
+      if (estimatedWidth < availableWidth) {
+        setIsCompactMode(false);
+        setShowModelPopover(false);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      checkOverflow();
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (isCompactMode) {
+        checkCanExpand();
+      } else {
+        checkOverflow();
+      }
+    });
+
+    if (headerBarRef.current) {
+      resizeObserver.observe(headerBarRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isCompactMode, conversation?.council_config]);
+
+  // Handle opening model info popover
+  const handleOpenModelPopover = (type) => {
+    const buttonRef = type === 'council' ? councilButtonRef : chairmanButtonRef;
+    if (!buttonRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    let left = rect.left;
+
+    const popoverWidth = 320;
+    if (left + popoverWidth > window.innerWidth) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+
+    setPopoverPosition({
+      top: rect.bottom + 8,
+      left: Math.max(8, left)
+    });
+    setPopoverType(type);
+    setShowModelPopover(true);
+  };
+
+  const handleCloseModelPopover = () => {
+    setShowModelPopover(false);
+    setPopoverType(null);
   };
 
   if (!conversation) {
@@ -227,28 +331,82 @@ export default function ChatInterface({
   return (
     <div className="chat-interface">
       {conversation.council_config && (
-        <div className="council-config-bar">
-          <div className="config-info">
-            <span className="config-label">Council:</span>
-            <span className="config-value">
-              {conversation.council_config.council_models.map(getModelShortName).join(', ')}
-            </span>
+        <>
+          <div className="council-header-bar" ref={headerBarRef}>
+            <div className="council-header-config" ref={headerConfigRef}>
+              <div className="config-info">
+                <span className="config-label">Council:</span>
+                {isCompactMode ? (
+                  <button
+                    ref={councilButtonRef}
+                    className="config-value-compact"
+                    onClick={() => handleOpenModelPopover('council')}
+                    aria-label={`View ${conversation.council_config.council_models.length} council models`}
+                    aria-expanded={showModelPopover && popoverType === 'council'}
+                    aria-haspopup="dialog"
+                  >
+                    ({conversation.council_config.council_models.length})
+                  </button>
+                ) : (
+                  <span className="config-value">
+                    {conversation.council_config.council_models.map(getModelShortName).join(', ')}
+                  </span>
+                )}
+              </div>
+              <div className="config-info">
+                <span className="config-label">Chairman:</span>
+                {isCompactMode ? (
+                  <button
+                    ref={chairmanButtonRef}
+                    className="config-value-compact"
+                    onClick={() => handleOpenModelPopover('chairman')}
+                    aria-label="View chairman model"
+                    aria-expanded={showModelPopover && popoverType === 'chairman'}
+                    aria-haspopup="dialog"
+                  >
+                    (1)
+                  </button>
+                ) : (
+                  <span className="config-value">
+                    {getModelShortName(conversation.council_config.chairman_model)}
+                  </span>
+                )}
+              </div>
+              {conversation.prompt_title && (
+                <button
+                  className="header-prompt-label"
+                  onClick={() => onOpenSettings?.('council')}
+                  title="View system prompt"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  {conversation.prompt_title}
+                </button>
+              )}
+            </div>
           </div>
-          <div className="config-info">
-            <span className="config-label">Chairman:</span>
-            <span className="config-value">
-              {getModelShortName(conversation.council_config.chairman_model)}
-            </span>
-          </div>
-        </div>
+
+          {showModelPopover && (
+            <ModelInfoPopover
+              isOpen={showModelPopover}
+              type={popoverType}
+              models={
+                popoverType === 'council'
+                  ? conversation.council_config.council_models
+                  : [conversation.council_config.chairman_model]
+              }
+              position={popoverPosition}
+              onClose={handleCloseModelPopover}
+              getModelShortName={getModelShortName}
+            />
+          )}
+        </>
       )}
       <div className="messages-container">
-        {(conversation.system_prompt || conversation.prompt_title) && (
-          <SystemPromptBadge
-            promptTitle={conversation.prompt_title}
-            promptContent={conversation.system_prompt}
-          />
-        )}
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
             <h2>Start a conversation</h2>
@@ -349,14 +507,15 @@ export default function ChatInterface({
                         Continue with {getModelShortName(msg.model)}
                       </div>
                       <div className="thread-continue-form">
-                        <textarea
+                        <AutoExpandTextarea
                           className="thread-continue-textarea"
                           placeholder="Type your follow-up..."
                           value={threadInputs[msg.thread_id] || ''}
                           onChange={(e) => handleThreadInputChange(msg.thread_id, e.target.value)}
                           onKeyDown={(e) => handleThreadKeyDown(e, msg.thread_id)}
                           disabled={isLoading}
-                          rows={2}
+                          minHeight={42}
+                          maxHeight={120}
                         />
                         <button
                           className="thread-continue-submit"
@@ -446,22 +605,30 @@ export default function ChatInterface({
 
       {conversation.messages.length === 0 && (
         <form className="input-form" onSubmit={handleSubmit}>
-          <textarea
-            className="message-input"
-            placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            rows={3}
-          />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!input.trim() || isLoading}
-          >
-            Send
-          </button>
+          <div className="input-wrapper">
+            <MarkdownInput
+              ref={markdownInputRef}
+              className="message-input"
+              placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onSubmit={handleSubmit}
+              disabled={isLoading}
+              minHeight={40}
+              maxHeight={300}
+            />
+            <button
+              type="submit"
+              className="send-button-icon"
+              disabled={!input.trim() || isLoading}
+              aria-label="Send"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </button>
+          </div>
         </form>
       )}
     </div>

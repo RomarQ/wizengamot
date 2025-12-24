@@ -1,0 +1,165 @@
+.markdown-input-container {
+  flex: 1;
+  max-height: var(--max-height, 300px);
+  overflow-y: auto;
+  background: transparent;
+  border: none;
+}
+
+.markdown-input-container.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Override Milkdown/Crepe default styles */
+.markdown-input-container .milkdown {
+  padding: 0 !important;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.4;
+  background: transparent;
+}
+
+.markdown-input-container .milkdown .editor {
+  outline: none;
+}
+
+/* ProseMirror editor area */
+.markdown-input-container .milkdown .ProseMirror {
+  padding: 6px 0;
+  margin: 0;
+  caret-color: var(--text-primary);
+}
+
+/* Text selection styling */
+.markdown-input-container .milkdown .ProseMirror *::selection {
+  background: var(--primary-lighter, rgba(74, 144, 226, 0.3)) !important;
+}
+
+.markdown-input-container .milkdown .ProseMirror *::-moz-selection {
+  background: var(--primary-lighter, rgba(74, 144, 226, 0.3)) !important;
+}
+
+.markdown-input-container .milkdown .ProseMirror > * {
+  margin: 0;
+}
+
+.markdown-input-container .milkdown .ProseMirror p {
+  margin: 0 0 0.5em 0;
+}
+
+.markdown-input-container .milkdown .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Style Crepe's native placeholder */
+.markdown-input-container .crepe-placeholder::before {
+  color: var(--text-muted) !important;
+  opacity: 0.6;
+}
+
+/* WYSIWYG inline styles */
+.markdown-input-container .milkdown strong,
+.markdown-input-container .milkdown b {
+  font-weight: 700;
+}
+
+.markdown-input-container .milkdown em,
+.markdown-input-container .milkdown i {
+  font-style: italic;
+}
+
+.markdown-input-container .milkdown code {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--text-primary);
+}
+
+.markdown-input-container .milkdown pre {
+  background: var(--bg-tertiary);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-input-container .milkdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-input-container .milkdown blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 12px;
+  color: var(--text-secondary);
+  margin: 8px 0;
+}
+
+.markdown-input-container .milkdown ul,
+.markdown-input-container .milkdown ol {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+
+.markdown-input-container .milkdown li {
+  margin: 4px 0;
+}
+
+.markdown-input-container .milkdown h1,
+.markdown-input-container .milkdown h2,
+.markdown-input-container .milkdown h3,
+.markdown-input-container .milkdown h4,
+.markdown-input-container .milkdown h5,
+.markdown-input-container .milkdown h6 {
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  line-height: 1.3;
+}
+
+.markdown-input-container .milkdown h1 {
+  font-size: 1.4em;
+}
+
+.markdown-input-container .milkdown h2 {
+  font-size: 1.25em;
+}
+
+.markdown-input-container .milkdown h3 {
+  font-size: 1.1em;
+}
+
+.markdown-input-container .milkdown a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.markdown-input-container .milkdown hr {
+  border: none;
+  border-top: 1px solid var(--border-primary);
+  margin: 12px 0;
+}
+
+/* Strikethrough */
+.markdown-input-container .milkdown s,
+.markdown-input-container .milkdown del {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .markdown-input-container .milkdown {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .markdown-input-container .milkdown code {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .markdown-input-container .milkdown pre {
+  background: var(--bg-tertiary);
+}

@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@milkdown/crepe": "^7.17.3",
+    "@milkdown/kit": "^7.17.3",
     "js-tiktoken": "^1.0.21",
     "lucide-react": "^0.561.0",
     "react": "^19.2.0",

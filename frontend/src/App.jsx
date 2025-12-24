@@ -1573,6 +1573,10 @@ function App() {
           onRemoveContextSegment={handleRemoveContextSegment}
           onContinueThread={handleContinueThread}
           onSelectThread={handleSelectThread}
+          onOpenSettings={(tab) => {
+            setSettingsDefaultTab(tab || 'council');
+            setShowSettingsModal(true);
+          }}
         />
       )}
       {showModeSelector && (
