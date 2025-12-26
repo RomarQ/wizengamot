@@ -1,0 +1,86 @@
+{
+  "assets_dir": "docs/showcase/assets",
+  "output": "docs/showcase/showcase.gif",
+  "width": 1100,
+  "caption_height": 230,
+  "slide_duration_ms": 1400,
+  "transition_ms": 200,
+  "transition_steps": 2,
+  "background": "#F5F6FA",
+  "caption_background": "#F5F6FA",
+  "title_color": "#1E2330",
+  "subtitle_color": "#5E6572",
+  "title_size": 40,
+  "subtitle_size": 24,
+  "padding_x": 80,
+  "title_line_spacing": 6,
+  "subtitle_line_spacing": 4,
+  "subtitle_gap": 12,
+  "slides": [
+    {
+      "image": "codex-clipboard-UCoVO4.png",
+      "title": "Wizengamot, your agentic sounding board",
+      "subtitle": "Debate, expand, and refine ideas with a council of models."
+    },
+    {
+      "image": "codex-clipboard-MFvDv3.png",
+      "title": "Five modes, one workspace",
+      "subtitle": "Council, Synthesizer, Monitor, Visualiser, and Podcast in a single flow."
+    },
+    {
+      "image": "codex-clipboard-tv3dlG.png",
+      "title": "Assemble your council",
+      "subtitle": "Pick expert models and a chairman for every conversation."
+    },
+    {
+      "image": "codex-clipboard-pUdHtQ.png",
+      "title": "Three-stage deliberation",
+      "subtitle": "Independent responses, peer review, and a final synthesis."
+    },
+    {
+      "image": "codex-clipboard-Dl1LtD.png",
+      "title": "Annotate and branch the discussion",
+      "subtitle": "Highlight sections, pin context, and follow up with any counselor."
+    },
+    {
+      "image": "codex-clipboard-5sAtK4.png",
+      "title": "Synthesizer -> atomic concept cards",
+      "subtitle": "Turn dense sources into structured, reusable notes."
+    },
+    {
+      "image": "codex-clipboard-BcDiRh.png",
+      "title": "Zen mode for fast annotation",
+      "subtitle": "Keyboard-first highlighting, comments, and navigation."
+    },
+    {
+      "image": "codex-clipboard-QKRn13.png",
+      "title": "Council summarization",
+      "subtitle": "Multiple model takes, ranked and merged by a chairman."
+    },
+    {
+      "image": "codex-clipboard-p5wemj.png",
+      "title": "Visualiser for diagram generation",
+      "subtitle": "Convert conversations, URLs, or text into visual maps."
+    },
+    {
+      "image": "codex-clipboard-0WiQY9.png",
+      "title": "Multiple styles and outputs",
+      "subtitle": "Cheatsheets, whiteboards, and system diagrams on demand."
+    },
+    {
+      "image": "codex-clipboard-Cc2zkC.png",
+      "title": "Podcast generation",
+      "subtitle": "Create narrated summaries from internal or external sources."
+    },
+    {
+      "image": "codex-clipboard-MNaWgL.png",
+      "title": "Fully configurable models and prompts",
+      "subtitle": "Bring your own OpenRouter models and system prompts."
+    },
+    {
+      "image": "codex-clipboard-qlTlZg.png",
+      "title": "Catppuccin dark mode",
+      "subtitle": "Stay focused with a beautiful theme and keyboard-friendly UI."
+    }
+  ]
+}
