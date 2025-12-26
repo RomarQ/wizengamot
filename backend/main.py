@@ -260,7 +260,7 @@ async def search_conversations(q: str, limit: int = 10):
 async def get_features():
     """Get the features list for the splash screen."""
     from pathlib import Path
-    features_path = Path("FEATURES.md")
+    features_path = Path("docs/FEATURES.md")
     if features_path.exists():
         return {"content": features_path.read_text()}
     return {"content": ""}

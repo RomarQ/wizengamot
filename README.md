@@ -26,7 +26,7 @@
 - Inline annotations, context stack, and follow-up threads keep insights in flow
 - Keyboard-first UX, dark mode, and configurable prompts/models via OpenRouter
 
-See [FEATURES.md](FEATURES.md) for the full changelog.
+See [FEATURES.md](docs/FEATURES.md) for the full changelog.
 
 ## Quickstart
 

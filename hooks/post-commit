@@ -34,7 +34,7 @@ RESULT=$(ANTHROPIC_BEDROCK_BASE_URL="https://train.msldev.io" \
 
 # Check if we should update FEATURES.md (result starts with "- " for bullet format)
 if [[ "$RESULT" == "- $CURRENT_DATE"* ]]; then
-  FEATURES_FILE="FEATURES.md"
+  FEATURES_FILE="docs/FEATURES.md"
   if [[ -f "$FEATURES_FILE" ]]; then
     # Insert after line 2 (after header and blank line)
     sed -i '' "3i\\
