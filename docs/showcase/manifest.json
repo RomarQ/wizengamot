@@ -3,8 +3,8 @@
   "output": "docs/showcase/showcase.gif",
   "width": 1100,
   "caption_height": 230,
-  "slide_duration_ms": 1400,
-  "transition_ms": 200,
+  "slide_duration_ms": 1750,
+  "transition_ms": 250,
   "transition_steps": 2,
   "background": "#F5F6FA",
   "caption_background": "#F5F6FA",
@@ -76,6 +76,11 @@
       "image": "codex-clipboard-MNaWgL.png",
       "title": "Fully configurable models and prompts",
       "subtitle": "Bring your own OpenRouter models and system prompts."
+    },
+    {
+      "image": "codex-clipboard-udYWvC.png",
+      "title": "Track API usage and spending",
+      "subtitle": "Monitor credits, totals, and spend by mode in Settings."
     },
     {
       "image": "codex-clipboard-qlTlZg.png",
