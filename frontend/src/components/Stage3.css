@@ -10,6 +10,10 @@
   border: 1px solid var(--stage3-border);
 }
 
+.final-response .stage-toolbar {
+  margin: -20px -20px 16px -20px;
+}
+
 .chairman-label {
   color: var(--stage3-text);
   font-size: 12px;
