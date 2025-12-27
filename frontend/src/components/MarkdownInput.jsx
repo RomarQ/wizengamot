@@ -171,8 +171,20 @@ const MarkdownInput = forwardRef(({
       });
     });
 
+    // Handle paste events - sync markdown state after Crepe processes paste
+    const handlePaste = () => {
+      requestAnimationFrame(() => {
+        if (activeInstanceIdRef.current !== localInstanceId || !isReadyRef.current) return;
+        const md = safeGetMarkdown(crepe);
+        if (md != null && md !== valueRef.current) {
+          onChangeRef.current?.({ target: { value: md } });
+        }
+      });
+    };
+
     // Add keydown listener to container for Enter handling (capture phase)
     root.addEventListener('keydown', handleKeydown, true);
+    root.addEventListener('paste', handlePaste);
 
     crepe.create().then(() => {
       if (activeInstanceIdRef.current !== localInstanceId) return;
@@ -188,8 +200,9 @@ const MarkdownInput = forwardRef(({
     });
 
     return () => {
-      // Remove listener from container
+      // Remove listeners from container
       root.removeEventListener('keydown', handleKeydown, true);
+      root.removeEventListener('paste', handlePaste);
 
       if (activeInstanceIdRef.current === localInstanceId && crepeRef.current) {
         // Set flags BEFORE destroy to prevent callbacks from accessing destroyed editor

@@ -520,7 +520,7 @@
   line-height: 1.5;
   font-size: 15px;
   max-height: 500px;
-  overflow: hidden;
+  overflow-y: auto;
   transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
   opacity: 1;
 }
