@@ -11,7 +11,6 @@ from typing import Dict, Any, Optional, List
 from urllib.parse import urlparse
 
 import httpx
-import whisper
 
 logger = logging.getLogger(__name__)
 
@@ -594,6 +593,7 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> str:
     Returns:
         Transcribed text
     """
+    import whisper
     logger.info(f"Loading Whisper model: {whisper_model}")
     model = whisper.load_model(whisper_model)
 

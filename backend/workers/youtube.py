@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 import yt_dlp
-import whisper
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +92,7 @@ def transcribe_youtube(
                 logger.warning(f"Failed to trim audio: {e}, using full audio")
 
         # 4. Transcribe with Whisper
+        import whisper
         logger.info(f"Loading Whisper model: {whisper_model}")
         model = whisper.load_model(whisper_model)
 
