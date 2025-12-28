@@ -1330,6 +1330,27 @@ export const api = {
     return response.json();
   },
 
+  /**
+   * Save a generated tweet to a note.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} noteId - The note ID (e.g., "note-1")
+   * @param {string} tweet - The generated tweet text
+   */
+  async saveNoteTweet(conversationId, noteId, tweet) {
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/notes/${noteId}/tweet`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tweet }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to save tweet');
+    }
+    return response.json();
+  },
+
   // ==========================================================================
   // Monitor API Methods
   // ==========================================================================

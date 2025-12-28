@@ -1518,6 +1518,24 @@ async def update_synthesizer_settings(request: UpdateSynthesizerSettingsRequest)
     }
 
 
+class UpdateNoteTweetRequest(BaseModel):
+    """Request to update a note's tweet."""
+    tweet: str
+
+
+@app.put("/api/conversations/{conversation_id}/notes/{note_id}/tweet")
+async def update_note_tweet(
+    conversation_id: str,
+    note_id: str,
+    request: UpdateNoteTweetRequest
+):
+    """Update a note's tweet field."""
+    success = storage.update_note_tweet(conversation_id, note_id, request.tweet)
+    if not success:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"success": True}
+
+
 # =============================================================================
 # Visualiser Endpoints
 # =============================================================================

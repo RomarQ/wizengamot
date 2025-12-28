@@ -752,6 +752,39 @@ def add_synthesizer_deliberation_message(
     save_conversation(conversation)
 
 
+def update_note_tweet(
+    conversation_id: str,
+    note_id: str,
+    tweet: str
+) -> bool:
+    """
+    Update a note's tweet field in a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        note_id: Note identifier (e.g., "note-1")
+        tweet: Generated tweet text
+
+    Returns:
+        True if note was found and updated, False otherwise
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        return False
+
+    # Search through messages to find the note
+    for message in conversation.get("messages", []):
+        if message.get("role") == "assistant":
+            notes = message.get("notes", [])
+            for note in notes:
+                if note.get("id") == note_id:
+                    note["tweet"] = tweet
+                    save_conversation(conversation)
+                    return True
+
+    return False
+
+
 # =============================================================================
 # Visualiser-specific storage functions
 # =============================================================================

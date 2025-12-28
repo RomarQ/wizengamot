@@ -305,6 +305,18 @@ export default function SynthesizerInterface({
     }
   };
 
+  // Handle tweet saved - refresh conversation to get updated note with tweet
+  const handleNoteTweetSaved = useCallback(async (noteId, tweet) => {
+    if (onConversationUpdate && conversation?.id) {
+      try {
+        const updatedConversation = await api.getConversation(conversation.id);
+        onConversationUpdate(updatedConversation);
+      } catch (err) {
+        console.error('Failed to refresh conversation after tweet save:', err);
+      }
+    }
+  }, [conversation?.id, onConversationUpdate]);
+
   // Get pinned notes info for conversation view header
   const pinnedNotesInfo = useMemo(() => {
     if (!followUpMessages.length || !latestNotes) return [];
@@ -390,6 +402,8 @@ export default function SynthesizerInterface({
                 onNavigateToVisualiser={onNavigateToVisualiser}
                 linkedVisualisations={linkedVisualisations}
                 onSelectConversation={onSelectConversation}
+                conversationId={conversation?.id}
+                onNoteTweetSaved={handleNoteTweetSaved}
               />
             )
           )}

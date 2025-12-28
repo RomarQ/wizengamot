@@ -25,7 +25,7 @@ async def generate_tweet(
     note_title: str,
     comments: Optional[List[Dict]] = None,
     custom_prompt: Optional[str] = None,
-    model: str = "openai/gpt-5.1"
+    model: str = "google/gemini-3-flash-preview"
 ) -> Optional[str]:
     """
     Generate a tweet from a note.

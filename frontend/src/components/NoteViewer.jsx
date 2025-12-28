@@ -41,6 +41,9 @@ export default function NoteViewer({
   // Linked visualisations
   linkedVisualisations = [],
   onSelectConversation,
+  // Tweet persistence
+  conversationId,
+  onNoteTweetSaved,
 }) {
   const [viewMode, setViewMode] = useState('swipe'); // 'swipe' or 'list'
 
@@ -925,7 +928,9 @@ export default function NoteViewer({
         <TweetModal
           note={currentNote}
           sourceUrl={sourceUrl}
+          conversationId={conversationId}
           onClose={closeTweetModal}
+          onTweetSaved={onNoteTweetSaved}
         />
       )}
 

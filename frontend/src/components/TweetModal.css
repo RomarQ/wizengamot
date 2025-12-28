@@ -212,6 +212,13 @@
   background: var(--bg-hover);
 }
 
+.tweet-loading {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
 .tweet-error {
   background: var(--error-bg, rgba(220, 53, 69, 0.1));
   color: var(--error, #dc3545);
@@ -251,8 +258,13 @@
   transition: all 0.15s ease;
 }
 
-.tweet-modal-footer .btn-secondary:hover {
+.tweet-modal-footer .btn-secondary:hover:not(:disabled) {
   background: var(--bg-hover);
+}
+
+.tweet-modal-footer .btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .tweet-modal-footer .btn-primary {

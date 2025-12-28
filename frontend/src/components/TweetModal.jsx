@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { api } from '../api';
 import './TweetModal.css';
 
 /**
@@ -8,10 +9,15 @@ import './TweetModal.css';
 function TweetModal({
   note,
   sourceUrl,
+  conversationId,
   onClose,
+  onTweetSaved,
 }) {
   const [noteCopied, setNoteCopied] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [generatedTweet, setGeneratedTweet] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
 
   // Copy function
   const copyToClipboard = useCallback(async (text, setCopied) => {
@@ -39,15 +45,86 @@ function TweetModal({
     }
   }, []);
 
-  // Auto-copy note on mount
+  // Check for existing tweet or generate new one on mount
   useEffect(() => {
-    if (note?.body) {
-      const timer = setTimeout(() => {
-        copyToClipboard(note.body, setNoteCopied);
-      }, 100);
-      return () => clearTimeout(timer);
+    const initTweet = async () => {
+      if (!note?.body || !note?.title) return;
+
+      // If tweet already exists, use it
+      if (note.tweet) {
+        setGeneratedTweet(note.tweet);
+        setTimeout(() => {
+          copyToClipboard(note.tweet, setNoteCopied);
+        }, 100);
+        return;
+      }
+
+      // Generate new tweet
+      setIsGenerating(true);
+      setError(null);
+
+      try {
+        const result = await api.generateTweet(note.body, note.title);
+        if (result?.tweet) {
+          setGeneratedTweet(result.tweet);
+          // Save to backend
+          if (conversationId && note.id) {
+            try {
+              await api.saveNoteTweet(conversationId, note.id, result.tweet);
+              onTweetSaved?.(note.id, result.tweet);
+            } catch (saveErr) {
+              console.error('Failed to save tweet:', saveErr);
+            }
+          }
+          // Auto-copy the generated tweet
+          setTimeout(() => {
+            copyToClipboard(result.tweet, setNoteCopied);
+          }, 100);
+        } else {
+          setError('Failed to generate tweet');
+        }
+      } catch (err) {
+        console.error('Tweet generation error:', err);
+        setError('Failed to generate tweet');
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    initTweet();
+  }, [note?.body, note?.title, note?.tweet, note?.id, conversationId, copyToClipboard, onTweetSaved]);
+
+  // Regenerate function
+  const handleRegenerate = useCallback(async () => {
+    if (!note?.body || !note?.title) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const result = await api.generateTweet(note.body, note.title);
+      if (result?.tweet) {
+        setGeneratedTweet(result.tweet);
+        // Save to backend
+        if (conversationId && note.id) {
+          try {
+            await api.saveNoteTweet(conversationId, note.id, result.tweet);
+            onTweetSaved?.(note.id, result.tweet);
+          } catch (saveErr) {
+            console.error('Failed to save tweet:', saveErr);
+          }
+        }
+        copyToClipboard(result.tweet, setNoteCopied);
+      } else {
+        setError('Failed to generate tweet');
+      }
+    } catch (err) {
+      console.error('Tweet generation error:', err);
+      setError('Failed to generate tweet');
+    } finally {
+      setIsGenerating(false);
     }
-  }, [note?.body, copyToClipboard]);
+  }, [note?.body, note?.title, note?.id, conversationId, copyToClipboard, onTweetSaved]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -55,7 +132,8 @@ function TweetModal({
     }
   };
 
-  const charCount = note?.body?.length || 0;
+  const displayText = generatedTweet || '';
+  const charCount = displayText.length;
   const isOverLimit = charCount > 280;
 
   return (
@@ -74,14 +152,22 @@ function TweetModal({
 
         <div className="tweet-modal-body">
           <div className="tweet-content-box">
-            <div className="tweet-text">{note?.body}</div>
-            <div className={`tweet-char-count ${isOverLimit ? 'over-limit' : ''}`}>
-              {charCount}/280
-            </div>
+            {isGenerating ? (
+              <div className="tweet-loading">Generating tweet...</div>
+            ) : error ? (
+              <div className="tweet-error">{error}</div>
+            ) : (
+              <div className="tweet-text">{displayText}</div>
+            )}
+            {!isGenerating && !error && (
+              <div className={`tweet-char-count ${isOverLimit ? 'over-limit' : ''}`}>
+                {charCount}/280
+              </div>
+            )}
           </div>
 
           {noteCopied && (
-            <div className="tweet-copied-badge">Note copied to clipboard!</div>
+            <div className="tweet-copied-badge">Tweet copied to clipboard!</div>
           )}
 
           {sourceUrl && (
@@ -105,10 +191,18 @@ function TweetModal({
             Close
           </button>
           <button
-            className="btn-primary"
-            onClick={() => copyToClipboard(note?.body, setNoteCopied)}
+            className="btn-secondary"
+            onClick={handleRegenerate}
+            disabled={isGenerating}
           >
-            Copy Note Again
+            {isGenerating ? 'Generating...' : 'Regenerate'}
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => copyToClipboard(displayText, setNoteCopied)}
+            disabled={isGenerating || !displayText}
+          >
+            Copy Tweet
           </button>
         </div>
       </div>
