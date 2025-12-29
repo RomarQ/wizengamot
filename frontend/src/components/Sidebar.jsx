@@ -58,7 +58,8 @@ function getSourceTypeLabel(sourceType) {
     article: 'Article',
     podcast: 'Podcast',
     pdf: 'PDF',
-    arxiv: 'arXiv'
+    arxiv: 'arXiv',
+    text: 'Text',
   };
   return labels[sourceType] || sourceType;
 }
