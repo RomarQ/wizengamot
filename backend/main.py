@@ -763,8 +763,8 @@ class ContinueThreadRequest(BaseModel):
 async def continue_thread(conversation_id: str, thread_id: str, request: ContinueThreadRequest):
     """Continue an existing thread with a new question."""
     try:
-        # Get the conversation and thread
-        conversation = storage.get_conversation(conversation_id)
+        # Get the conversation with migration (to access session-scoped threads)
+        conversation = storage.get_conversation_with_migration(conversation_id)
         if conversation is None:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -815,6 +815,394 @@ async def continue_thread(conversation_id: str, thread_id: str, request: Continu
 
         # Return the updated thread
         return storage.get_thread(conversation_id, thread_id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# =============================================================================
+# Review Sessions Endpoints
+# =============================================================================
+
+class CreateReviewSessionRequest(BaseModel):
+    """Request to create a new review session."""
+    name: Optional[str] = None
+
+
+class UpdateReviewSessionRequest(BaseModel):
+    """Request to update a review session."""
+    name: str
+
+
+class CreateSessionCommentRequest(BaseModel):
+    """Request to create a comment within a session."""
+    selection: str
+    content: str
+    source_type: str = "council"
+    source_content: Optional[str] = None
+    message_index: Optional[int] = None
+    stage: Optional[int] = None
+    model: Optional[str] = None
+    note_id: Optional[str] = None
+    note_title: Optional[str] = None
+    source_url: Optional[str] = None
+    note_model: Optional[str] = None
+
+
+class AddContextSegmentRequest(BaseModel):
+    """Request to add a context segment to a session."""
+    id: str
+    content: str
+    sourceType: str = "council"
+    label: Optional[str] = None
+    messageIndex: Optional[int] = None
+    stage: Optional[int] = None
+    model: Optional[str] = None
+    noteId: Optional[str] = None
+    noteTitle: Optional[str] = None
+
+
+class CreateSessionThreadRequest(BaseModel):
+    """Request to create a thread within a session."""
+    model: str
+    comment_ids: List[str]
+    question: str
+    message_index: Optional[int] = None
+    note_ids: Optional[List[str]] = None
+    context_segments: List[ContextSegmentRequest] = Field(default_factory=list)
+    compiled_context: Optional[str] = None
+
+
+@app.get("/api/conversations/{conversation_id}/review-sessions")
+async def list_review_sessions(conversation_id: str):
+    """List all review sessions for a conversation."""
+    try:
+        sessions = storage.get_review_sessions(conversation_id)
+        conversation = storage.get_conversation_with_migration(conversation_id)
+        active_id = conversation.get("active_review_session_id") if conversation else None
+        return {
+            "sessions": sessions,
+            "active_session_id": active_id
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/api/conversations/{conversation_id}/review-sessions")
+async def create_review_session(conversation_id: str, request: CreateReviewSessionRequest):
+    """Create a new review session."""
+    try:
+        session = storage.create_review_session(conversation_id, request.name)
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/conversations/{conversation_id}/review-sessions/active")
+async def get_active_review_session(conversation_id: str):
+    """Get the active review session for a conversation."""
+    try:
+        session = storage.get_active_review_session(conversation_id)
+        if session is None:
+            return {"session": None}
+        return {"session": session}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/conversations/{conversation_id}/review-sessions/{session_id}")
+async def get_review_session(conversation_id: str, session_id: str):
+    """Get a specific review session."""
+    session = storage.get_review_session(conversation_id, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.put("/api/conversations/{conversation_id}/review-sessions/{session_id}")
+async def update_review_session(
+    conversation_id: str,
+    session_id: str,
+    request: UpdateReviewSessionRequest
+):
+    """Update a review session (rename)."""
+    try:
+        session = storage.update_review_session(conversation_id, session_id, request.name)
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/conversations/{conversation_id}/review-sessions/{session_id}")
+async def delete_review_session(conversation_id: str, session_id: str):
+    """Delete a review session and all its threads."""
+    try:
+        deleted = storage.delete_review_session(conversation_id, session_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/api/conversations/{conversation_id}/review-sessions/{session_id}/activate")
+async def activate_review_session(conversation_id: str, session_id: str):
+    """Set a review session as active."""
+    try:
+        session = storage.set_active_review_session(conversation_id, session_id)
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# Session-scoped Comments
+
+@app.post("/api/conversations/{conversation_id}/review-sessions/{session_id}/comments")
+async def create_session_comment(
+    conversation_id: str,
+    session_id: str,
+    request: CreateSessionCommentRequest
+):
+    """Create a comment within a review session."""
+    try:
+        comment_id = str(uuid.uuid4())
+        comment = storage.add_session_comment(
+            conversation_id=conversation_id,
+            session_id=session_id,
+            comment_id=comment_id,
+            selection=request.selection,
+            content=request.content,
+            source_type=request.source_type,
+            source_content=request.source_content,
+            message_index=request.message_index,
+            stage=request.stage,
+            model=request.model,
+            note_id=request.note_id,
+            note_title=request.note_title,
+            source_url=request.source_url,
+            note_model=request.note_model
+        )
+        return comment
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/conversations/{conversation_id}/review-sessions/{session_id}/comments")
+async def get_session_comments(
+    conversation_id: str,
+    session_id: str,
+    message_index: Optional[int] = None
+):
+    """Get all comments for a review session."""
+    try:
+        comments = storage.get_session_comments(conversation_id, session_id, message_index)
+        return comments
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.put("/api/conversations/{conversation_id}/review-sessions/{session_id}/comments/{comment_id}")
+async def update_session_comment(
+    conversation_id: str,
+    session_id: str,
+    comment_id: str,
+    data: dict
+):
+    """Update a comment within a session."""
+    try:
+        content = data.get("content")
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+        comment = storage.update_session_comment(conversation_id, session_id, comment_id, content)
+        return comment
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/conversations/{conversation_id}/review-sessions/{session_id}/comments/{comment_id}")
+async def delete_session_comment(
+    conversation_id: str,
+    session_id: str,
+    comment_id: str
+):
+    """Delete a comment from a session."""
+    try:
+        deleted = storage.delete_session_comment(conversation_id, session_id, comment_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# Session-scoped Context Segments
+
+@app.post("/api/conversations/{conversation_id}/review-sessions/{session_id}/segments")
+async def add_session_context_segment(
+    conversation_id: str,
+    session_id: str,
+    request: AddContextSegmentRequest
+):
+    """Add a context segment to a review session."""
+    try:
+        segment = storage.add_session_context_segment(
+            conversation_id,
+            session_id,
+            request.model_dump()
+        )
+        return segment
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/conversations/{conversation_id}/review-sessions/{session_id}/segments/{segment_id}")
+async def remove_session_context_segment(
+    conversation_id: str,
+    session_id: str,
+    segment_id: str
+):
+    """Remove a context segment from a session."""
+    try:
+        removed = storage.remove_session_context_segment(conversation_id, session_id, segment_id)
+        if not removed:
+            raise HTTPException(status_code=404, detail="Segment not found")
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# Session-scoped Threads
+
+@app.post("/api/conversations/{conversation_id}/review-sessions/{session_id}/threads")
+async def create_session_thread(
+    conversation_id: str,
+    session_id: str,
+    request: CreateSessionThreadRequest
+):
+    """Create a new thread within a review session."""
+    try:
+        conversation = storage.get_conversation_with_migration(conversation_id)
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        session = storage.get_review_session(conversation_id, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        system_prompt = conversation.get("system_prompt")
+        segment_payload = [segment.model_dump() for segment in request.context_segments]
+
+        response = await threads.query_with_context(
+            request.model,
+            request.question,
+            conversation,
+            request.comment_ids,
+            segment_payload,
+            system_prompt,
+            request.compiled_context
+        )
+
+        if response is None:
+            raise HTTPException(status_code=500, detail="Failed to query model")
+
+        thread_id = str(uuid.uuid4())
+        context = {
+            "comment_ids": request.comment_ids,
+            "context_segments": segment_payload
+        }
+        if request.message_index is not None:
+            context["message_index"] = request.message_index
+        if request.note_ids:
+            context["note_ids"] = request.note_ids
+
+        thread = storage.create_session_thread(
+            conversation_id,
+            session_id,
+            thread_id,
+            request.model,
+            context,
+            request.question
+        )
+
+        storage.add_session_thread_message(
+            conversation_id,
+            session_id,
+            thread_id,
+            "assistant",
+            response["content"]
+        )
+
+        return storage.get_session_thread(conversation_id, session_id, thread_id)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/conversations/{conversation_id}/review-sessions/{session_id}/threads/{thread_id}")
+async def get_session_thread(conversation_id: str, session_id: str, thread_id: str):
+    """Get a specific thread from a session."""
+    thread = storage.get_session_thread(conversation_id, session_id, thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    return thread
+
+
+@app.post("/api/conversations/{conversation_id}/review-sessions/{session_id}/threads/{thread_id}/message")
+async def continue_session_thread(
+    conversation_id: str,
+    session_id: str,
+    thread_id: str,
+    request: ContinueThreadRequest
+):
+    """Continue a thread within a session."""
+    try:
+        conversation = storage.get_conversation_with_migration(conversation_id)
+        if conversation is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        thread = storage.get_session_thread(conversation_id, session_id, thread_id)
+        if thread is None:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        system_prompt = conversation.get("system_prompt")
+
+        context = None
+        if len(thread["messages"]) == 1:
+            thread_context = thread.get("context", {}) or {}
+            context = request.compiled_context or threads.compile_context_from_comments(
+                conversation,
+                thread_context.get("comment_ids", []),
+                thread_context.get("context_segments")
+            )
+
+        response = await threads.continue_thread(
+            thread["model"],
+            thread["messages"],
+            request.question,
+            system_prompt,
+            context
+        )
+
+        if response is None:
+            raise HTTPException(status_code=500, detail="Failed to query model")
+
+        storage.add_session_thread_message(
+            conversation_id,
+            session_id,
+            thread_id,
+            "user",
+            request.question
+        )
+
+        storage.add_session_thread_message(
+            conversation_id,
+            session_id,
+            thread_id,
+            "assistant",
+            response["content"]
+        )
+
+        return storage.get_session_thread(conversation_id, session_id, thread_id)
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -1297,6 +1685,12 @@ class SynthesizeRequest(BaseModel):
     chairman_model: Optional[str] = None  # Chairman for deliberation mode
 
 
+class UpdateSynthesizerSourceRequest(BaseModel):
+    source_type: Optional[str] = None
+    source_url: Optional[str] = None
+    source_title: Optional[str] = None
+
+
 @app.post("/api/conversations/{conversation_id}/synthesize")
 async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
     """
@@ -1447,6 +1841,50 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         response_data["mode"] = "deliberation"
 
     return response_data
+
+
+@app.put("/api/conversations/{conversation_id}/synthesizer-source", response_model=Conversation)
+async def update_synthesizer_source(
+    conversation_id: str,
+    request: UpdateSynthesizerSourceRequest
+):
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if conversation.get("mode") != "synthesizer":
+        raise HTTPException(status_code=400, detail="Conversation is not in synthesizer mode")
+
+    payload = request.model_dump(exclude_unset=True)
+    if not payload:
+        raise HTTPException(status_code=400, detail="No updates provided")
+
+    updates: Dict[str, Optional[str]] = {}
+    for key, value in payload.items():
+        if value is None:
+            updates[key] = None
+            continue
+        cleaned = value.strip()
+        if cleaned == "":
+            updates[key] = None
+            continue
+        if key == "source_type":
+            cleaned = cleaned.lower()
+            updates[key] = cleaned
+        else:
+            updates[key] = cleaned
+
+    source_type = updates.get("source_type")
+    if source_type:
+        allowed_types = {"youtube", "podcast", "article", "pdf", "text"}
+        if source_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid source_type. Must be one of: youtube, podcast, article, pdf, text"
+            )
+
+    updated = storage.update_synthesizer_source_metadata(conversation_id, updates)
+    return updated
 
 
 # Synthesizer Settings Endpoints

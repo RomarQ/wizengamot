@@ -557,7 +557,8 @@ def add_thread_message(
     content: str
 ):
     """
-    Add a message to an existing thread.
+    Add a message to an existing thread. Searches both legacy top-level
+    threads and session-scoped threads for backward compatibility.
 
     Args:
         conversation_id: Conversation identifier
@@ -565,14 +566,23 @@ def add_thread_message(
         role: Message role (user or assistant)
         content: Message content
     """
-    conversation = get_conversation(conversation_id)
+    conversation = get_conversation_with_migration(conversation_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found")
 
-    if "threads" not in conversation:
-        raise ValueError(f"No threads found in conversation {conversation_id}")
+    thread = None
+    legacy_threads = conversation.get("threads", [])
+    thread = next((t for t in legacy_threads if t["id"] == thread_id), None)
 
-    thread = next((t for t in conversation["threads"] if t["id"] == thread_id), None)
+    if thread is None:
+        for session in conversation.get("review_sessions", []):
+            for t in session.get("threads", []):
+                if t["id"] == thread_id:
+                    thread = t
+                    break
+            if thread:
+                break
+
     if thread is None:
         raise ValueError(f"Thread {thread_id} not found")
 
@@ -587,7 +597,8 @@ def add_thread_message(
 
 def get_thread(conversation_id: str, thread_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get a specific thread.
+    Get a specific thread. Searches both legacy top-level threads and
+    session-scoped threads for backward compatibility.
 
     Args:
         conversation_id: Conversation identifier
@@ -596,12 +607,21 @@ def get_thread(conversation_id: str, thread_id: str) -> Optional[Dict[str, Any]]
     Returns:
         Thread dict or None if not found
     """
-    conversation = get_conversation(conversation_id)
+    conversation = get_conversation_with_migration(conversation_id)
     if conversation is None:
         return None
 
-    threads = conversation.get("threads", [])
-    return next((t for t in threads if t["id"] == thread_id), None)
+    legacy_threads = conversation.get("threads", [])
+    thread = next((t for t in legacy_threads if t["id"] == thread_id), None)
+    if thread:
+        return thread
+
+    for session in conversation.get("review_sessions", []):
+        for thread in session.get("threads", []):
+            if thread["id"] == thread_id:
+                return thread
+
+    return None
 
 
 def delete_conversation(conversation_id: str) -> bool:
@@ -621,6 +641,723 @@ def delete_conversation(conversation_id: str) -> bool:
 
     os.remove(path)
     return True
+
+
+# =============================================================================
+# Review Sessions
+# =============================================================================
+
+def _generate_session_id() -> str:
+    """Generate a unique session ID with timestamp."""
+    import uuid
+    now = datetime.utcnow()
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
+    short_uuid = str(uuid.uuid4())[:8]
+    return f"rs_{timestamp}_{short_uuid}"
+
+
+def _generate_session_name() -> str:
+    """Generate a session name from current timestamp."""
+    now = datetime.utcnow()
+    return now.strftime("Review %Y-%m-%d %H:%M")
+
+
+def migrate_to_review_sessions(conversation: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Migrate a conversation from legacy comments/threads to review_sessions.
+
+    If the conversation already has review_sessions, returns unchanged.
+    Otherwise, creates an 'Initial Review' session containing existing
+    comments and threads.
+
+    Args:
+        conversation: Conversation dict to migrate
+
+    Returns:
+        Migrated conversation dict (also saves to disk)
+    """
+    if "review_sessions" in conversation and conversation["review_sessions"]:
+        return conversation
+
+    legacy_comments = conversation.get("comments", [])
+    legacy_threads = conversation.get("threads", [])
+
+    if not legacy_comments and not legacy_threads:
+        conversation["review_sessions"] = []
+        conversation["active_review_session_id"] = None
+        save_conversation(conversation)
+        return conversation
+
+    session_id = _generate_session_id()
+    session = {
+        "id": session_id,
+        "name": "Initial Review",
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+        "comments": legacy_comments,
+        "context_segments": [],
+        "threads": legacy_threads
+    }
+
+    conversation["review_sessions"] = [session]
+    conversation["active_review_session_id"] = session_id
+    conversation["comments"] = []
+    conversation["threads"] = []
+
+    save_conversation(conversation)
+    return conversation
+
+
+def get_conversation_with_migration(conversation_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Load a conversation and migrate to review_sessions if needed.
+
+    Args:
+        conversation_id: Conversation identifier
+
+    Returns:
+        Conversation dict with review_sessions, or None if not found
+    """
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        return None
+
+    return migrate_to_review_sessions(conversation)
+
+
+def create_review_session(
+    conversation_id: str,
+    name: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a new review session for a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+        name: Optional session name (auto-generated if not provided)
+
+    Returns:
+        The created session
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    session_id = _generate_session_id()
+    session = {
+        "id": session_id,
+        "name": name or _generate_session_name(),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+        "comments": [],
+        "context_segments": [],
+        "threads": []
+    }
+
+    if "review_sessions" not in conversation:
+        conversation["review_sessions"] = []
+
+    conversation["review_sessions"].append(session)
+    conversation["active_review_session_id"] = session_id
+
+    save_conversation(conversation)
+    return session
+
+
+def get_review_sessions(conversation_id: str) -> List[Dict[str, Any]]:
+    """
+    Get all review sessions for a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+
+    Returns:
+        List of review sessions
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    return conversation.get("review_sessions", [])
+
+
+def get_review_session(
+    conversation_id: str,
+    session_id: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Get a specific review session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+
+    Returns:
+        Session dict or None if not found
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        return None
+
+    sessions = conversation.get("review_sessions", [])
+    return next((s for s in sessions if s["id"] == session_id), None)
+
+
+def get_active_review_session(conversation_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get the active review session for a conversation.
+
+    Args:
+        conversation_id: Conversation identifier
+
+    Returns:
+        Active session dict or None if no sessions exist
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        return None
+
+    active_id = conversation.get("active_review_session_id")
+    if not active_id:
+        sessions = conversation.get("review_sessions", [])
+        if sessions:
+            sorted_sessions = sorted(
+                sessions,
+                key=lambda s: s.get("updated_at", s.get("created_at", "")),
+                reverse=True
+            )
+            return sorted_sessions[0]
+        return None
+
+    sessions = conversation.get("review_sessions", [])
+    return next((s for s in sessions if s["id"] == active_id), None)
+
+
+def update_review_session(
+    conversation_id: str,
+    session_id: str,
+    name: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update a review session (e.g., rename).
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        name: New session name
+
+    Returns:
+        The updated session
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    for session in sessions:
+        if session["id"] == session_id:
+            if name is not None:
+                session["name"] = name
+            session["updated_at"] = datetime.utcnow().isoformat()
+            save_conversation(conversation)
+            return session
+
+    raise ValueError(f"Session {session_id} not found")
+
+
+def delete_review_session(conversation_id: str, session_id: str) -> bool:
+    """
+    Delete a review session (cascade deletes its threads).
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+
+    Returns:
+        True if deleted, False if not found
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    original_count = len(sessions)
+    conversation["review_sessions"] = [s for s in sessions if s["id"] != session_id]
+
+    if len(conversation["review_sessions"]) == original_count:
+        return False
+
+    if conversation.get("active_review_session_id") == session_id:
+        remaining = conversation["review_sessions"]
+        if remaining:
+            sorted_sessions = sorted(
+                remaining,
+                key=lambda s: s.get("updated_at", s.get("created_at", "")),
+                reverse=True
+            )
+            conversation["active_review_session_id"] = sorted_sessions[0]["id"]
+        else:
+            conversation["active_review_session_id"] = None
+
+    save_conversation(conversation)
+    return True
+
+
+def set_active_review_session(conversation_id: str, session_id: str) -> Dict[str, Any]:
+    """
+    Set a review session as active.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier to activate
+
+    Returns:
+        The activated session
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    conversation["active_review_session_id"] = session_id
+    save_conversation(conversation)
+
+    return session
+
+
+# =============================================================================
+# Session-scoped Comments
+# =============================================================================
+
+def add_session_comment(
+    conversation_id: str,
+    session_id: str,
+    comment_id: str,
+    selection: str,
+    content: str,
+    source_type: str = "council",
+    source_content: Optional[str] = None,
+    message_index: Optional[int] = None,
+    stage: Optional[int] = None,
+    model: Optional[str] = None,
+    note_id: Optional[str] = None,
+    note_title: Optional[str] = None,
+    source_url: Optional[str] = None,
+    note_model: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Add a comment to a review session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        comment_id: Unique identifier for the comment
+        selection: Highlighted text snippet
+        content: Comment content
+        source_type: Type of source ('council' or 'synthesizer')
+        source_content: Full content of the response the selection came from
+        message_index: Index of the message (council)
+        stage: Stage number (council)
+        model: Model identifier (council)
+        note_id: Note ID (synthesizer)
+        note_title: Note title (synthesizer)
+        source_url: Source URL (synthesizer)
+        note_model: Note model (synthesizer)
+
+    Returns:
+        The created comment
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    comment = {
+        "id": comment_id,
+        "source_type": source_type,
+        "selection": selection,
+        "content": content,
+        "source_content": source_content,
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    if source_type == "council":
+        comment["message_index"] = message_index
+        comment["stage"] = stage
+        comment["model"] = model
+    elif source_type == "synthesizer":
+        comment["note_id"] = note_id
+        comment["note_title"] = note_title
+        comment["source_url"] = source_url
+        comment["note_model"] = note_model
+
+    if "comments" not in session:
+        session["comments"] = []
+
+    session["comments"].append(comment)
+    session["updated_at"] = datetime.utcnow().isoformat()
+
+    save_conversation(conversation)
+    return comment
+
+
+def get_session_comments(
+    conversation_id: str,
+    session_id: str,
+    message_index: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get comments for a review session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        message_index: Optional message index filter
+
+    Returns:
+        List of comments
+    """
+    session = get_review_session(conversation_id, session_id)
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    comments = session.get("comments", [])
+
+    if message_index is not None:
+        comments = [c for c in comments if c.get("message_index") == message_index]
+
+    return comments
+
+
+def update_session_comment(
+    conversation_id: str,
+    session_id: str,
+    comment_id: str,
+    content: str
+) -> Dict[str, Any]:
+    """
+    Update a comment's content within a session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        comment_id: Comment identifier
+        content: New comment content
+
+    Returns:
+        The updated comment
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    for comment in session.get("comments", []):
+        if comment["id"] == comment_id:
+            comment["content"] = content
+            comment["updated_at"] = datetime.utcnow().isoformat()
+            session["updated_at"] = datetime.utcnow().isoformat()
+            save_conversation(conversation)
+            return comment
+
+    raise ValueError(f"Comment {comment_id} not found")
+
+
+def delete_session_comment(
+    conversation_id: str,
+    session_id: str,
+    comment_id: str
+) -> bool:
+    """
+    Delete a comment from a session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        comment_id: Comment identifier
+
+    Returns:
+        True if deleted
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    original_count = len(session.get("comments", []))
+    session["comments"] = [c for c in session.get("comments", []) if c["id"] != comment_id]
+
+    if len(session["comments"]) < original_count:
+        session["updated_at"] = datetime.utcnow().isoformat()
+        save_conversation(conversation)
+        return True
+
+    return False
+
+
+# =============================================================================
+# Session-scoped Context Segments
+# =============================================================================
+
+def add_session_context_segment(
+    conversation_id: str,
+    session_id: str,
+    segment: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Add a context segment to a review session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        segment: Segment data with id, sourceType, content, etc.
+
+    Returns:
+        The added segment
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    if "context_segments" not in session:
+        session["context_segments"] = []
+
+    existing_ids = [s["id"] for s in session["context_segments"]]
+    if segment.get("id") not in existing_ids:
+        session["context_segments"].append(segment)
+        session["updated_at"] = datetime.utcnow().isoformat()
+        save_conversation(conversation)
+
+    return segment
+
+
+def remove_session_context_segment(
+    conversation_id: str,
+    session_id: str,
+    segment_id: str
+) -> bool:
+    """
+    Remove a context segment from a session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        segment_id: Segment identifier
+
+    Returns:
+        True if removed
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    original_count = len(session.get("context_segments", []))
+    session["context_segments"] = [
+        s for s in session.get("context_segments", [])
+        if s.get("id") != segment_id
+    ]
+
+    if len(session["context_segments"]) < original_count:
+        session["updated_at"] = datetime.utcnow().isoformat()
+        save_conversation(conversation)
+        return True
+
+    return False
+
+
+# =============================================================================
+# Session-scoped Threads
+# =============================================================================
+
+def create_session_thread(
+    conversation_id: str,
+    session_id: str,
+    thread_id: str,
+    model: str,
+    context: Dict[str, Any],
+    initial_question: str
+) -> Dict[str, Any]:
+    """
+    Create a new thread within a review session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        thread_id: Unique identifier for the thread
+        model: Model identifier
+        context: Context dict with comment_ids, context_segments, etc.
+        initial_question: The initial question
+
+    Returns:
+        The created thread
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    thread = {
+        "id": thread_id,
+        "model": model,
+        "context": context,
+        "messages": [
+            {
+                "role": "user",
+                "content": initial_question,
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ],
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    if "threads" not in session:
+        session["threads"] = []
+
+    session["threads"].append(thread)
+    session["updated_at"] = datetime.utcnow().isoformat()
+
+    save_conversation(conversation)
+    return thread
+
+
+def get_session_thread(
+    conversation_id: str,
+    session_id: str,
+    thread_id: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Get a specific thread from a session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        thread_id: Thread identifier
+
+    Returns:
+        Thread dict or None
+    """
+    session = get_review_session(conversation_id, session_id)
+    if session is None:
+        return None
+
+    threads = session.get("threads", [])
+    return next((t for t in threads if t["id"] == thread_id), None)
+
+
+def find_thread_in_sessions(
+    conversation_id: str,
+    thread_id: str
+) -> Optional[tuple]:
+    """
+    Find a thread across all sessions.
+
+    Args:
+        conversation_id: Conversation identifier
+        thread_id: Thread identifier
+
+    Returns:
+        Tuple of (session_id, thread) or None if not found
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        return None
+
+    for session in conversation.get("review_sessions", []):
+        for thread in session.get("threads", []):
+            if thread["id"] == thread_id:
+                return (session["id"], thread)
+
+    legacy_threads = conversation.get("threads", [])
+    for thread in legacy_threads:
+        if thread["id"] == thread_id:
+            return (None, thread)
+
+    return None
+
+
+def add_session_thread_message(
+    conversation_id: str,
+    session_id: str,
+    thread_id: str,
+    role: str,
+    content: str
+) -> Dict[str, Any]:
+    """
+    Add a message to a thread within a session.
+
+    Args:
+        conversation_id: Conversation identifier
+        session_id: Session identifier
+        thread_id: Thread identifier
+        role: Message role (user or assistant)
+        content: Message content
+
+    Returns:
+        The added message
+    """
+    conversation = get_conversation_with_migration(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    sessions = conversation.get("review_sessions", [])
+    session = next((s for s in sessions if s["id"] == session_id), None)
+
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    thread = next((t for t in session.get("threads", []) if t["id"] == thread_id), None)
+
+    if thread is None:
+        raise ValueError(f"Thread {thread_id} not found")
+
+    message = {
+        "role": role,
+        "content": content,
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    thread["messages"].append(message)
+    session["updated_at"] = datetime.utcnow().isoformat()
+
+    save_conversation(conversation)
+    return message
 
 
 # =============================================================================
@@ -750,6 +1487,28 @@ def add_synthesizer_deliberation_message(
     })
 
     save_conversation(conversation)
+
+
+def update_synthesizer_source_metadata(
+    conversation_id: str,
+    updates: Dict[str, Optional[str]]
+) -> Dict[str, Any]:
+    conversation = get_conversation(conversation_id)
+    if conversation is None:
+        raise ValueError(f"Conversation {conversation_id} not found")
+
+    synthesizer_config = conversation.get("synthesizer_config") or {}
+    for key, value in updates.items():
+        synthesizer_config[key] = value
+    conversation["synthesizer_config"] = synthesizer_config
+
+    for message in conversation.get("messages", []):
+        if message.get("role") == "assistant" and message.get("notes"):
+            for key, value in updates.items():
+                message[key] = value
+
+    save_conversation(conversation)
+    return conversation
 
 
 def update_note_tweet(

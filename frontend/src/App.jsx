@@ -45,15 +45,26 @@ function App() {
   const [currentMonitorId, setCurrentMonitorId] = useState(null);
   const [currentMonitor, setCurrentMonitor] = useState(null);
 
-  // Comment and thread state
-  const [comments, setComments] = useState([]);
+  // Review sessions state
+  const [reviewSessions, setReviewSessions] = useState([]);
+  const [activeReviewSessionId, setActiveReviewSessionId] = useState(null);
+
+  // Comment and thread state (derived from active session)
   const [currentSelection, setCurrentSelection] = useState(null);
   const [commentButtonPosition, setCommentButtonPosition] = useState(null);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showCommitSidebar, setShowCommitSidebar] = useState(false);
   const [showContextPreview, setShowContextPreview] = useState(false);
   const [activeCommentId, setActiveCommentId] = useState(null);
-  const [contextSegments, setContextSegments] = useState([]);
+
+  // Derive comments and contextSegments from active session
+  const activeSession = useMemo(() => 
+    reviewSessions.find(s => s.id === activeReviewSessionId),
+    [reviewSessions, activeReviewSessionId]
+  );
+  const comments = activeSession?.comments || [];
+  const contextSegments = activeSession?.context_segments || [];
+  const sessionThreads = activeSession?.threads || [];
 
   // Thread continuation state
   const [activeThreadContext, setActiveThreadContext] = useState(null);
@@ -271,11 +282,11 @@ function App() {
   useEffect(() => {
     if (currentConversationId) {
       loadConversation(currentConversationId);
-      loadComments(currentConversationId);
+      loadReviewSessions(currentConversationId);
     } else {
-      setComments([]);
+      setReviewSessions([]);
+      setActiveReviewSessionId(null);
       setActiveCommentId(null);
-      setContextSegments([]);
     }
   }, [currentConversationId]);
 
@@ -309,40 +320,48 @@ function App() {
   const loadConversation = async (id) => {
     try {
       const conv = await api.getConversation(id);
-
-      // Convert persisted threads to follow-up messages for display
-      if (conv.threads && conv.threads.length > 0) {
-        const threadMessages = [];
-        conv.threads.forEach(thread => {
-          thread.messages.forEach(msg => {
-            if (msg.role === 'user') {
-              threadMessages.push({
-                role: 'follow-up-user',
-                content: msg.content,
-                model: thread.model,
-                thread_id: thread.id,
-                comments: [],
-                context_segments: thread.context?.context_segments || [],
-              });
-            } else if (msg.role === 'assistant') {
-              threadMessages.push({
-                role: 'follow-up-assistant',
-                content: msg.content,
-                model: thread.model,
-                thread_id: thread.id,
-                loading: false,
-              });
-            }
-          });
-        });
-        conv.messages = [...conv.messages, ...threadMessages];
-      }
-
+      // Don't process legacy threads here - they'll be migrated to sessions
+      // Thread messages will be added based on the active session
       setCurrentConversation(conv);
     } catch (error) {
       console.error('Failed to load conversation:', error);
     }
   };
+
+  // Convert session threads to follow-up messages for display
+  const conversationWithThreads = useMemo(() => {
+    if (!currentConversation) return null;
+    if (!sessionThreads || sessionThreads.length === 0) return currentConversation;
+
+    const threadMessages = [];
+    sessionThreads.forEach(thread => {
+      thread.messages.forEach(msg => {
+        if (msg.role === 'user') {
+          threadMessages.push({
+            role: 'follow-up-user',
+            content: msg.content,
+            model: thread.model,
+            thread_id: thread.id,
+            comments: [],
+            context_segments: thread.context?.context_segments || [],
+          });
+        } else if (msg.role === 'assistant') {
+          threadMessages.push({
+            role: 'follow-up-assistant',
+            content: msg.content,
+            model: thread.model,
+            thread_id: thread.id,
+            loading: false,
+          });
+        }
+      });
+    });
+
+    return {
+      ...currentConversation,
+      messages: [...currentConversation.messages, ...threadMessages],
+    };
+  }, [currentConversation, sessionThreads]);
 
   const handleNewConversation = () => {
     setShowModeSelector(true);
@@ -825,15 +844,69 @@ function App() {
     }
   };
 
-  // Comment and thread handlers
-  const loadComments = async (conversationId) => {
+  // Review session handlers
+  const loadReviewSessions = async (conversationId) => {
     try {
-      const loadedComments = await api.getComments(conversationId);
-      setComments(loadedComments);
+      const result = await api.listReviewSessions(conversationId);
+      setReviewSessions(result.sessions || []);
+      setActiveReviewSessionId(result.active_session_id || null);
     } catch (error) {
-      console.error('Failed to load comments:', error);
+      console.error('Failed to load review sessions:', error);
+      setReviewSessions([]);
+      setActiveReviewSessionId(null);
     }
   };
+
+  const handleCreateReviewSession = async (name = null) => {
+    if (!currentConversationId) return;
+    try {
+      const session = await api.createReviewSession(currentConversationId, name);
+      setReviewSessions(prev => [...prev, session]);
+      setActiveReviewSessionId(session.id);
+    } catch (error) {
+      console.error('Failed to create review session:', error);
+    }
+  };
+
+  const handleSwitchReviewSession = async (sessionId) => {
+    if (!currentConversationId || sessionId === activeReviewSessionId) return;
+    try {
+      await api.activateReviewSession(currentConversationId, sessionId);
+      setActiveReviewSessionId(sessionId);
+      setActiveCommentId(null);
+    } catch (error) {
+      console.error('Failed to switch review session:', error);
+    }
+  };
+
+  const handleRenameReviewSession = async (sessionId, newName) => {
+    if (!currentConversationId) return;
+    try {
+      const updated = await api.updateReviewSession(currentConversationId, sessionId, newName);
+      setReviewSessions(prev => prev.map(s => s.id === sessionId ? updated : s));
+    } catch (error) {
+      console.error('Failed to rename review session:', error);
+    }
+  };
+
+  const handleDeleteReviewSession = async (sessionId) => {
+    if (!currentConversationId) return;
+    try {
+      await api.deleteReviewSession(currentConversationId, sessionId);
+      const remaining = reviewSessions.filter(s => s.id !== sessionId);
+      setReviewSessions(remaining);
+      if (activeReviewSessionId === sessionId) {
+        const sorted = [...remaining].sort((a, b) => 
+          (b.updated_at || b.created_at).localeCompare(a.updated_at || a.created_at)
+        );
+        setActiveReviewSessionId(sorted[0]?.id || null);
+      }
+    } catch (error) {
+      console.error('Failed to delete review session:', error);
+    }
+  };
+
+  // Comment and thread handlers
 
   const handleSelectionChange = useCallback((selection) => {
     if (selection) {
@@ -859,6 +932,15 @@ function App() {
     if (!currentSelection || !currentConversationId) return;
 
     try {
+      // Create a session if none exists
+      let sessionId = activeReviewSessionId;
+      if (!sessionId) {
+        const session = await api.createReviewSession(currentConversationId);
+        setReviewSessions(prev => [...prev, session]);
+        setActiveReviewSessionId(session.id);
+        sessionId = session.id;
+      }
+
       const isCouncil = currentSelection.sourceType === 'council' || !currentSelection.sourceType;
 
       const commentData = {
@@ -874,16 +956,21 @@ function App() {
         commentData.stage = currentSelection.stage;
         commentData.model = currentSelection.model;
       } else {
-        // synthesizer
         commentData.noteId = currentSelection.noteId;
         commentData.noteTitle = currentSelection.noteTitle;
         commentData.sourceUrl = currentSelection.sourceUrl;
         commentData.noteModel = currentSelection.noteModel;
       }
 
-      const newComment = await api.createComment(currentConversationId, commentData);
+      const newComment = await api.createSessionComment(currentConversationId, sessionId, commentData);
 
-      setComments([...comments, newComment]);
+      // Update the session in state
+      setReviewSessions(prev => prev.map(s => 
+        s.id === sessionId 
+          ? { ...s, comments: [...(s.comments || []), newComment], updated_at: new Date().toISOString() }
+          : s
+      ));
+
       setShowCommentModal(false);
       setCurrentSelection(null);
       setCommentButtonPosition(null);
@@ -899,22 +986,38 @@ function App() {
   };
 
   const handleEditComment = async (commentId, newContent) => {
-    if (!currentConversationId) return;
+    if (!currentConversationId || !activeReviewSessionId) return;
 
     try {
-      const updatedComment = await api.updateComment(currentConversationId, commentId, newContent);
-      setComments(comments.map(c => c.id === commentId ? updatedComment : c));
+      const updatedComment = await api.updateSessionComment(
+        currentConversationId, 
+        activeReviewSessionId, 
+        commentId, 
+        newContent
+      );
+      // Update the session in state
+      setReviewSessions(prev => prev.map(s => 
+        s.id === activeReviewSessionId 
+          ? { ...s, comments: s.comments.map(c => c.id === commentId ? updatedComment : c) }
+          : s
+      ));
     } catch (error) {
       console.error('Failed to edit comment:', error);
     }
   };
 
   const handleDeleteComment = async (commentId) => {
-    if (!currentConversationId) return;
+    if (!currentConversationId || !activeReviewSessionId) return;
 
     try {
-      await api.deleteComment(currentConversationId, commentId);
-      setComments(comments.filter((c) => c.id !== commentId));
+      await api.deleteSessionComment(currentConversationId, activeReviewSessionId, commentId);
+      
+      // Update the session in state
+      setReviewSessions(prev => prev.map(s => 
+        s.id === activeReviewSessionId 
+          ? { ...s, comments: s.comments.filter(c => c.id !== commentId) }
+          : s
+      ));
 
       // Clear active comment if it was deleted
       if (activeCommentId === commentId) {
@@ -933,6 +1036,15 @@ function App() {
     if (!selection || !currentConversationId) return;
 
     try {
+      // Create a session if none exists
+      let sessionId = activeReviewSessionId;
+      if (!sessionId) {
+        const session = await api.createReviewSession(currentConversationId);
+        setReviewSessions(prev => [...prev, session]);
+        setActiveReviewSessionId(session.id);
+        sessionId = session.id;
+      }
+
       const commentData = {
         selection: selection.text,
         content: commentText,
@@ -944,8 +1056,14 @@ function App() {
         noteModel: selection.noteModel,
       };
 
-      const newComment = await api.createComment(currentConversationId, commentData);
-      setComments([...comments, newComment]);
+      const newComment = await api.createSessionComment(currentConversationId, sessionId, commentData);
+      
+      // Update the session in state
+      setReviewSessions(prev => prev.map(s => 
+        s.id === sessionId 
+          ? { ...s, comments: [...(s.comments || []), newComment], updated_at: new Date().toISOString() }
+          : s
+      ));
 
       // Auto-open sidebar when first comment is added
       if (comments.length === 0) {
@@ -956,22 +1074,56 @@ function App() {
     }
   };
 
-  const handleAddContextSegment = useCallback((segment) => {
-    setContextSegments((prev) => {
-      if (prev.some((item) => item.id === segment.id)) {
-        return prev;
+  const handleAddContextSegment = useCallback(async (segment) => {
+    if (!currentConversationId) return;
+
+    try {
+      // Create a session if none exists
+      let sessionId = activeReviewSessionId;
+      if (!sessionId) {
+        const session = await api.createReviewSession(currentConversationId);
+        setReviewSessions(prev => [...prev, session]);
+        setActiveReviewSessionId(session.id);
+        sessionId = session.id;
       }
-      const updated = [...prev, segment];
-      if (updated.length === 1 && !showCommitSidebar) {
+
+      // Check if already exists
+      const existing = contextSegments.some(s => s.id === segment.id);
+      if (existing) return;
+
+      await api.addSessionContextSegment(currentConversationId, sessionId, segment);
+
+      // Update the session in state
+      setReviewSessions(prev => prev.map(s => 
+        s.id === sessionId 
+          ? { ...s, context_segments: [...(s.context_segments || []), segment], updated_at: new Date().toISOString() }
+          : s
+      ));
+
+      if (contextSegments.length === 0 && !showCommitSidebar) {
         setShowCommitSidebar(true);
       }
-      return updated;
-    });
-  }, [showCommitSidebar]);
+    } catch (error) {
+      console.error('Failed to add context segment:', error);
+    }
+  }, [currentConversationId, activeReviewSessionId, contextSegments, showCommitSidebar]);
 
-  const handleRemoveContextSegment = useCallback((segmentId) => {
-    setContextSegments((prev) => prev.filter((segment) => segment.id !== segmentId));
-  }, []);
+  const handleRemoveContextSegment = useCallback(async (segmentId) => {
+    if (!currentConversationId || !activeReviewSessionId) return;
+
+    try {
+      await api.removeSessionContextSegment(currentConversationId, activeReviewSessionId, segmentId);
+
+      // Update the session in state
+      setReviewSessions(prev => prev.map(s => 
+        s.id === activeReviewSessionId 
+          ? { ...s, context_segments: (s.context_segments || []).filter(seg => seg.id !== segmentId) }
+          : s
+      ));
+    } catch (error) {
+      console.error('Failed to remove context segment:', error);
+    }
+  }, [currentConversationId, activeReviewSessionId]);
 
   const handleToggleCommitSidebar = () => {
     setShowCommitSidebar(!showCommitSidebar);
@@ -1118,9 +1270,10 @@ function App() {
         compiledContext: compiledContext?.substring(0, 200),
       });
 
-      // Call the API to create the thread and get response
-      const thread = await api.createThread(
+      // Call the API to create the thread within the session
+      const thread = await api.createSessionThread(
         currentConversationId,
+        activeReviewSessionId,
         model,
         commentIds,
         question,
@@ -1150,9 +1303,14 @@ function App() {
         return { ...prev, messages };
       });
 
+      // Update the session with the new thread
+      setReviewSessions(prev => prev.map(s => 
+        s.id === activeReviewSessionId 
+          ? { ...s, threads: [...(s.threads || []), thread], updated_at: new Date().toISOString() }
+          : s
+      ));
+
       setShowCommitSidebar(false);
-      setComments([]); // Clear comments after creating thread
-      setContextSegments([]);
       setActiveCommentId(null);
       setIsLoading(false);
     } catch (error) {
@@ -1538,7 +1696,7 @@ function App() {
         />
       ) : currentConversation?.mode === 'council' && currentConversation?.messages?.some(m => m.role === 'assistant') ? (
         <CouncilDiscussionView
-          conversation={currentConversation}
+          conversation={conversationWithThreads}
           comments={comments}
           contextSegments={contextSegments}
           onSelectionChange={handleSelectionChange}
@@ -1558,7 +1716,7 @@ function App() {
         />
       ) : (
         <ChatInterface
-          conversation={currentConversation}
+          conversation={conversationWithThreads}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           comments={comments}
@@ -1649,6 +1807,13 @@ function App() {
           activeCommentId={activeCommentId}
           onRemoveContextSegment={handleRemoveContextSegment}
           onVisualise={handleVisualiseFromContext}
+          reviewSessions={reviewSessions}
+          activeSessionId={activeReviewSessionId}
+          sessionThreads={sessionThreads}
+          onCreateSession={handleCreateReviewSession}
+          onSwitchSession={handleSwitchReviewSession}
+          onRenameSession={handleRenameReviewSession}
+          onDeleteSession={handleDeleteReviewSession}
         />
       )}
       {activeThreadContext && (

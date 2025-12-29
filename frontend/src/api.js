@@ -139,6 +139,24 @@ export const api = {
     return response.json();
   },
 
+  async updateSynthesizerSource(conversationId, updates) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/synthesizer-source`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to update source info');
+    }
+    return response.json();
+  },
+
   /**
    * Mark a conversation as read.
    */
@@ -593,6 +611,380 @@ export const api = {
     );
     if (!response.ok) {
       throw new Error('Failed to continue thread');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Review Sessions API Methods
+  // ==========================================================================
+
+  /**
+   * List all review sessions for a conversation.
+   * @param {string} conversationId - The conversation ID
+   * @returns {Promise<{sessions: Array, active_session_id: string|null}>}
+   */
+  async listReviewSessions(conversationId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to list review sessions');
+    }
+    return response.json();
+  },
+
+  /**
+   * Create a new review session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} [name] - Optional session name (auto-generated if not provided)
+   */
+  async createReviewSession(conversationId, name = null) {
+    const body = {};
+    if (name) body.name = name;
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to create review session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get the active review session for a conversation.
+   * @param {string} conversationId - The conversation ID
+   */
+  async getActiveReviewSession(conversationId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/active`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get active review session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a specific review session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   */
+  async getReviewSession(conversationId, sessionId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get review session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a review session (rename).
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} name - New session name
+   */
+  async updateReviewSession(conversationId, sessionId, name) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to update review session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a review session and all its threads.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   */
+  async deleteReviewSession(conversationId, sessionId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete review session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Set a review session as active.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   */
+  async activateReviewSession(conversationId, sessionId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/activate`,
+      {
+        method: 'POST',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to activate review session');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Session-scoped Comments API Methods
+  // ==========================================================================
+
+  /**
+   * Create a comment within a review session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {Object} commentData - Comment data
+   */
+  async createSessionComment(conversationId, sessionId, commentData) {
+    const body = {
+      selection: commentData.selection,
+      content: commentData.content,
+      source_type: commentData.sourceType || 'council',
+      source_content: commentData.sourceContent || null,
+    };
+
+    if (commentData.sourceType === 'council' || !commentData.sourceType) {
+      body.message_index = commentData.messageIndex;
+      body.stage = commentData.stage;
+      body.model = commentData.model;
+    }
+
+    if (commentData.sourceType === 'synthesizer') {
+      body.note_id = commentData.noteId;
+      body.note_title = commentData.noteTitle;
+      body.source_url = commentData.sourceUrl;
+      body.note_model = commentData.noteModel;
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to create session comment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get comments for a review session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {number} [messageIndex] - Optional message index filter
+   */
+  async getSessionComments(conversationId, sessionId, messageIndex = null) {
+    let url = `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/comments`;
+    if (messageIndex !== null) {
+      url += `?message_index=${messageIndex}`;
+    }
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to get session comments');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a comment within a session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} commentId - The comment ID
+   * @param {string} content - New content
+   */
+  async updateSessionComment(conversationId, sessionId, commentId, content) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/comments/${commentId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to update session comment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a comment from a session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} commentId - The comment ID
+   */
+  async deleteSessionComment(conversationId, sessionId, commentId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/comments/${commentId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete session comment');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Session-scoped Context Segments API Methods
+  // ==========================================================================
+
+  /**
+   * Add a context segment to a review session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {Object} segment - Segment data
+   */
+  async addSessionContextSegment(conversationId, sessionId, segment) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/segments`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(segment),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to add context segment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Remove a context segment from a session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} segmentId - The segment ID
+   */
+  async removeSessionContextSegment(conversationId, sessionId, segmentId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/segments/${segmentId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to remove context segment');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Session-scoped Threads API Methods
+  // ==========================================================================
+
+  /**
+   * Create a thread within a review session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} model - Model to use
+   * @param {Array<string>} commentIds - Comment IDs for context
+   * @param {string} question - Initial question
+   * @param {Object} options - Additional options
+   */
+  async createSessionThread(conversationId, sessionId, model, commentIds, question, options = {}) {
+    const { messageIndex, noteIds, contextSegments = [], compiledContext = null } = options;
+
+    const body = {
+      model,
+      comment_ids: commentIds,
+      question,
+      context_segments: contextSegments,
+      compiled_context: compiledContext,
+    };
+
+    if (messageIndex !== undefined && messageIndex !== null) {
+      body.message_index = messageIndex;
+    }
+    if (noteIds && noteIds.length > 0) {
+      body.note_ids = noteIds;
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/threads`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create session thread: ${errorText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a thread from a session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} threadId - The thread ID
+   */
+  async getSessionThread(conversationId, sessionId, threadId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/threads/${threadId}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get session thread');
+    }
+    return response.json();
+  },
+
+  /**
+   * Continue a thread within a session.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} sessionId - The session ID
+   * @param {string} threadId - The thread ID
+   * @param {string} question - New question
+   */
+  async continueSessionThread(conversationId, sessionId, threadId, question) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/review-sessions/${sessionId}/threads/${threadId}/message`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to continue session thread');
     }
     return response.json();
   },

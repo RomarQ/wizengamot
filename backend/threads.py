@@ -5,6 +5,29 @@ from .openrouter import query_model
 from .storage import get_conversation, get_comments
 
 
+def _collect_all_comments(conversation: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Collect all comments from a conversation, including both legacy top-level
+    comments and session-scoped comments.
+
+    Args:
+        conversation: The conversation dict
+
+    Returns:
+        List of all comments
+    """
+    all_comments = []
+
+    legacy_comments = conversation.get("comments", [])
+    all_comments.extend(legacy_comments)
+
+    for session in conversation.get("review_sessions", []):
+        session_comments = session.get("comments", [])
+        all_comments.extend(session_comments)
+
+    return all_comments
+
+
 def compile_context_from_comments(
     conversation: Dict[str, Any],
     comment_ids: List[str],
@@ -23,8 +46,8 @@ def compile_context_from_comments(
     """
     context_parts: List[str] = []
 
-    comments = conversation.get("comments", [])
-    relevant_comments = [c for c in comments if c["id"] in comment_ids]
+    all_comments = _collect_all_comments(conversation)
+    relevant_comments = [c for c in all_comments if c["id"] in comment_ids]
 
     if relevant_comments:
         context_parts.append(

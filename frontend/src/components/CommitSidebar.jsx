@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { computeTokenBreakdown } from '../utils/tokenizer';
 import { api } from '../api';
+import ReviewSessionSelector from './ReviewSessionSelector';
 import './CommitSidebar.css';
 
 /**
@@ -25,6 +26,13 @@ function CommitSidebar({
   activeCommentId,
   onRemoveContextSegment,
   onVisualise,
+  reviewSessions = [],
+  activeSessionId,
+  sessionThreads = [],
+  onCreateSession,
+  onSwitchSession,
+  onRenameSession,
+  onDeleteSession,
 }) {
   const [selectedModel, setSelectedModel] = useState(defaultChairman || '');
   const [followUpQuestion, setFollowUpQuestion] = useState('');
@@ -243,6 +251,19 @@ function CommitSidebar({
         </button>
       </div>
 
+      {reviewSessions.length > 0 && (
+        <div className="session-selector-row">
+          <ReviewSessionSelector
+            sessions={reviewSessions}
+            activeSessionId={activeSessionId}
+            onSessionSelect={onSwitchSession}
+            onCreateSession={onCreateSession}
+            onRenameSession={onRenameSession}
+            onDeleteSession={onDeleteSession}
+          />
+        </div>
+      )}
+
       <div className="commit-sidebar-comments">
         {comments.length === 0 && contextSegments.length === 0 && (
           <div className="empty-comments">
@@ -331,6 +352,41 @@ function CommitSidebar({
             )}
           </div>
         ))}
+
+        {sessionThreads.length > 0 && (
+          <div className="threads-section">
+            <div className="threads-section-title">
+              <span>Threads</span>
+              <span className="threads-count">{sessionThreads.length}</span>
+            </div>
+            {sessionThreads.map((thread) => (
+              <div
+                key={thread.id}
+                className="thread-card"
+                onClick={() => {
+                  const threadEl = document.querySelector(`[data-thread-id="${thread.id}"]`);
+                  if (threadEl) {
+                    threadEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const input = threadEl.querySelector('.thread-input input, .thread-input textarea');
+                    if (input) {
+                      setTimeout(() => input.focus(), 300);
+                    }
+                  }
+                }}
+                title="Click to continue this thread"
+              >
+                <div className="thread-card-header">
+                  <span className="thread-model">{getModelShortName(thread.model)}</span>
+                  <span className="thread-msg-count">{thread.messages?.length || 0} msgs</span>
+                </div>
+                <div className="thread-card-preview">
+                  {thread.messages?.[0]?.content?.substring(0, 60) || 'Thread'}
+                  {thread.messages?.[0]?.content?.length > 60 ? '...' : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="context-stack-section">
           <div className="context-stack-title">
