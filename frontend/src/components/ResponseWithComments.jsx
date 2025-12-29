@@ -60,9 +60,9 @@ function ResponseWithComments({
 
   // Apply highlights when component mounts or comments change
   useEffect(() => {
-    if (!containerRef.current || !comments || comments.length === 0) return;
+    if (!containerRef.current) return;
 
-    // Clear existing highlights first
+    // Clear existing highlights first (always do this even if comments is empty)
     const existingHighlights = containerRef.current.querySelectorAll('.text-highlight');
     existingHighlights.forEach(highlight => {
       const parent = highlight.parentNode;
@@ -72,6 +72,9 @@ function ResponseWithComments({
       parent.removeChild(highlight);
       parent.normalize();
     });
+
+    // If no comments, we're done after clearing
+    if (!comments || comments.length === 0) return;
 
     // Apply new highlights with a delay to ensure DOM is ready
     const applyHighlights = () => {
