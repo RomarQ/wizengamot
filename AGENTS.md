@@ -10,24 +10,187 @@
 - `tests/` and `backend/tests/`: pytest-based smoke/e2e tests.
 
 ## Build, Test, and Development Commands
-- `uv sync` — install backend dependencies whenever `pyproject.toml` changes.
-- `uv run python -m backend.main` — serve the API on `localhost:8001`.
-- `cd frontend && npm install` then `npm run dev` — install UI deps and start Vite on `localhost:5173`.
-- `./start.sh` — boot both stacks; runs `scripts/check-deps.sh` unless `--skip-checks`.
-- `./scripts/check-deps.sh` — validate Python/Node/ffmpeg, `.env`, and local deps.
-- `./scripts/setup-models.sh` — pre-download Whisper + fastembed models.
-- `uv run pytest tests/` and `uv run pytest backend/tests/` — run backend tests.
-- `cd frontend && npm run lint` — ESLint; `npm run build && npm run preview` for production bundle.
-- `docker compose up -d` — Docker dev/prod flow (nginx on 8080).
 
-## Coding Style & Naming Conventions
-Python: 4-space indents, type hints, concise module docstrings, and **relative imports** (run as `python -m backend.main`). Prefer extending existing Pydantic models over hand validation. React components stay in PascalCase files, hooks/utilities in camelCase, CSS beside JSX peers. Wrap markdown output in `.markdown-content` (see `frontend/src/index.css`). ESLint (`frontend/eslint.config.js`) governs frontend style; update manifests before adding new tooling.
+### Backend (Python/FastAPI)
+- `uv sync` — install/update backend dependencies whenever `pyproject.toml` changes.
+- `uv run python -m backend.main` — serve the API on `localhost:8001`.
+- `uv run pytest tests/` — run all backend tests.
+- `uv run pytest backend/tests/` — run backend-specific tests.
+- `uv run pytest backend/tests/test_monitor_e2e.py` — run specific test file.
+- `uv run pytest backend/tests/test_monitor_e2e.py::test_crawl_competitor -v` — run single test function.
+- `uv run pytest backend/tests/test_monitor_e2e.py -k "crawl" -v` — run tests matching pattern.
+- `uv run pytest --tb=short` — run tests with shorter traceback format.
+
+### Frontend (React/Vite)
+- `cd frontend && npm install` — install frontend dependencies.
+- `cd frontend && npm run dev` — start Vite dev server on `localhost:5173`.
+- `cd frontend && npm run build` — build production bundle.
+- `cd frontend && npm run preview` — serve production build locally.
+- `cd frontend && npm run lint` — run ESLint code quality checks.
+
+### Full Stack Development
+- `./start.sh` — boot both backend and frontend; runs `scripts/check-deps.sh` unless `--skip-checks`.
+- `./start.sh --skip-checks` — start without dependency validation.
+- `./scripts/check-deps.sh` — validate Python/Node/ffmpeg, `.env`, and local deps.
+- `./scripts/setup-models.sh` — pre-download Whisper + fastembed models for ML features.
+
+### Docker Deployment
+- `docker compose up -d` — Docker dev/prod flow (nginx on 8080).
+- `docker compose up --build` — rebuild and start containers.
+
+### Dependency Management
+- `uv sync` — install Python dependencies (equivalent to pip install).
+- `cd frontend && npm install` — install Node.js dependencies.
+- `uv lock` — update lockfile after dependency changes.
+- `uv run pip list` — list installed Python packages.
+
+## Code Style & Naming Conventions
+
+### Python Backend
+- **Indentation**: 4 spaces, no tabs.
+- **Imports**: Organize alphabetically by group (standard library, third-party, local):
+  ```python
+  import json
+  import os
+  from pathlib import Path
+  from typing import Dict, List, Optional
+
+  import httpx
+  import pydantic
+  from fastapi import FastAPI, HTTPException
+
+  from . import storage, config
+  from .council import run_full_council
+  ```
+- **Type Hints**: Use comprehensive type hints for all function parameters and return values:
+  ```python
+  def process_conversation(conversation_id: str, user_input: str) -> Dict[str, Any]:
+      """Process user input for a conversation."""
+  ```
+- **Docstrings**: Concise module docstrings; function docstrings only when complex:
+  ```python
+  """FastAPI backend for LLM Council."""
+  ```
+- **Relative Imports**: Always use relative imports (`from . import module`) when running as module.
+- **Error Handling**: Use specific exception types, provide meaningful error messages:
+  ```python
+  try:
+      result = await openrouter.query_model(model, messages)
+  except Exception as e:
+      raise HTTPException(status_code=500, detail=f"Model query failed: {str(e)}")
+  ```
+- **Naming**: snake_case for functions/variables, PascalCase for classes, UPPER_CASE for constants.
+- **Pydantic Models**: Prefer extending existing models over hand validation; use Field for defaults:
+  ```python
+  class ConversationRequest(BaseModel):
+      content: str = Field(..., description="User message content")
+      mode: str = Field(default="council", description="Conversation mode")
+  ```
+
+### React Frontend
+- **Component Naming**: PascalCase for component files and functions:
+  ```jsx
+  // ActionMenu.jsx
+  export default function ActionMenu({ children, className = '' }) {
+    // component logic
+  }
+  ```
+- **Hooks/Utilities**: camelCase for hook files and functions:
+  ```javascript
+  // useLocalStorage.js
+  export function useLocalStorage(key, initialValue) {
+    // hook logic
+  }
+  ```
+- **CSS**: Colocate CSS files beside JSX components (`ActionMenu.css`).
+- **Props**: Destructure props at function signature:
+  ```jsx
+  function ConversationCard({ id, title, messageCount, onDelete }) {
+    // use props directly
+  }
+  ```
+- **State Management**: Use useState for local state, prefer functional updates:
+  ```jsx
+  const [isLoading, setIsLoading] = useState(false);
+  setIsLoading(prev => !prev); // functional update
+  ```
+- **Event Handlers**: Prefix with 'handle' and use arrow functions:
+  ```jsx
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // submit logic
+  };
+  ```
+- **ESLint**: Follows `frontend/eslint.config.js` rules; no unused variables (except A-Z_ pattern).
+
+### General Code Style
+- **No Comments**: DO NOT add any comments unless explicitly requested.
+- **File Naming**: Consistent naming - `conversation.py`, `ActionMenu.jsx`, `ActionMenu.css`.
+- **Constants**: UPPER_CASE for module-level constants:
+  ```python
+  VERSION_CACHE_TTL = 15 * 60  # 15 minutes
+  ```
+- **Magic Numbers**: Extract to named constants.
+- **Error Messages**: User-friendly, actionable error messages.
+- **Security**: Never log or expose API keys, secrets, or sensitive data.
 
 ## Testing Guidelines
-No full coverage yet. Add backend tests under `tests/backend/` (pytest + FastAPI `TestClient`) or `backend/tests/` for e2e. UI specs belong in `frontend/src/__tests__/` using React Testing Library. Name tests after behaviors (`test_stage3_summary.py`, `StageTabs.spec.jsx`) and keep large fixtures in `data/` rather than inline blobs. Manual regression still matters: `./start.sh`, submit a prompt, confirm a new JSON file lands in `data/conversations/` with all stage payloads.
+
+### Backend Testing (pytest)
+- **Test Structure**: Tests in `tests/backend/` or `backend/tests/` for e2e/smoke tests.
+- **Test Naming**: Name after behaviors (`test_stage3_summary.py`, `test_crawl_competitor.py`).
+- **Test Fixtures**: Large fixtures in `data/` rather than inline.
+- **Manual Testing**: `./start.sh`, submit prompts, verify JSON files in `data/conversations/`.
+- **Coverage**: No full coverage yet; add tests for new features.
+- **TestClient**: Use FastAPI TestClient for API endpoint testing.
+
+### Frontend Testing (React Testing Library)
+- **Test Location**: Tests in `frontend/src/__tests__/` directory.
+- **Test Naming**: ComponentName.spec.jsx or ComponentName.test.jsx.
+- **Testing Approach**: Focus on user interactions, not implementation details.
+- **Mocking**: Mock API calls and external dependencies.
+
+### Running Tests
+- **All Tests**: `uv run pytest` or `uv run pytest tests/`
+- **Backend Only**: `uv run pytest backend/tests/`
+- **Frontend Only**: `cd frontend && npm run test`
+- **Single Test**: `uv run pytest backend/tests/test_monitor_e2e.py::test_crawl_competitor -v`
+- **With Coverage**: `uv run pytest --cov=backend --cov-report=html`
 
 ## Commit & Pull Request Guidelines
-History favors short, imperative subjects (“readme tweaks”, “Label maker add”); keep future commits under ~50 characters and explain details in the body if needed. Reference issues, summarize commands run, and call out config/env impacts explicitly. PRs should include a crisp description plus screenshots or clips whenever `frontend/src/components/` changes the UI.
+
+### Commit Messages
+- **Format**: Short, imperative subjects (<50 chars); explain details in body if needed.
+- **Examples**:
+  - "add dark mode toggle component"
+  - "fix council ranking calculation bug"
+  - "update synthesizer prompt templates"
+- **Security**: Never commit `.env` files, API keys, or sensitive data.
+- **References**: Reference issues explicitly when relevant.
+
+### Pull Requests
+- **Description**: Crisp summary plus screenshots/clips for UI changes.
+- **Testing**: Include commands run, config/env impacts explicitly.
+- **Review**: Ensure CI passes, dependencies updated, no secrets committed.
 
 ## Security & Configuration Tips
-Keep `OPENROUTER_API_KEY` in a root `.env`; runtime settings live in `data/config/settings.json` and take precedence over env. Other optional keys: `FIRECRAWL_API_KEY`, `XAI_API_KEY`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`. Adjust model identifiers in `backend/settings.py` or via Settings UI only after confirming OpenRouter support, and mirror changes in user-facing copy. Scrub `data/conversations/` (and any `data/` artifacts) before publishing traces because they may contain sensitive prompts and model critiques.
+
+### API Keys & Secrets
+- **OpenRouter**: Required; set in `.env` as `OPENROUTER_API_KEY` or via UI.
+- **Firecrawl**: Optional for synthesizer; set as `FIRECRAWL_API_KEY`.
+- **ElevenLabs**: Optional for podcast TTS; set as `ELEVEN_API_KEY`.
+- **LiveKit**: Optional for real-time features; set as `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
+- **XAI**: Optional alternative provider; set as `XAI_API_KEY`.
+- **Priority**: Settings file > environment variables > defaults.
+
+### Configuration Management
+- **Runtime Settings**: Live in `data/config/settings.json`; take precedence over env.
+- **Model Selection**: Update via Settings UI only after confirming OpenRouter support.
+- **Data Scrubbing**: Remove sensitive prompts/model critiques from `data/conversations/` before publishing.
+
+### Security Best Practices
+- **Input Validation**: Use Pydantic models for API inputs; validate all user data.
+- **Error Handling**: Never expose internal errors or stack traces to users.
+- **File Permissions**: Ensure proper permissions on config/data directories.
+- **Network Security**: Validate URLs, implement rate limiting for external APIs.</content>
+<parameter name="filePath">AGENTS.md
