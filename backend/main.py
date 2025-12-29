@@ -393,8 +393,8 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         stage3_result
     )
 
-    # Generate summary for gallery preview (fire and forget)
-    asyncio.create_task(_generate_council_summary(conversation_id, stage3_result.get('content', '')))
+    # Generate summary for gallery preview (await to ensure it's ready when frontend fetches)
+    await _generate_council_summary(conversation_id, stage3_result.get('content', ''))
 
     # Return the complete response with metadata
     return {
@@ -531,18 +531,7 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                 # Log but don't fail the request if cost tracking fails
                 print(f"Error tracking cost: {cost_error}")
 
-            # Send completion event
-            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-
-        except Exception as e:
-            # Send error event
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-
-        finally:
-            # Clean up cancellation tracking
-            _cancelled_conversations.discard(conversation_id)
-
-            # Save in finally block - ensures save even if client disconnects
+            # Save assistant message before sending complete
             if stage1_results and stage2_results and stage3_result:
                 try:
                     storage.add_assistant_message(
@@ -556,11 +545,27 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
                     if total_message_cost > 0:
                         storage.update_conversation_cost(conversation_id, total_message_cost)
 
-                    # Generate summary for gallery preview (fire and forget)
-                    asyncio.create_task(_generate_council_summary(conversation_id, stage3_result.get('content', '')))
+                    # Generate summary for gallery preview and send via SSE
+                    summary = await generate_summary(stage3_result.get('content', ''), 'council')
+                    if summary:
+                        storage.update_conversation_summary(conversation_id, summary)
+                        yield f"data: {json.dumps({'type': 'summary_complete', 'data': {'summary': summary}})}\n\n"
                 except ValueError:
                     # Conversation was deleted during streaming, skip saving
                     print(f"Conversation {conversation_id} was deleted during streaming, skipping save")
+                except Exception as save_error:
+                    print(f"Error saving council message: {save_error}")
+
+            # Send completion event
+            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+
+        except Exception as e:
+            # Send error event
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+        finally:
+            # Clean up cancellation tracking
+            _cancelled_conversations.discard(conversation_id)
 
     return StreamingResponse(
         event_generator(),
@@ -1814,9 +1819,9 @@ async def synthesize_from_url(conversation_id: str, request: SynthesizeRequest):
         except Exception as e:
             print(f"Error tracking synthesizer cost: {e}")
 
-    # Generate summary for gallery preview (fire and forget)
+    # Generate summary for gallery preview (await to ensure it's ready when frontend fetches)
     if result.get("notes"):
-        asyncio.create_task(_generate_synthesizer_summary(conversation_id, result["notes"]))
+        await _generate_synthesizer_summary(conversation_id, result["notes"])
 
     # Generate title from notes if first message
     generated_title = None

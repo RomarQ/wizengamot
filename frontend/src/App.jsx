@@ -818,6 +818,15 @@ function App() {
             ));
             break;
 
+          case 'summary_complete':
+            // Update conversation's summary in sidebar for gallery preview
+            setConversations(prev => prev.map(conv =>
+              conv.id === currentConversationId
+                ? { ...conv, summary: event.data.summary }
+                : conv
+            ));
+            break;
+
           case 'complete':
             // Stream complete - title already updated via title_complete event
             // Skip loadConversations to avoid race condition that overwrites title
