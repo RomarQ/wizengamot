@@ -115,12 +115,35 @@ export class SelectionHandler {
    * @param {HTMLElement} container - The container element with data attributes
    * @param {string} selectedText - The text to highlight
    * @param {string} commentId - Unique ID for the comment
-   * @returns {HTMLElement|null} The created highlight element
+   * @returns {HTMLElement[]} The created highlight elements
    */
   static createHighlight(container, selectedText, commentId) {
-    if (!container || !selectedText) return null;
+    if (!container || !selectedText) return [];
+    const trimmed = selectedText.trim();
+    if (!trimmed) return [];
 
-    // Find all text nodes in container
+    const singleHighlight = this._createSingleHighlight(container, trimmed, commentId);
+    if (singleHighlight) return [singleHighlight];
+
+    const segments = trimmed
+      .split(/\r?\n+/)
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0);
+
+    if (segments.length <= 1) return [];
+
+    const highlights = [];
+    segments.forEach((segment) => {
+      const highlight = this._createSingleHighlight(container, segment, commentId);
+      if (highlight) {
+        highlights.push(highlight);
+      }
+    });
+
+    return highlights;
+  }
+
+  static _createSingleHighlight(container, selectedText, commentId) {
     const textNodes = this._getTextNodes(container);
 
     for (const node of textNodes) {
@@ -140,7 +163,6 @@ export class SelectionHandler {
           range.surroundContents(highlight);
           return highlight;
         } catch (e) {
-          // If surroundContents fails, try a different approach
           console.warn("Could not create highlight:", e);
           return null;
         }

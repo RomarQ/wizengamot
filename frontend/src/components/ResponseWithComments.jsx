@@ -79,17 +79,16 @@ function ResponseWithComments({
     // Apply new highlights with a delay to ensure DOM is ready
     const applyHighlights = () => {
       comments.forEach(comment => {
-        const highlight = SelectionHandler.createHighlight(
+        const highlights = SelectionHandler.createHighlight(
           containerRef.current,
           comment.selection,
           comment.id
         );
 
-        if (highlight) {
-          // Mouse enter - show preview
+        highlights.forEach((highlight) => {
           highlight.addEventListener('mouseenter', (e) => {
-            if (pinnedComment) return; // Don't show hover if something is pinned
-            
+            if (pinnedComment) return;
+
             clearTimeout(hoverTimeoutRef.current);
             const rect = e.target.getBoundingClientRect();
             setCommentPosition({
@@ -100,10 +99,9 @@ function ResponseWithComments({
             highlight.classList.add('hover');
           });
 
-          // Mouse leave - hide preview with delay
           highlight.addEventListener('mouseleave', () => {
             if (pinnedComment) return;
-            
+
             highlight.classList.remove('hover');
             hoverTimeoutRef.current = setTimeout(() => {
               setHoveredComment(null);
@@ -111,7 +109,6 @@ function ResponseWithComments({
             }, 200);
           });
 
-          // Click - pin the comment
           highlight.addEventListener('click', (e) => {
             e.stopPropagation();
             const rect = e.target.getBoundingClientRect();
@@ -122,14 +119,13 @@ function ResponseWithComments({
             setPinnedComment(comment);
             setHoveredComment(null);
             onSetActiveComment?.(comment.id);
-            
-            // Add active class
+
             containerRef.current.querySelectorAll('.text-highlight').forEach(h => {
               h.classList.remove('active');
             });
             highlight.classList.add('active');
           });
-        }
+        });
       });
     };
 

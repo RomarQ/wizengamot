@@ -540,14 +540,13 @@ export default function NoteViewer({
     // Apply highlights after DOM settles
     const timer = setTimeout(() => {
       currentNoteComments.forEach(comment => {
-        const highlight = SelectionHandler.createHighlight(
+        const highlights = SelectionHandler.createHighlight(
           container,
           comment.selection,
           comment.id
         );
 
-        if (highlight) {
-          // Hover handlers
+        highlights.forEach((highlight) => {
           highlight.addEventListener('mouseenter', (e) => {
             clearTimeout(focusModeHoverTimeoutRef.current);
             const rect = e.target.getBoundingClientRect();
@@ -564,7 +563,6 @@ export default function NoteViewer({
             }, 200);
           });
 
-          // Click to pin
           highlight.addEventListener('click', (e) => {
             e.stopPropagation();
             const rect = e.target.getBoundingClientRect();
@@ -572,7 +570,7 @@ export default function NoteViewer({
             setFocusModeComment(comment);
             onSetActiveComment?.(comment.id);
           });
-        }
+        });
       });
     }, 100);
 
