@@ -25,3 +25,4 @@ frontend/.vite/
 
 .cursor/rules/kluster-code-verify.mdc
 .DS_Store
+frontend/package-lock.json
