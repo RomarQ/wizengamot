@@ -224,24 +224,47 @@ export default function NoteViewer({
     }
   }, [currentIndex, notes, formatNoteBody, sourceTitle, sourceUrl]);
 
-  // Copy all notes to clipboard in simple format
+  // Copy all notes to clipboard in markdown format
   const copyAllNotesToClipboard = useCallback(async () => {
     if (!notes?.length) return;
 
     const parts = [];
 
-    // Header with source
-    parts.push(`Notes from the ${sourceTitle || sourceUrl || 'source'}`);
+    // Header with source as H1
+    parts.push(`# ${sourceTitle || sourceUrl || 'Source'}`);
     parts.push('');
 
-    // Each note: title - body (preserving line breaks in body)
-    notes.forEach((note) => {
+    // Each note
+    notes.forEach((note, index) => {
+      // Format tags as hashtags inline with title
+      const tagsStr = note.tags?.length
+        ? ` (${note.tags.map((t) => `#${t.replace(/^#/, '')}`).join(' ')})`
+        : '';
+
+      // Note title as H3 with tags
+      parts.push(`### ${note.title}${tagsStr}`);
+
+      // Body with sentences separated by empty lines
       const body = note.body?.trim() || '';
-      parts.push(`${note.title} - ${body}`);
-      parts.push('');
+      if (body) {
+        // Split by sentence-ending punctuation followed by space or newline
+        const sentences = body
+          .split(/(?<=[.!?])\s+/)
+          .map((s) => s.trim())
+          .filter((s) => s && !/^-{2,}$/.test(s)); // Filter empty and horizontal rules
+        sentences.forEach((sentence) => {
+          parts.push(sentence);
+          parts.push(''); // Empty line after each sentence
+        });
+      }
+
+      // Add extra empty line between notes (total 2 empty lines)
+      if (index < notes.length - 1) {
+        parts.push('');
+      }
     });
 
-    const formattedText = parts.join('\n').trim();
+    const formattedText = parts.join('\n').trimEnd();
 
     try {
       await navigator.clipboard.writeText(formattedText);
