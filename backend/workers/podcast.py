@@ -1,4 +1,4 @@
-"""Podcast transcription worker using Firecrawl, feedparser, and Whisper.
+"""Podcast transcription worker using Crawl4AI/Firecrawl, feedparser, and Whisper.
 
 Extracts MP3 URLs from podcast episode pages (Pocket Casts, etc.) and transcribes them.
 """
@@ -11,6 +11,9 @@ from typing import Dict, Any, Optional, List
 from urllib.parse import urlparse
 
 import httpx
+
+from ..crawler import get_crawler, CrawlerError
+from ..settings import is_crawl4ai_enabled, get_firecrawl_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -40,41 +43,39 @@ def is_apple_podcast_url(url: str) -> bool:
 
 async def scrape_page_html(url: str, api_key: Optional[str]) -> Optional[str]:
     """
-    Scrape a page using Firecrawl and return raw HTML.
+    Scrape a page using Crawl4AI (primary) or Firecrawl (fallback) and return raw HTML.
 
     Args:
         url: Page URL to scrape
-        api_key: Firecrawl API key
+        api_key: Firecrawl API key (used for fallback)
 
     Returns:
         Raw HTML string or None on failure
     """
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            "https://api.firecrawl.dev/v1/scrape",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "url": url,
-                "formats": ["rawHtml"],
-                "onlyMainContent": False,  # We need script tags and metadata
-                "timeout": 90000
-            }
-        )
+    # Check if any crawler is configured
+    crawl4ai_enabled = is_crawl4ai_enabled()
+    firecrawl_key = get_firecrawl_api_key()
 
-        if response.status_code != 200:
-            logger.error(f"Firecrawl API error {response.status_code}: {response.text}")
+    if not crawl4ai_enabled and not firecrawl_key:
+        logger.error("No crawler configured for HTML scraping")
+        return None
+
+    try:
+        crawler = get_crawler()
+        result = await crawler.scrape_raw_html(url)
+
+        if not result.get("success"):
+            logger.error(f"Crawler failed to scrape URL: {result.get('error')}")
             return None
 
-        data = response.json()
+        return result.get("data", {}).get("rawHtml", "")
 
-        if not data.get("success"):
-            logger.error("Firecrawl failed to scrape URL")
-            return None
-
-        return data.get("data", {}).get("rawHtml", "")
+    except CrawlerError as e:
+        logger.error(f"Crawler error scraping {url}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error scraping {url}: {e}")
+        return None
 
 
 def extract_mp3_urls(html: str) -> List[str]:

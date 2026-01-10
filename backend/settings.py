@@ -207,6 +207,86 @@ def get_firecrawl_source() -> str:
     return "none"
 
 
+# =============================================================================
+# Crawl4AI Settings (Self-hosted Web Scraper)
+# =============================================================================
+
+DEFAULT_CRAWL4AI_URL = "http://localhost:11235"
+
+
+def get_crawl4ai_url() -> str:
+    """
+    Get Crawl4AI service URL.
+    Priority: settings file > environment variable > default
+    """
+    settings = load_settings()
+    if settings.get("crawl4ai_url"):
+        return settings["crawl4ai_url"]
+    return os.getenv("CRAWL4AI_URL", DEFAULT_CRAWL4AI_URL)
+
+
+def set_crawl4ai_url(url: str) -> None:
+    """Set Crawl4AI service URL in settings file."""
+    settings = load_settings()
+    settings["crawl4ai_url"] = url.rstrip("/")
+    save_settings(settings)
+
+
+def get_crawler_provider() -> str:
+    """
+    Get the current crawler provider.
+    Returns: 'crawl4ai' or 'firecrawl'
+    Default is 'crawl4ai' if the service is available.
+    """
+    settings = load_settings()
+    return settings.get("crawler_provider", "crawl4ai")
+
+
+def set_crawler_provider(provider: str) -> None:
+    """
+    Set the crawler provider ('crawl4ai' or 'firecrawl').
+    """
+    if provider not in ("crawl4ai", "firecrawl"):
+        raise ValueError("Crawler provider must be 'crawl4ai' or 'firecrawl'")
+    settings = load_settings()
+    settings["crawler_provider"] = provider
+    save_settings(settings)
+
+
+def is_crawl4ai_enabled() -> bool:
+    """Check if Crawl4AI is the selected crawler provider."""
+    return get_crawler_provider() == "crawl4ai"
+
+
+def get_crawler_auto_fallback() -> bool:
+    """Check if auto-fallback to Firecrawl is enabled."""
+    settings = load_settings()
+    return settings.get("crawler_auto_fallback", True)
+
+
+def set_crawler_auto_fallback(enabled: bool) -> None:
+    """Set whether to auto-fallback to Firecrawl if Crawl4AI fails."""
+    settings = load_settings()
+    settings["crawler_auto_fallback"] = enabled
+    save_settings(settings)
+
+
+def get_crawler_settings() -> Dict[str, Any]:
+    """
+    Get all crawler settings for frontend display.
+
+    Returns:
+        Dict with provider, crawl4ai_url, firecrawl status, etc.
+    """
+    return {
+        "provider": get_crawler_provider(),
+        "crawl4ai_url": get_crawl4ai_url(),
+        "firecrawl_configured": has_firecrawl_configured(),
+        "firecrawl_source": get_firecrawl_source(),
+        "auto_fallback": get_crawler_auto_fallback(),
+    }
+
+
 DEFAULT_SYNTHESIZER_MODEL = "anthropic/claude-sonnet-4.5"
 
 

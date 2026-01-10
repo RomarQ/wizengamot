@@ -34,6 +34,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
   const [synthesizerSettings, setSynthesizerSettings] = useState(null);
   const [visualiserSettings, setVisualiserSettings] = useState(null);
   const [podcastSettings, setPodcastSettings] = useState(null);
+  const [crawlerSettings, setCrawlerSettings] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -61,7 +62,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
 
   const loadAllSettings = async () => {
     try {
-      const [settingsData, modelData, councilPrompts, synthPrompts, synthData, visData, podData] = await Promise.all([
+      const [settingsData, modelData, councilPrompts, synthPrompts, synthData, visData, podData, crawlerData] = await Promise.all([
         api.getSettings(),
         api.getModelSettings(),
         api.listPrompts('council'),
@@ -69,6 +70,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
         api.getSynthesizerSettings(),
         api.getVisualiserSettings(),
         api.getPodcastSettings(),
+        api.getCrawlerSettings().catch(() => null),
       ]);
       setSettings(settingsData);
       setModelSettings(modelData);
@@ -77,6 +79,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
       setSynthesizerSettings(synthData);
       setVisualiserSettings(visData);
       setPodcastSettings(podData);
+      setCrawlerSettings(crawlerData);
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -91,6 +94,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'general',
           <GeneralSection
             settings={settings}
             modelSettings={modelSettings}
+            crawlerSettings={crawlerSettings}
             loading={loading}
             setLoading={setLoading}
             setError={setError}

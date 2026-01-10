@@ -3,8 +3,8 @@
 Handles URL detection and content extraction from:
 - YouTube videos (via transcription)
 - Podcasts (via MP3 extraction and transcription)
-- PDFs and arXiv papers (via Firecrawl PDF parser)
-- Articles/blogs (via Firecrawl)
+- PDFs and arXiv papers (via Crawl4AI/Firecrawl)
+- Articles/blogs (via Crawl4AI/Firecrawl)
 """
 
 import re
@@ -13,17 +13,12 @@ import asyncio
 from typing import Dict, Any, Optional
 from functools import partial
 
-import httpx
-
-from .settings import get_firecrawl_api_key
+from .settings import get_firecrawl_api_key, is_crawl4ai_enabled
 from .workers.youtube import transcribe_youtube, extract_start_time
 from .workers.podcast import is_podcast_url, transcribe_podcast
+from .crawler import get_crawler, CrawlerError
 
 logger = logging.getLogger(__name__)
-
-# Firecrawl API endpoints
-FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape"
-FIRECRAWL_API_URL_V2 = "https://api.firecrawl.dev/v2/scrape"
 
 
 def detect_url_type(url: str) -> str:
@@ -197,7 +192,7 @@ async def fetch_podcast_content(url: str, whisper_model: str = "base") -> Dict[s
 
 async def fetch_article_content(url: str) -> Dict[str, Any]:
     """
-    Fetch article content using Firecrawl API.
+    Fetch article content using Crawl4AI (primary) or Firecrawl (fallback).
 
     Args:
         url: Article URL
@@ -210,71 +205,50 @@ async def fetch_article_content(url: str) -> Dict[str, Any]:
             "error": Optional[str]
         }
     """
+    # Check if any crawler is configured
     api_key = get_firecrawl_api_key()
-    if not api_key:
+    crawl4ai_enabled = is_crawl4ai_enabled()
+
+    if not crawl4ai_enabled and not api_key:
         return {
             "source_type": "article",
             "content": None,
             "title": None,
-            "error": "Firecrawl API key not configured. Please add it in Settings > Integrations."
+            "error": "No crawler configured. Enable Crawl4AI or add Firecrawl API key in Settings."
         }
 
     try:
-        # Firecrawl can take a while for some pages, use longer timeout
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                FIRECRAWL_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "url": url,
-                    "formats": ["markdown"],
-                    "timeout": 90000  # Tell Firecrawl to wait up to 90 seconds
-                }
-            )
+        crawler = get_crawler()
+        result = await crawler.scrape_article(url)
 
-            if response.status_code != 200:
-                error_text = response.text
-                logger.error(f"Firecrawl API error {response.status_code}: {error_text}")
-                return {
-                    "source_type": "article",
-                    "content": None,
-                    "title": None,
-                    "error": f"Firecrawl API error: {response.status_code}"
-                }
-
-            data = response.json()
-
-            if not data.get("success"):
-                return {
-                    "source_type": "article",
-                    "content": None,
-                    "title": None,
-                    "error": "Firecrawl failed to scrape the URL"
-                }
-
-            result_data = data.get("data", {})
-            markdown = result_data.get("markdown", "")
-            metadata = result_data.get("metadata", {})
-            title = metadata.get("title", metadata.get("ogTitle", ""))
-
+        if not result.get("success"):
             return {
                 "source_type": "article",
-                "content": markdown,
-                "title": title,
-                "description": metadata.get("description", ""),
-                "error": None
+                "content": None,
+                "title": None,
+                "error": result.get("error", "Failed to scrape the URL")
             }
 
-    except httpx.TimeoutException:
-        logger.error(f"Firecrawl request timed out for: {url}")
+        result_data = result.get("data", {})
+        markdown = result_data.get("markdown", "")
+        metadata = result_data.get("metadata", {})
+        title = metadata.get("title", metadata.get("ogTitle", ""))
+
+        return {
+            "source_type": "article",
+            "content": markdown,
+            "title": title,
+            "description": metadata.get("description", ""),
+            "error": None
+        }
+
+    except CrawlerError as e:
+        logger.error(f"Crawler error for {url}: {e}")
         return {
             "source_type": "article",
             "content": None,
             "title": None,
-            "error": "Request timed out"
+            "error": str(e)
         }
     except Exception as e:
         logger.error(f"Failed to fetch article content: {e}")
@@ -288,7 +262,7 @@ async def fetch_article_content(url: str) -> Dict[str, Any]:
 
 async def fetch_pdf_content(url: str) -> Dict[str, Any]:
     """
-    Fetch PDF content using Firecrawl API with PDF parser.
+    Fetch PDF content using Crawl4AI (primary) or Firecrawl (fallback).
     Handles both direct PDF URLs and arXiv links.
 
     Args:
@@ -302,83 +276,56 @@ async def fetch_pdf_content(url: str) -> Dict[str, Any]:
             "error": Optional[str]
         }
     """
+    # Check if any crawler is configured
     api_key = get_firecrawl_api_key()
-    if not api_key:
+    crawl4ai_enabled = is_crawl4ai_enabled()
+
+    if not crawl4ai_enabled and not api_key:
         return {
             "source_type": "pdf",
             "content": None,
             "title": None,
-            "error": "Firecrawl API key not configured. Please add it in Settings > Integrations."
+            "error": "No crawler configured. Enable Crawl4AI or add Firecrawl API key in Settings."
         }
 
-    # Convert arXiv abstract URLs to PDF URLs for full paper parsing
     original_url = url
-    if 'arxiv.org/abs/' in url:
-        url = url.replace('/abs/', '/pdf/') + '.pdf'
-        logger.info(f"Converted arXiv URL: {original_url} -> {url}")
-    elif 'arxiv.org/pdf/' in url and not url.endswith('.pdf'):
-        url = url + '.pdf'
 
     try:
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            response = await client.post(
-                FIRECRAWL_API_URL_V2,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "url": url,
-                    "formats": ["markdown"],
-                    "parsers": ["pdf"],
-                    "timeout": 150000
-                }
-            )
+        crawler = get_crawler()
+        result = await crawler.scrape_pdf(url)
 
-            if response.status_code != 200:
-                error_text = response.text
-                logger.error(f"Firecrawl API error {response.status_code}: {error_text}")
-                return {
-                    "source_type": "pdf",
-                    "content": None,
-                    "title": None,
-                    "error": f"Firecrawl API error: {response.status_code}"
-                }
-
-            data = response.json()
-
-            if not data.get("success"):
-                return {
-                    "source_type": "pdf",
-                    "content": None,
-                    "title": None,
-                    "error": "Firecrawl failed to parse the PDF"
-                }
-
-            result_data = data.get("data", {})
-            markdown = result_data.get("markdown", "")
-            metadata = result_data.get("metadata", {})
-            title = metadata.get("title", metadata.get("ogTitle", ""))
-
-            # Try to extract title from arXiv URL if not in metadata
-            if not title and 'arxiv.org' in original_url:
-                title = f"arXiv Paper"
-
+        if not result.get("success"):
             return {
                 "source_type": "pdf",
-                "content": markdown,
-                "title": title,
-                "description": metadata.get("description", ""),
-                "error": None
+                "content": None,
+                "title": None,
+                "error": result.get("error", "Failed to parse the PDF")
             }
 
-    except httpx.TimeoutException:
-        logger.error(f"Firecrawl PDF request timed out for: {url}")
+        result_data = result.get("data", {})
+        markdown = result_data.get("markdown", "")
+        metadata = result_data.get("metadata", {})
+        title = metadata.get("title", metadata.get("ogTitle", ""))
+
+        # Try to extract title from arXiv URL if not in metadata
+        if not title and 'arxiv.org' in original_url:
+            title = "arXiv Paper"
+
+        return {
+            "source_type": "pdf",
+            "content": markdown,
+            "title": title,
+            "description": metadata.get("description", ""),
+            "error": None
+        }
+
+    except CrawlerError as e:
+        logger.error(f"Crawler error for PDF {url}: {e}")
         return {
             "source_type": "pdf",
             "content": None,
             "title": None,
-            "error": "PDF parsing request timed out"
+            "error": str(e)
         }
     except Exception as e:
         logger.error(f"Failed to fetch PDF content: {e}")

@@ -1924,12 +1924,66 @@ async def clear_firecrawl_api_key():
     }
 
 
+# =============================================================================
+# Crawler Settings (Crawl4AI / Firecrawl)
+# =============================================================================
+
+@app.get("/api/crawler/health")
+async def get_crawler_health():
+    """Check if the Crawl4AI service is healthy with detailed stats."""
+    from .crawler.client import Crawl4AIClient
+    try:
+        client = Crawl4AIClient(settings.get_crawl4ai_url())
+        health = await client.health_check_detailed()
+        return {
+            **health,
+            "provider": settings.get_crawler_provider(),
+            "crawl4ai_url": settings.get_crawl4ai_url(),
+        }
+    except Exception as e:
+        return {
+            "healthy": False,
+            "provider": settings.get_crawler_provider(),
+            "error": str(e)
+        }
+
+
+@app.get("/api/settings/crawler")
+async def get_crawler_settings_endpoint():
+    """Get crawler settings."""
+    return settings.get_crawler_settings()
+
+
+class UpdateCrawlerSettingsRequest(BaseModel):
+    """Request to update crawler settings."""
+    provider: Optional[str] = None
+    crawl4ai_url: Optional[str] = None
+    auto_fallback: Optional[bool] = None
+
+
+@app.put("/api/settings/crawler")
+async def update_crawler_settings(request: UpdateCrawlerSettingsRequest):
+    """Update crawler settings."""
+    if request.provider:
+        settings.set_crawler_provider(request.provider)
+    if request.crawl4ai_url:
+        settings.set_crawl4ai_url(request.crawl4ai_url)
+    if request.auto_fallback is not None:
+        settings.set_crawler_auto_fallback(request.auto_fallback)
+    return {
+        "success": True,
+        **settings.get_crawler_settings()
+    }
+
+
 @app.get("/api/settings/synthesizer")
 async def get_synthesizer_settings():
     """Get synthesizer-specific settings."""
     return {
         "firecrawl_configured": settings.has_firecrawl_configured(),
         "firecrawl_source": settings.get_firecrawl_source(),
+        "crawler_provider": settings.get_crawler_provider(),
+        "crawl4ai_url": settings.get_crawl4ai_url(),
         "default_model": settings.get_synthesizer_model(),
         "default_mode": settings.get_synthesizer_mode(),
         "default_prompt": settings.get_synthesizer_prompt()

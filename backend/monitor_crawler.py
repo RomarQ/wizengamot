@@ -1,5 +1,5 @@
 """
-Monitor crawler using Firecrawl for page fetching.
+Monitor crawler using Crawl4AI (primary) or Firecrawl (fallback) for page fetching.
 Handles crawling, snapshot storage, and change detection.
 Includes screenshot capture support.
 """
@@ -7,26 +7,24 @@ Includes screenshot capture support.
 import base64
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import httpx
-
-from .settings import get_firecrawl_api_key
+from .settings import get_firecrawl_api_key, is_crawl4ai_enabled
 from .monitors import get_monitor, update_monitor, _get_monitor_data_dir
 from .search import get_embedding
 from .monitor_analysis import analyze_with_diff
+from .crawler import get_crawler, CrawlerError
 
-# Firecrawl API endpoints
-FIRECRAWL_API_URL = "https://api.firecrawl.dev/v1/scrape"
-FIRECRAWL_MAP_URL = "https://api.firecrawl.dev/v1/map"
+logger = logging.getLogger(__name__)
 
 
 async def map_website(url: str, limit: int = 200) -> dict:
     """
-    Discover all pages on a website using Firecrawl's map endpoint.
+    Discover all pages on a website using Crawl4AI (primary) or Firecrawl (fallback).
 
     Args:
         url: The root URL of the website to map
@@ -40,99 +38,62 @@ async def map_website(url: str, limit: int = 200) -> dict:
             "error": str | None
         }
     """
+    # Check if any crawler is configured
     api_key = get_firecrawl_api_key()
-    if not api_key:
+    crawl4ai_enabled = is_crawl4ai_enabled()
+
+    if not crawl4ai_enabled and not api_key:
         return {
             "success": False,
             "pages": [],
             "total_found": 0,
-            "error": "Firecrawl API key not configured"
+            "error": "No crawler configured. Enable Crawl4AI or add Firecrawl API key."
         }
 
-    # Debug: Log the URL being mapped
-    print(f"[map_website] Mapping URL: {url}")
+    logger.info(f"[map_website] Mapping URL: {url}")
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            request_body = {
-                "url": url,
-                "limit": limit,
-                "ignoreSitemap": False,
-                "includeSubdomains": False
-            }
-            print(f"[map_website] Request body: {request_body}")
+        crawler = get_crawler()
+        result = await crawler.map_website(url, limit)
 
-            response = await client.post(
-                FIRECRAWL_MAP_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=request_body
-            )
-
-            print(f"[map_website] Response status: {response.status_code}")
-
-            if response.status_code != 200:
-                # Log the full response body for debugging
-                try:
-                    error_body = response.json()
-                    print(f"[map_website] Error response body: {error_body}")
-                    error_detail = error_body.get("error", error_body.get("message", str(error_body)))
-                except Exception:
-                    error_detail = response.text[:500] if response.text else "No response body"
-                    print(f"[map_website] Error response text: {error_detail}")
-
-                return {
-                    "success": False,
-                    "pages": [],
-                    "total_found": 0,
-                    "error": f"Firecrawl API error ({response.status_code}): {error_detail}"
-                }
-
-            data = response.json()
-
-            if not data.get("success"):
-                error_msg = data.get("error", "Firecrawl failed to map the URL")
-                print(f"[map_website] Firecrawl returned success=false: {error_msg}")
-                print(f"[map_website] Full response: {data}")
-                return {
-                    "success": False,
-                    "pages": [],
-                    "total_found": 0,
-                    "error": error_msg
-                }
-
-            # Map endpoint returns a list of URLs (may include titles in some cases)
-            links = data.get("links", [])
-
-            # Normalize to consistent format
-            pages = []
-            for link in links:
-                if isinstance(link, str):
-                    pages.append({"url": link, "title": None})
-                elif isinstance(link, dict):
-                    pages.append({
-                        "url": link.get("url", link.get("link", "")),
-                        "title": link.get("title")
-                    })
-
-            print(f"[map_website] Success! Found {len(pages)} pages")
+        if not result.get("success"):
             return {
-                "success": True,
-                "pages": pages,
-                "total_found": len(pages),
-                "error": None
+                "success": False,
+                "pages": [],
+                "total_found": 0,
+                "error": result.get("error", "Failed to map the URL")
             }
 
-    except httpx.TimeoutException:
+        # Normalize links to consistent format
+        links = result.get("links", [])
+        pages = []
+        for link in links:
+            if isinstance(link, str):
+                pages.append({"url": link, "title": None})
+            elif isinstance(link, dict):
+                pages.append({
+                    "url": link.get("url", link.get("link", "")),
+                    "title": link.get("title")
+                })
+
+        logger.info(f"[map_website] Success! Found {len(pages)} pages")
+        return {
+            "success": True,
+            "pages": pages,
+            "total_found": len(pages),
+            "error": None
+        }
+
+    except CrawlerError as e:
+        logger.error(f"[map_website] Crawler error: {e}")
         return {
             "success": False,
             "pages": [],
             "total_found": 0,
-            "error": "Request timed out"
+            "error": str(e)
         }
     except Exception as e:
+        logger.error(f"[map_website] Unexpected error: {e}")
         return {
             "success": False,
             "pages": [],
@@ -215,7 +176,7 @@ def _get_latest_snapshot(monitor_id: str, competitor_id: str, page_id: str) -> O
 
 async def _fetch_with_screenshot(url: str) -> dict:
     """
-    Fetch page content and screenshot using Firecrawl API.
+    Fetch page content and screenshot using Crawl4AI (primary) or Firecrawl (fallback).
 
     Returns:
         {
@@ -225,69 +186,53 @@ async def _fetch_with_screenshot(url: str) -> dict:
             "error": str | None
         }
     """
+    # Check if any crawler is configured
     api_key = get_firecrawl_api_key()
-    if not api_key:
+    crawl4ai_enabled = is_crawl4ai_enabled()
+
+    if not crawl4ai_enabled and not api_key:
         return {
             "content": None,
             "screenshot": None,
             "title": None,
-            "error": "Firecrawl API key not configured"
+            "error": "No crawler configured. Enable Crawl4AI or add Firecrawl API key."
         }
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                FIRECRAWL_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "url": url,
-                    "formats": ["markdown", "screenshot"],
-                    "timeout": 90000
-                }
-            )
+        crawler = get_crawler()
+        result = await crawler.scrape_with_screenshot(url)
 
-            if response.status_code != 200:
-                return {
-                    "content": None,
-                    "screenshot": None,
-                    "title": None,
-                    "error": f"Firecrawl API error: {response.status_code}"
-                }
-
-            data = response.json()
-
-            if not data.get("success"):
-                return {
-                    "content": None,
-                    "screenshot": None,
-                    "title": None,
-                    "error": "Firecrawl failed to scrape the URL"
-                }
-
-            result_data = data.get("data", {})
-            markdown = result_data.get("markdown", "")
-            screenshot = result_data.get("screenshot")  # base64 encoded
-            metadata = result_data.get("metadata", {})
-            title = metadata.get("title", metadata.get("ogTitle", ""))
-
+        if not result.get("success"):
             return {
-                "content": markdown,
-                "screenshot": screenshot,
-                "title": title,
-                "error": None
+                "content": None,
+                "screenshot": None,
+                "title": None,
+                "error": result.get("error", "Failed to scrape the URL")
             }
 
-    except httpx.TimeoutException:
+        result_data = result.get("data", {})
+        markdown = result_data.get("markdown", "")
+        screenshot = result_data.get("screenshot")  # base64 encoded (prefix stripped by adapter)
+        metadata = result_data.get("metadata", {})
+        title = metadata.get("title", metadata.get("ogTitle", ""))
+
+        return {
+            "content": markdown,
+            "screenshot": screenshot,
+            "title": title,
+            "error": None
+        }
+
+    except CrawlerError as e:
+        logger.error(f"Crawler error fetching {url}: {e}")
         return {
             "content": None,
             "screenshot": None,
             "title": None,
-            "error": "Request timed out"
+            "error": str(e)
         }
     except Exception as e:
+        logger.error(f"Unexpected error fetching {url}: {e}")
         return {
             "content": None,
             "screenshot": None,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../../api';
 import ModelReplacementModal from '../ModelReplacementModal';
 import './GeneralSection.css';
@@ -6,6 +6,7 @@ import './GeneralSection.css';
 export default function GeneralSection({
   settings,
   modelSettings,
+  crawlerSettings,
   loading,
   setLoading,
   setError,
@@ -15,6 +16,12 @@ export default function GeneralSection({
   const [apiKey, setApiKey] = useState('');
   const [firecrawlKey, setFirecrawlKey] = useState('');
   const [newModel, setNewModel] = useState('');
+
+  // Crawler settings state
+  const [crawlerHealth, setCrawlerHealth] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [crawl4aiUrl, setCrawl4aiUrl] = useState('');
+  const [urlSaving, setUrlSaving] = useState(false);
   const [testingModel, setTestingModel] = useState(null);
   const [testResults, setTestResults] = useState({}); // model -> 'passed' | 'failed'
   const [testErrorPopup, setTestErrorPopup] = useState(null); // { model, message }
@@ -23,6 +30,96 @@ export default function GeneralSection({
     modelToRemove: null,
     dependencies: null,
   });
+
+  // Initialize crawl4ai URL from settings
+  useEffect(() => {
+    if (crawlerSettings?.crawl4ai_url) {
+      setCrawl4aiUrl(crawlerSettings.crawl4ai_url);
+    }
+  }, [crawlerSettings]);
+
+  // Health check polling
+  useEffect(() => {
+    const checkHealth = async () => {
+      setHealthLoading(true);
+      try {
+        const health = await api.getCrawlerHealth();
+        setCrawlerHealth(health);
+      } catch {
+        setCrawlerHealth({ healthy: false, error: 'Connection failed' });
+      }
+      setHealthLoading(false);
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format uptime for display
+  const formatUptime = (seconds) => {
+    if (!seconds) return 'N/A';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  // Crawler settings handlers
+  const handleUpdateCrawlerProvider = async (provider) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateCrawlerSettings({ provider });
+      setSuccess(`Switched to ${provider === 'crawl4ai' ? 'Crawl4AI' : 'Firecrawl'}`);
+      await onReload();
+    } catch (err) {
+      setError('Failed to update crawler provider');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleAutoFallback = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateCrawlerSettings({ auto_fallback: !crawlerSettings?.auto_fallback });
+      setSuccess(crawlerSettings?.auto_fallback ? 'Auto-fallback disabled' : 'Auto-fallback enabled');
+      await onReload();
+    } catch (err) {
+      setError('Failed to update fallback setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveCrawl4aiUrl = async () => {
+    if (!crawl4aiUrl.trim()) {
+      setError('Please enter a Crawl4AI URL');
+      return;
+    }
+
+    setUrlSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.updateCrawlerSettings({ crawl4ai_url: crawl4aiUrl.trim() });
+      setSuccess('Crawl4AI URL saved');
+      await onReload();
+    } catch (err) {
+      setError('Failed to save Crawl4AI URL');
+    } finally {
+      setUrlSaving(false);
+    }
+  };
 
   // API Key handlers
   const handleSaveApiKey = async () => {
@@ -207,7 +304,7 @@ export default function GeneralSection({
   return (
     <div className="settings-section general-section">
       {/* API Keys */}
-      <div className="modal-section">
+      <div id="api-keys" className="modal-section">
         <h3>API Keys</h3>
 
         <div className="api-key-block">
@@ -296,7 +393,7 @@ export default function GeneralSection({
       </div>
 
       {/* Model Pool */}
-      <div className="modal-section">
+      <div id="model-pool" className="modal-section">
         <h3>Model Pool</h3>
         <p className="section-description">
           Available models for all modes. Models are tested before being added.
@@ -376,6 +473,102 @@ export default function GeneralSection({
           <button className="btn-primary btn-small" onClick={handleAddModel} disabled={loading || !newModel.trim()}>
             Add
           </button>
+        </div>
+      </div>
+
+      {/* Web Scraping */}
+      <div id="web-scraping" className="modal-section">
+        <h3>Web Scraping</h3>
+
+        {/* Crawl4AI Health Card */}
+        <div className="crawler-health-card">
+          <div className="crawler-health-header">
+            <span className="crawler-service-name">Crawl4AI Service</span>
+            <div className="health-status">
+              <span className={`health-dot ${healthLoading ? 'loading' : crawlerHealth?.healthy ? 'healthy' : 'unhealthy'}`}></span>
+              <span className="health-label">
+                {healthLoading ? 'Checking...' : crawlerHealth?.healthy ? 'Healthy' : crawlerHealth?.error || 'Unavailable'}
+              </span>
+            </div>
+          </div>
+
+          {crawlerHealth?.healthy && (
+            <div className="health-stats">
+              <div className="health-stat">
+                <span className="stat-label">Memory</span>
+                <span className="stat-value">{crawlerHealth.memory_percent?.toFixed(1) || 'N/A'}%</span>
+              </div>
+              <div className="health-stat">
+                <span className="stat-label">CPU</span>
+                <span className="stat-value">{crawlerHealth.cpu_percent?.toFixed(1) || 'N/A'}%</span>
+              </div>
+              <div className="health-stat">
+                <span className="stat-label">Uptime</span>
+                <span className="stat-value">{formatUptime(crawlerHealth.uptime_seconds)}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="crawler-url-display">
+            {crawlerSettings?.crawl4ai_url || 'http://localhost:11235'}
+          </div>
+        </div>
+
+        {/* Provider Selection */}
+        <div className="crawler-setting-row">
+          <label htmlFor="crawler-provider">Provider</label>
+          <select
+            id="crawler-provider"
+            className="crawler-select"
+            value={crawlerSettings?.provider || 'crawl4ai'}
+            onChange={(e) => handleUpdateCrawlerProvider(e.target.value)}
+            disabled={loading}
+          >
+            <option value="crawl4ai">Crawl4AI (recommended)</option>
+            <option value="firecrawl">Firecrawl</option>
+          </select>
+        </div>
+
+        {/* Auto-fallback */}
+        <div className="crawler-setting-row crawler-checkbox-row">
+          <label className="crawler-checkbox-label">
+            <input
+              type="checkbox"
+              checked={crawlerSettings?.auto_fallback || false}
+              onChange={handleToggleAutoFallback}
+              disabled={loading}
+            />
+            <span>Auto-fallback to Firecrawl if Crawl4AI unavailable</span>
+          </label>
+          {settings?.firecrawl_configured && (
+            <span className="firecrawl-status configured">Firecrawl configured</span>
+          )}
+          {!settings?.firecrawl_configured && (
+            <span className="firecrawl-status not-configured">Firecrawl not configured</span>
+          )}
+        </div>
+
+        {/* Crawl4AI URL */}
+        <div className="crawler-setting-row">
+          <label htmlFor="crawl4ai-url">Crawl4AI URL</label>
+          <div className="crawler-url-input-group">
+            <input
+              id="crawl4ai-url"
+              type="text"
+              className="crawler-url-input"
+              placeholder="http://localhost:11235"
+              value={crawl4aiUrl}
+              onChange={(e) => setCrawl4aiUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveCrawl4aiUrl()}
+            />
+            <button
+              className="btn-primary btn-small"
+              onClick={handleSaveCrawl4aiUrl}
+              disabled={urlSaving || !crawl4aiUrl.trim()}
+            >
+              {urlSaving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
 

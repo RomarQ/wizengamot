@@ -1692,6 +1692,55 @@ export const api = {
   },
 
   // ==========================================================================
+  // Crawler Settings API Methods
+  // ==========================================================================
+
+  /**
+   * Get crawler health status including memory, CPU, and uptime.
+   * Returns: { healthy, memory_percent, cpu_percent, uptime_seconds, error }
+   */
+  async getCrawlerHealth() {
+    const response = await fetch(`${API_BASE}/api/crawler/health`);
+    if (!response.ok) {
+      throw new Error('Failed to get crawler health');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get crawler settings including provider and URL configuration.
+   * Returns: { provider, crawl4ai_url, firecrawl_configured, auto_fallback }
+   */
+  async getCrawlerSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/crawler`);
+    if (!response.ok) {
+      throw new Error('Failed to get crawler settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update crawler settings.
+   * @param {Object} settings - Settings to update
+   * @param {string} [settings.provider] - 'crawl4ai' or 'firecrawl'
+   * @param {string} [settings.crawl4ai_url] - Crawl4AI service URL
+   * @param {boolean} [settings.auto_fallback] - Auto-fallback to Firecrawl
+   */
+  async updateCrawlerSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/crawler`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update crawler settings');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
   // Tweet Generation
   // ==========================================================================
 

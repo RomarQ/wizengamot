@@ -1,4 +1,22 @@
 services:
+  # Crawl4AI - Self-hosted web scraper
+  crawler:
+    image: unclecode/crawl4ai:latest
+    container_name: wizengamot-crawler
+    ports:
+      - "11235:11235"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11235/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
   wizengamot:
     build: .
     container_name: wizengamot
@@ -13,6 +31,10 @@ services:
       - DATA_DIR=/app/data/conversations
       - PROMPTS_DIR=/app/prompts
       - CONFIG_DIR=/app/data/config
+      - CRAWL4AI_URL=http://crawler:11235
+    depends_on:
+      crawler:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/api/config"]

@@ -61,6 +61,63 @@ echo ""
 echo "Starting Wizengamot..."
 echo ""
 
+# Configure Docker socket for Colima (macOS) if needed
+if [ -z "$DOCKER_HOST" ]; then
+    # Check for Colima socket first (common on macOS)
+    COLIMA_SOCKET="$HOME/.colima/default/docker.sock"
+    if [ -S "$COLIMA_SOCKET" ]; then
+        export DOCKER_HOST="unix://$COLIMA_SOCKET"
+        echo -e "Using Colima Docker socket"
+    elif [ ! -S "/var/run/docker.sock" ]; then
+        # Neither socket exists - try to start Colima if installed
+        if command -v colima &>/dev/null; then
+            echo -e "${YELLOW}Docker socket not found. Starting Colima...${NC}"
+            colima start
+            if [ -S "$COLIMA_SOCKET" ]; then
+                export DOCKER_HOST="unix://$COLIMA_SOCKET"
+            fi
+        else
+            echo -e "${YELLOW}Warning: Docker socket not found. Crawl4AI container may not start.${NC}"
+            echo "If using Colima, run: colima start"
+        fi
+    fi
+fi
+
+# Start Crawl4AI container if not already running
+CRAWL4AI_PORT=${CRAWL4AI_PORT:-11235}
+CRAWLER_CONTAINER="wizengamot-crawler"
+
+if ! docker ps --format '{{.Names}}' | grep -q "^${CRAWLER_CONTAINER}$"; then
+    # Check if container exists but is stopped
+    if docker ps -a --format '{{.Names}}' | grep -q "^${CRAWLER_CONTAINER}$"; then
+        echo "Starting existing Crawl4AI container..."
+        docker start "$CRAWLER_CONTAINER"
+    else
+        echo "Starting Crawl4AI on http://localhost:$CRAWL4AI_PORT..."
+        docker run -d --name "$CRAWLER_CONTAINER" \
+            -p "$CRAWL4AI_PORT:11235" \
+            --memory=4g \
+            unclecode/crawl4ai:latest
+    fi
+
+    # Wait for health check
+    echo -n "Waiting for Crawl4AI to be ready"
+    for i in {1..30}; do
+        if curl -s "http://localhost:$CRAWL4AI_PORT/monitor/health" >/dev/null 2>&1; then
+            echo -e " ${GREEN}ready${NC}"
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+
+    if ! curl -s "http://localhost:$CRAWL4AI_PORT/monitor/health" >/dev/null 2>&1; then
+        echo -e " ${YELLOW}timeout (will continue anyway)${NC}"
+    fi
+else
+    echo -e "Crawl4AI already running on http://localhost:$CRAWL4AI_PORT"
+fi
+
 # Run dependency checks unless skipped
 if [ $SKIP_CHECKS -eq 0 ]; then
     if [ -f "$SCRIPT_DIR/scripts/check-deps.sh" ]; then
@@ -128,6 +185,11 @@ cleanup() {
     kill -- -$BACKEND_PID 2>/dev/null || kill $BACKEND_PID 2>/dev/null
     kill $FRONTEND_PID 2>/dev/null
     wait $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    # Stop Crawl4AI container
+    if docker ps --format '{{.Names}}' | grep -q "^${CRAWLER_CONTAINER}$"; then
+        echo "Stopping Crawl4AI container..."
+        docker stop "$CRAWLER_CONTAINER" >/dev/null 2>&1
+    fi
     rm -f "$PID_FILE"
     echo "Done."
     exit 0
