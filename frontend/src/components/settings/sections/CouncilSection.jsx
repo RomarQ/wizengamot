@@ -178,7 +178,7 @@ export default function CouncilSection({
   return (
     <div className="settings-section council-section">
       {/* Council Members */}
-      <div className="modal-section">
+      <div id="council-members" className="modal-section">
         <h3>Default Council Members</h3>
         <p className="section-description">
           Select which models participate in new conversations by default
@@ -199,7 +199,7 @@ export default function CouncilSection({
       </div>
 
       {/* Chairman */}
-      <div className="modal-section">
+      <div id="council-chairman" className="modal-section">
         <h3>Default Chairman</h3>
         <p className="section-description">Model that synthesizes the final answer</p>
         <select
@@ -217,7 +217,7 @@ export default function CouncilSection({
       </div>
 
       {/* Stage Prompts */}
-      <div className="modal-section">
+      <div id="council-stage-prompts" className="modal-section">
         <h3>Stage Prompts</h3>
         <p className="section-description">
           Customize the prompts used for ranking (Stage 2) and synthesis (Stage 3)
@@ -260,7 +260,7 @@ export default function CouncilSection({
       />
 
       {/* System Prompts */}
-      <div className="modal-section">
+      <div id="council-system-prompts" className="modal-section">
         <h3>Default System Prompt</h3>
         <p className="section-description">System prompt used for new Council conversations</p>
         <select

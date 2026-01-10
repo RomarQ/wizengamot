@@ -73,6 +73,7 @@
 .modal-section {
   margin-bottom: 24px;
   position: relative;
+  scroll-margin-top: 16px;
 }
 
 .modal-section h3 {

@@ -599,7 +599,7 @@ export default function PodcastSection({
   return (
     <div className="settings-section podcast-section">
       {/* ElevenLabs API Key Section */}
-      <div className="modal-section">
+      <div id="podcast-tts" className="modal-section">
         <h3>
           <Mic size={18} />
           ElevenLabs TTS
@@ -658,7 +658,7 @@ export default function PodcastSection({
 
       {/* Speaker Configuration - only show if ElevenLabs is configured */}
       {podcastSettings?.elevenlabs_configured && (
-        <div className="modal-section">
+        <div id="podcast-speakers" className="modal-section">
           <h3>Speaker Configuration</h3>
           <p className="section-description">
             Configure the two speakers for your podcast. Each speaker has their own voice, settings, and personality prompt.
@@ -703,7 +703,7 @@ export default function PodcastSection({
       )}
 
       {/* Cover Art Settings */}
-      <div className="modal-section">
+      <div id="podcast-cover-art" className="modal-section">
         <h3>
           <Image size={18} />
           Cover Art Generation
@@ -783,7 +783,7 @@ export default function PodcastSection({
       </div>
 
       {/* Narration Styles */}
-      <div className="modal-section">
+      <div id="podcast-narration" className="modal-section">
         <h3>
           <Radio size={18} />
           Narration Styles

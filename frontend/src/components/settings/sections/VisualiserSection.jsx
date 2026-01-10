@@ -158,7 +158,7 @@ export default function VisualiserSection({
 
   return (
     <div className="settings-section visualiser-section">
-      <div className="modal-section">
+      <div id="visualiser-model" className="modal-section">
         <h3>Image Generation Model</h3>
         <p className="section-description">
           Model used for generating diagram images. Must support image output (e.g.,
@@ -191,7 +191,7 @@ export default function VisualiserSection({
         )}
       </div>
 
-      <div className="modal-section">
+      <div id="visualiser-styles" className="modal-section">
         <div className="section-header">
           <h3>Diagram Styles</h3>
           <button className="btn-small btn-primary" onClick={handleNewStyle}>

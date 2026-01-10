@@ -140,7 +140,7 @@ export default function SynthesizerSection({
 
   return (
     <div className="settings-section synthesizer-section">
-      <div className="modal-section">
+      <div id="synthesizer-settings" className="modal-section">
         <h3>Synthesizer Settings</h3>
         <p className="section-description">
           Configure default behavior for the Synthesizer mode
@@ -196,7 +196,7 @@ export default function SynthesizerSection({
         )}
       </div>
 
-      <div className="modal-section">
+      <div id="synthesizer-prompts" className="modal-section">
         <div className="section-header">
           <h3>Synthesizer Prompts</h3>
           <button className="btn-small btn-primary" onClick={handleNewPrompt}>
@@ -236,7 +236,7 @@ export default function SynthesizerSection({
       </div>
 
       {/* Stage Prompts for Deliberation Mode */}
-      <div className="modal-section">
+      <div id="synthesizer-stage-prompts" className="modal-section">
         <h3>Stage Prompts</h3>
         <p className="section-description">
           Customize the prompts used for ranking and synthesis in deliberation mode
