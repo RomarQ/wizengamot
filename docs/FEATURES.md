@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Jan 17 - Knowledge Graph UX improvements: modern search pill, clickable note references in chat, source cards in detail panel
 - Jan 17 - Knowledge Graph for visualizing entity relationships across notes with search and RAG chat
 - Jan 10 - Settings sidebar submenus with accordion navigation
 - Jan 10 - Crawl4AI integration as primary web scraper with Firecrawl fallback

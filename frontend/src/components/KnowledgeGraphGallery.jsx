@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut } from 'lucide-react';
+import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search } from 'lucide-react';
 import KnowledgeGraphViewer from './KnowledgeGraphViewer';
 import KnowledgeGraphChat from './KnowledgeGraphChat';
 import KnowledgeGraphSearch from './KnowledgeGraphSearch';
@@ -29,7 +29,9 @@ export default function KnowledgeGraphGallery({
   const [expandedView, setExpandedView] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [searchMatchedNodes, setSearchMatchedNodes] = useState([]);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const containerRef = useRef(null);
+  const searchContainerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   // Find connected nodes for the selected node
@@ -74,7 +76,8 @@ export default function KnowledgeGraphGallery({
   // Find the source node for a note
   const sourceNode = useMemo(() => {
     if (!selectedNode || selectedNode.type !== 'note' || !graphData?.nodes) return null;
-    return graphData.nodes.find(n => n.type === 'source' && n.id === selectedNode.group);
+    // Notes have sourceId property that points to the source node
+    return graphData.nodes.find(n => n.type === 'source' && n.id === selectedNode.sourceId);
   }, [selectedNode, graphData]);
 
   // Create filtered subgraph when in focus mode
@@ -196,8 +199,18 @@ export default function KnowledgeGraphGallery({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Cmd+Shift+V to open search (avoiding Cmd+K which is global palette)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'v') {
+        e.preventDefault();
+        if (!loading && graphData?.nodes?.length > 0) {
+          setSearchExpanded(true);
+        }
+      }
       if (e.key === 'Escape') {
-        if (selectedNode) {
+        if (searchExpanded) {
+          setSearchExpanded(false);
+          setSearchMatchedNodes([]);
+        } else if (selectedNode) {
           setSelectedNode(null);
         } else {
           onClose();
@@ -207,7 +220,21 @@ export default function KnowledgeGraphGallery({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, selectedNode]);
+  }, [onClose, selectedNode, searchExpanded, loading, graphData]);
+
+  // Handle click outside search to collapse
+  useEffect(() => {
+    if (!searchExpanded) return;
+
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setSearchExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [searchExpanded]);
 
   // Start migration
   const handleStartMigration = async () => {
@@ -264,7 +291,8 @@ export default function KnowledgeGraphGallery({
     if (selectedNode) {
       let conversationId = null;
       if (selectedNode.type === 'note') {
-        conversationId = selectedNode.group;
+        // sourceId format is "source:{conversationId}", extract the conversation ID
+        conversationId = selectedNode.sourceId?.replace('source:', '');
       } else if (selectedNode.type === 'source') {
         conversationId = selectedNode.conversationId;
       }
@@ -317,27 +345,58 @@ export default function KnowledgeGraphGallery({
   return (
     <div className="kg-gallery">
       {/* Header */}
-      <div className="kg-gallery-header">
+      <div className={`kg-gallery-header ${searchExpanded ? 'search-active' : ''}`}>
         <div className="kg-gallery-title">
           <Network size={24} />
           <h2>Knowledge Graph</h2>
+          {/* Compact stats shown next to title when not searching */}
+          {!searchExpanded && stats && (
+            <div className="kg-compact-stats">
+              <span>{stats.total_notes} notes</span>
+              <span className="kg-stat-dot">·</span>
+              <span>{stats.total_entities} entities</span>
+            </div>
+          )}
         </div>
 
-        {stats && (
-          <div className="kg-gallery-stats">
-            <span className="kg-stat">
-              <span className="kg-stat-value">{stats.total_notes}</span> notes
-            </span>
-            <span className="kg-stat">
-              <span className="kg-stat-value">{stats.total_entities}</span> entities
-            </span>
-            <span className="kg-stat">
-              <span className="kg-stat-value">{graphData?.stats?.connections || 0}</span> connections
-            </span>
-          </div>
-        )}
+        {/* Modern Search - Pill when collapsed, full input when expanded */}
+        <div className={`kg-search-area ${searchExpanded ? 'expanded' : ''}`} ref={searchContainerRef}>
+          {searchExpanded ? (
+            <div className="kg-search-expanded">
+              <KnowledgeGraphSearch
+                graphData={graphData}
+                onResultsChange={handleSearchResultsChange}
+                onSelectNode={(nodeId) => {
+                  handleSearchSelectNode(nodeId);
+                  setSearchExpanded(false);
+                }}
+                autoFocus={true}
+              />
+              <button
+                className="kg-search-close"
+                onClick={() => {
+                  setSearchExpanded(false);
+                  setSearchMatchedNodes([]);
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            !loading && graphData?.nodes?.length > 0 && (
+              <button
+                className="kg-search-pill"
+                onClick={() => setSearchExpanded(true)}
+              >
+                <Search size={14} />
+                <span className="kg-search-pill-text">Search nodes...</span>
+                <kbd className="kg-search-shortcut">⇧⌘V</kbd>
+              </button>
+            )
+          )}
+        </div>
 
-        <div className="kg-gallery-actions">
+        <div className={`kg-gallery-actions ${searchExpanded ? 'hidden' : ''}`}>
           <button
             className={`kg-icon-btn ${showChat ? 'active' : ''}`}
             onClick={() => setShowChat(!showChat)}
@@ -357,17 +416,6 @@ export default function KnowledgeGraphGallery({
           </button>
         </div>
       </div>
-
-      {/* Search bar - always visible below header */}
-      {!loading && graphData?.nodes?.length > 0 && (
-        <div className="kg-search-bar">
-          <KnowledgeGraphSearch
-            graphData={graphData}
-            onResultsChange={handleSearchResultsChange}
-            onSelectNode={handleSearchSelectNode}
-          />
-        </div>
-      )}
 
       {/* Migration panel - show if there are pending conversations */}
       {(pendingConversations > 0 || migrationStatus?.running) && (
@@ -566,24 +614,6 @@ export default function KnowledgeGraphGallery({
             </div>
 
             <div className="kg-detail-body">
-              {/* Source info for notes */}
-              {selectedNode.type === 'note' && sourceNode && (
-                <div className="kg-detail-section kg-detail-source-info">
-                  <h4>From Source</h4>
-                  <button
-                    className="kg-source-link"
-                    onClick={() => handleConnectionClick(sourceNode)}
-                  >
-                    <span className="kg-source-type-badge">{sourceNode.sourceType}</span>
-                    <span className="kg-source-title">{sourceNode.title}</span>
-                    <ArrowRight size={14} />
-                  </button>
-                  {selectedNode.sequence && (
-                    <div className="kg-note-position">Note {selectedNode.sequence} of source</div>
-                  )}
-                </div>
-              )}
-
               {/* Tags for notes */}
               {selectedNode.type === 'note' && selectedNode.tags?.length > 0 && (
                 <div className="kg-detail-section">
@@ -661,25 +691,49 @@ export default function KnowledgeGraphGallery({
               )}
             </div>
 
-            <div className="kg-detail-actions">
-              {(selectedNode.type === 'note' || selectedNode.type === 'source') && (
-                <button
-                  className="kg-btn kg-btn-primary"
-                  onClick={handleViewConversation}
-                >
-                  <ExternalLink size={14} />
-                  View in Conversation
-                </button>
+            <div className="kg-detail-footer">
+              {/* Source info with external link */}
+              {selectedNode.type === 'note' && sourceNode && (
+                sourceNode.url ? (
+                  <a
+                    href={sourceNode.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="kg-detail-source-footer kg-source-clickable"
+                  >
+                    <span className="kg-source-type-badge">{sourceNode.sourceType}</span>
+                    <span className="kg-source-footer-title">{sourceNode.title}</span>
+                    <ExternalLink size={14} className="kg-source-link-icon" />
+                  </a>
+                ) : (
+                  <div className="kg-detail-source-footer">
+                    <span className="kg-source-type-badge">{sourceNode.sourceType}</span>
+                    <span className="kg-source-footer-title">{sourceNode.title}</span>
+                  </div>
+                )
               )}
-              <button
-                className="kg-btn kg-btn-secondary"
-                onClick={() => {
-                  setSelectedNode(null);
-                  setExpandedView(false);
-                }}
-              >
-                Close
-              </button>
+
+              {/* Action buttons */}
+              <div className="kg-detail-action-buttons">
+                {(selectedNode.type === 'note' || selectedNode.type === 'source') && (
+                  <button
+                    className="kg-btn kg-btn-secondary kg-btn-primary-action"
+                    onClick={handleViewConversation}
+                  >
+                    <ExternalLink size={14} />
+                    View in Conversation
+                  </button>
+                )}
+                <button
+                  className="kg-btn kg-btn-secondary kg-btn-close-action"
+                  onClick={() => {
+                    setSelectedNode(null);
+                    setExpandedView(false);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

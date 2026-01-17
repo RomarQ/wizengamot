@@ -19,6 +19,7 @@ export default function KnowledgeGraphSearch({
   graphData,
   onResultsChange,
   onSelectNode,
+  autoFocus = false,
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -249,6 +250,13 @@ export default function KnowledgeGraphSearch({
     setShowDropdown(false);
     inputRef.current?.focus();
   }, [onResultsChange]);
+
+  // Auto-focus input when autoFocus prop is true
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
