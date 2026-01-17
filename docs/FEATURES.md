@@ -1,6 +1,7 @@
 # Wizengamot Features
 
-- Jan 10 - Settings sidebar submenus with accordion navigation for quick access to specific settings
+- Jan 17 - Knowledge Graph for visualizing entity relationships across notes with search and RAG chat
+- Jan 10 - Settings sidebar submenus with accordion navigation
 - Jan 10 - Crawl4AI integration as primary web scraper with Firecrawl fallback
 - Dec 29 - Click prompt labels to edit them directly
 - Dec 29 - Quick access to switch between multiple review sessions
