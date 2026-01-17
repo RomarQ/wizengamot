@@ -163,6 +163,19 @@ const SECTIONS = [
           </svg>
         ),
       },
+      {
+        id: 'knowledge-graph',
+        label: 'Knowledge Graph',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="5" r="3" />
+            <circle cx="5" cy="19" r="3" />
+            <circle cx="19" cy="19" r="3" />
+            <line x1="12" y1="8" x2="5" y2="16" />
+            <line x1="12" y1="8" x2="19" y2="16" />
+          </svg>
+        ),
+      },
     ],
   },
   {

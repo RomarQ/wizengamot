@@ -1024,3 +1024,33 @@ def get_podcast_settings() -> Dict[str, Any]:
         "cover_prompt": get_podcast_cover_prompt(),
         "cover_model": get_podcast_cover_model(),
     }
+
+
+# =============================================================================
+# Knowledge Graph Settings
+# =============================================================================
+
+DEFAULT_KNOWLEDGE_GRAPH_MODEL = "google/gemini-2.0-flash-001"
+
+
+def get_knowledge_graph_model() -> str:
+    """
+    Get the model used for knowledge graph operations (entity extraction, chat).
+    Priority: settings file > default
+    """
+    settings = load_settings()
+    return settings.get("knowledge_graph_model", DEFAULT_KNOWLEDGE_GRAPH_MODEL)
+
+
+def set_knowledge_graph_model(model: str) -> None:
+    """Set the model used for knowledge graph operations."""
+    settings = load_settings()
+    settings["knowledge_graph_model"] = model
+    save_settings(settings)
+
+
+def get_knowledge_graph_settings() -> Dict[str, Any]:
+    """Get all knowledge graph settings."""
+    return {
+        "model": get_knowledge_graph_model(),
+    }

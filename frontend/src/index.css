@@ -104,6 +104,22 @@
   --podcast-badge-bg: rgba(139, 92, 246, 0.15);
   --podcast-badge-text: #6b21a8;
 
+  /* Knowledge Graph colors (Catppuccin Latte) */
+  --kg-note: #1e66f5;           /* Blue */
+  --kg-source: #fe640b;         /* Peach */
+  --kg-entity-person: #8839ef;  /* Mauve */
+  --kg-entity-org: #40a02b;     /* Green */
+  --kg-entity-concept: #209fb5; /* Sapphire */
+  --kg-entity-tech: #d20f39;    /* Red */
+  --kg-entity-event: #df8e1d;   /* Yellow */
+  --kg-selected: #df8e1d;       /* Yellow for selection */
+  --kg-highlighted: #fe640b;    /* Peach for highlights */
+  --kg-link-sequential: #8c8fa1;
+  --kg-link-shared-tag: #9ca0b0;
+  --kg-link-mentions: #acb0be;
+  --kg-link-manual: #40a02b;
+  --kg-node-label: #4c4f69;     /* Text primary */
+
   /* Status indicators */
   --status-running: #40a02b;
   --status-running-glow: rgba(64, 160, 43, 0.5);
@@ -219,6 +235,22 @@
   --podcast-primary-hover: #b8a3fb;
   --podcast-badge-bg: rgba(167, 139, 250, 0.2);
   --podcast-badge-text: #a78bfa;
+
+  /* Knowledge Graph colors (Catppuccin Macchiato) */
+  --kg-note: #8aadf4;           /* Blue */
+  --kg-source: #f5a97f;         /* Peach */
+  --kg-entity-person: #c6a0f6;  /* Mauve */
+  --kg-entity-org: #a6da95;     /* Green */
+  --kg-entity-concept: #7dc4e4; /* Sapphire */
+  --kg-entity-tech: #ed8796;    /* Red */
+  --kg-entity-event: #eed49f;   /* Yellow */
+  --kg-selected: #eed49f;       /* Yellow for selection */
+  --kg-highlighted: #f5a97f;    /* Peach for highlights */
+  --kg-link-sequential: #8087a2;
+  --kg-link-shared-tag: #6e738d;
+  --kg-link-mentions: #5b6078;
+  --kg-link-manual: #a6da95;
+  --kg-node-label: #cad3f5;     /* Text primary */
 
   /* Status indicators */
   --status-running: #a6da95;
