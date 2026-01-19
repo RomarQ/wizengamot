@@ -398,6 +398,19 @@
   height: 12px;
 }
 
+.conversation-gallery-badge.auto-discovery {
+  background: rgba(136, 136, 136, 0.15);
+  color: var(--text-muted, #888);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.conversation-gallery-badge.auto-discovery svg {
+  width: 12px;
+  height: 12px;
+}
+
 /* List View - Table Layout */
 .conversation-gallery-table {
   width: 100%;
@@ -546,6 +559,11 @@
 .table-tag.council {
   background: var(--primary-light);
   color: var(--primary);
+}
+
+.table-tag.auto {
+  background: rgba(136, 136, 136, 0.15);
+  color: var(--text-muted, #888);
 }
 
 .table-preview {

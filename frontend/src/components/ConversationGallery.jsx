@@ -147,8 +147,10 @@ export default function ConversationGallery({
 
   const renderCard = (item) => {
     const isCouncil = mode === 'council';
+    const isDiscovery = item.mode === 'discovery';
     const hasBadges = (!isCouncil && item.source_type) ||
                       (!isCouncil && item.is_deliberation) ||
+                      isDiscovery ||
                       (item.thread_count > 0) ||
                       (isCouncil && item.prompt_title && promptLabels[item.prompt_title]);
 
@@ -164,6 +166,18 @@ export default function ConversationGallery({
           </div>
           {hasBadges && (
             <div className="conversation-gallery-badges">
+              {isDiscovery && (
+                <span className="conversation-gallery-badge auto-discovery">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="10" rx="2" />
+                    <circle cx="12" cy="5" r="3" />
+                    <path d="M12 8v3" />
+                    <circle cx="8" cy="16" r="1" fill="currentColor" />
+                    <circle cx="16" cy="16" r="1" fill="currentColor" />
+                  </svg>
+                  Auto
+                </span>
+              )}
               {!isCouncil && item.source_type && (
                 <span className={getSourceTypeBadgeClass(item.source_type)}>
                   {getSourceTypeLabel(item.source_type)}
@@ -285,6 +299,7 @@ export default function ConversationGallery({
                   </tr>
                   {groupItems.map(item => {
                     const isCouncil = mode === 'council';
+                    const isDiscoveryItem = item.mode === 'discovery';
                     const title = item.title || (isCouncil ? 'New Conversation' : 'New Note');
                     return (
                       <tr
@@ -301,6 +316,9 @@ export default function ConversationGallery({
                           </div>
                         </td>
                         <td className="table-cell-tags">
+                          {isDiscoveryItem && (
+                            <span className="table-tag auto">Auto</span>
+                          )}
                           {!isCouncil && item.source_type && (
                             <span className={`table-tag ${item.source_type}`}>
                               {getSourceTypeLabel(item.source_type)}
