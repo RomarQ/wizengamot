@@ -2936,11 +2936,12 @@ export const api = {
   },
 
   // =============================================================================
-  // Knowledge Graph Settings
+  // Knowledge Graph Settings API
   // =============================================================================
 
   /**
-   * Get knowledge graph settings.
+   * Get all knowledge graph settings.
+   * Returns: { models, entity_extraction, visualization, search, chat, sleep_compute }
    */
   async getKnowledgeGraphSettings() {
     const response = await fetch(`${API_BASE}/api/settings/knowledge-graph`);
@@ -2951,7 +2952,7 @@ export const api = {
   },
 
   /**
-   * Set knowledge graph model.
+   * Set knowledge graph model (legacy, for backwards compatibility).
    * @param {string} model - The model identifier
    */
   async setKnowledgeGraphModel(model) {
@@ -2962,6 +2963,520 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to set knowledge graph model');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update knowledge graph model settings.
+   * @param {Object} models - Model settings
+   * @param {string} models.entity_extraction_model - Model for entity extraction
+   * @param {string} models.discovery_model - Model for discovery
+   * @param {string} models.chat_model - Model for chat/RAG
+   */
+  async updateKGModels(models) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/models`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(models),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update knowledge graph models');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update entity extraction settings.
+   * @param {Object} settings - Entity extraction settings
+   * @param {number} settings.max_entities - Max entities per note
+   * @param {number} settings.max_relationships - Max relationships per note
+   * @param {number} settings.similarity_threshold - Similarity threshold for deduplication
+   */
+  async updateKGEntityExtractionSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/entity-extraction`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update entity extraction settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update visualization settings.
+   * @param {Object} settings - Visualization settings
+   * @param {Object} settings.node_sizes - Node size settings {source, entity_min, entity_max, note}
+   * @param {Object} settings.link_widths - Link width settings {manual, sequential, shared_tag, mentions}
+   * @param {number} settings.label_zoom_threshold - Zoom level to show labels
+   */
+  async updateKGVisualizationSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/visualization`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update visualization settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update search settings.
+   * @param {Object} settings - Search settings
+   * @param {number} settings.debounce_ms - Debounce delay in ms
+   * @param {number} settings.min_query_length - Minimum query length
+   * @param {number} settings.results_limit - Max results to return
+   */
+  async updateKGSearchSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/search`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update search settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update chat/RAG settings.
+   * @param {Object} settings - Chat settings
+   * @param {number} settings.context_max_length - Max context length
+   * @param {number} settings.history_limit - Max history messages
+   * @param {number} settings.similarity_weight - Similarity weight for scoring
+   * @param {number} settings.mention_weight - Mention weight for scoring
+   */
+  async updateKGChatSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/chat`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update chat settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update sleep compute default settings.
+   * @param {Object} settings - Sleep compute settings
+   * @param {number} settings.default_depth - Default graph traversal depth
+   * @param {number} settings.default_max_notes - Default max notes
+   * @param {number} settings.default_turns - Default brainstorming turns
+   * @param {string} settings.model - Model override
+   */
+  async updateKGSleepComputeSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/knowledge-graph/sleep-compute`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update sleep compute settings');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Knowledge Discovery API
+  // ==========================================================================
+
+  /**
+   * Start a discovery analysis with natural language prompt.
+   * @param {string} prompt - Natural language discovery request
+   * @param {Object} options - Optional settings
+   * @param {string} options.model - Model to use (defaults to Claude Opus 4.5)
+   * @param {boolean} options.includeWebSearch - Whether to search the web
+   */
+  async runDiscovery(prompt, options = {}) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        model: options.model || null,
+        include_web_search: options.includeWebSearch !== false,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to run discovery');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get current discovery run status.
+   */
+  async getDiscoveryStatus() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discover/status`);
+    if (!response.ok) {
+      throw new Error('Failed to get discovery status');
+    }
+    return response.json();
+  },
+
+  /**
+   * Cancel a running discovery.
+   */
+  async cancelDiscovery() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discover/cancel`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to cancel discovery');
+    }
+    return response.json();
+  },
+
+  /**
+   * List discoveries with optional status filter.
+   * @param {Object} options - Filter options
+   * @param {string} options.status - Filter by status (pending, approved, dismissed)
+   * @param {number} options.limit - Maximum discoveries to return
+   */
+  async listDiscoveries(options = {}) {
+    const params = new URLSearchParams();
+    if (options.status) {
+      params.set('status', options.status);
+    }
+    if (options.limit) {
+      params.set('limit', options.limit.toString());
+    }
+
+    const url = params.toString()
+      ? `${API_BASE}/api/knowledge-graph/discoveries?${params}`
+      : `${API_BASE}/api/knowledge-graph/discoveries`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to list discoveries');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a single discovery by ID.
+   * @param {string} discoveryId - The discovery ID
+   */
+  async getDiscovery(discoveryId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discoveries/${discoveryId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get discovery');
+    }
+    return response.json();
+  },
+
+  /**
+   * Approve a discovery and create the bridge note.
+   * @param {string} discoveryId - The discovery ID
+   * @param {Object} edits - Optional edits to title, body, or tags
+   */
+  async approveDiscovery(discoveryId, edits = null) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discoveries/${discoveryId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(edits || {}),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to approve discovery');
+    }
+    return response.json();
+  },
+
+  /**
+   * Dismiss a discovery.
+   * @param {string} discoveryId - The discovery ID
+   */
+  async dismissDiscovery(discoveryId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discoveries/${discoveryId}/dismiss`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to dismiss discovery');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a discovery.
+   * @param {string} discoveryId - The discovery ID
+   */
+  async deleteDiscovery(discoveryId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discoveries/${discoveryId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete discovery');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get discovery statistics.
+   */
+  async getDiscoveryStats() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discover/stats`);
+    if (!response.ok) {
+      throw new Error('Failed to get discovery stats');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update discovery settings.
+   * @param {Object} settings - Settings to update
+   */
+  async updateDiscoverySettings(settings) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/discover/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update discovery settings');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Sleep Time Compute API
+  // ==========================================================================
+
+  /**
+   * Start a sleep compute session.
+   * @param {Object} options - Session configuration
+   * @param {string} options.prompt - Discovery prompt
+   * @param {string} options.styleId - Brainstorming style ID
+   * @param {number} options.depth - Graph traversal depth (1-3)
+   * @param {number} options.maxNotes - Maximum notes to analyze (10-50)
+   * @param {number} options.turns - Brainstorming iterations (2-5)
+   * @param {string} options.model - Model to use (optional)
+   */
+  async startSleepCompute(options) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: options.prompt,
+        style_id: options.styleId,
+        depth: options.depth || 2,
+        max_notes: options.maxNotes || 30,
+        turns: options.turns || 3,
+        model: options.model || null,
+        entry_points: options.entryPoints || [],
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to start sleep compute');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get current sleep compute session status.
+   */
+  async getSleepComputeStatus() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/status`);
+    if (!response.ok) {
+      throw new Error('Failed to get sleep compute status');
+    }
+    return response.json();
+  },
+
+  /**
+   * Cancel running sleep compute session.
+   */
+  async cancelSleepCompute() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/cancel`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to cancel sleep compute');
+    }
+    return response.json();
+  },
+
+  /**
+   * Pause running sleep compute session.
+   */
+  async pauseSleepCompute() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/pause`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to pause sleep compute');
+    }
+    return response.json();
+  },
+
+  /**
+   * Resume paused sleep compute session.
+   */
+  async resumeSleepCompute() {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/resume`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to resume sleep compute');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a sleep compute session by ID.
+   * @param {string} sessionId - The session ID
+   */
+  async getSleepComputeSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/session/${sessionId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get sleep compute session');
+    }
+    return response.json();
+  },
+
+  /**
+   * List all sleep compute sessions.
+   * @param {number} limit - Maximum sessions to return
+   */
+  async listSleepComputeSessions(limit = 20) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/sessions?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to list sleep compute sessions');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete a sleep compute session.
+   * @param {string} sessionId - The session ID
+   */
+  async deleteSleepComputeSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/sleep-compute/session/${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete sleep compute session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get sleep compute default settings.
+   */
+  async getSleepComputeSettings() {
+    const response = await fetch(`${API_BASE}/api/settings/sleep-compute`);
+    if (!response.ok) {
+      throw new Error('Failed to get sleep compute settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update sleep compute default settings.
+   * @param {Object} settings - Settings to update
+   */
+  async updateSleepComputeSettings(settings) {
+    const response = await fetch(`${API_BASE}/api/settings/sleep-compute`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        default_depth: settings.defaultDepth,
+        default_max_notes: settings.defaultMaxNotes,
+        default_turns: settings.defaultTurns,
+        model: settings.model,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update sleep compute settings');
+    }
+    return response.json();
+  },
+
+  // ==========================================================================
+  // Brainstorm Styles API
+  // ==========================================================================
+
+  /**
+   * List all brainstorming styles.
+   */
+  async listBrainstormStyles() {
+    const response = await fetch(`${API_BASE}/api/brainstorm-styles`);
+    if (!response.ok) {
+      throw new Error('Failed to list brainstorm styles');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get a single brainstorming style by ID.
+   * @param {string} styleId - The style ID
+   */
+  async getBrainstormStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/brainstorm-styles/${styleId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get brainstorm style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update a brainstorming style.
+   * @param {string} styleId - The style ID
+   * @param {Object} updates - Fields to update
+   */
+  async updateBrainstormStyle(styleId, updates) {
+    const response = await fetch(`${API_BASE}/api/brainstorm-styles/${styleId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: updates.name,
+        description: updates.description,
+        initial_prompt: updates.initialPrompt,
+        expansion_prompt: updates.expansionPrompt,
+        enabled: updates.enabled,
+        icon: updates.icon,
+      }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Failed to update brainstorm style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Enable a brainstorming style.
+   * @param {string} styleId - The style ID
+   */
+  async enableBrainstormStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/brainstorm-styles/${styleId}/enable`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to enable brainstorm style');
+    }
+    return response.json();
+  },
+
+  /**
+   * Disable a brainstorming style.
+   * @param {string} styleId - The style ID
+   */
+  async disableBrainstormStyle(styleId) {
+    const response = await fetch(`${API_BASE}/api/brainstorm-styles/${styleId}/disable`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to disable brainstorm style');
     }
     return response.json();
   },

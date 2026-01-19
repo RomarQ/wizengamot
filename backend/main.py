@@ -4205,10 +4205,30 @@ async def update_discovery_settings(request: DiscoverySettingsRequest):
 
 @app.get("/api/settings/knowledge-graph")
 async def get_knowledge_graph_settings_endpoint():
-    """Get knowledge graph settings."""
+    """Get all knowledge graph settings."""
     return settings.get_knowledge_graph_settings()
 
 
+# ---- Model Settings ----
+
+class KGModelsRequest(BaseModel):
+    """Request to update knowledge graph models."""
+    entity_extraction_model: Optional[str] = None
+    discovery_model: Optional[str] = None
+    chat_model: Optional[str] = None
+
+
+@app.put("/api/settings/knowledge-graph/models")
+async def set_kg_models_endpoint(request: KGModelsRequest):
+    """Update knowledge graph model settings."""
+    return settings.set_kg_model_settings(
+        entity_extraction_model=request.entity_extraction_model,
+        discovery_model=request.discovery_model,
+        chat_model=request.chat_model,
+    )
+
+
+# Legacy endpoint for backwards compatibility
 class KnowledgeGraphModelRequest(BaseModel):
     """Request to set knowledge graph model."""
     model: str
@@ -4216,9 +4236,321 @@ class KnowledgeGraphModelRequest(BaseModel):
 
 @app.put("/api/settings/knowledge-graph/model")
 async def set_knowledge_graph_model_endpoint(request: KnowledgeGraphModelRequest):
-    """Set the knowledge graph model."""
+    """Set the entity extraction model (legacy endpoint)."""
     settings.set_knowledge_graph_model(request.model)
     return settings.get_knowledge_graph_settings()
+
+
+# ---- Entity Extraction Settings ----
+
+class KGEntityExtractionRequest(BaseModel):
+    """Request to update entity extraction settings."""
+    max_entities: Optional[int] = None
+    max_relationships: Optional[int] = None
+    similarity_threshold: Optional[float] = None
+
+
+@app.put("/api/settings/knowledge-graph/entity-extraction")
+async def set_kg_entity_extraction_endpoint(request: KGEntityExtractionRequest):
+    """Update entity extraction settings."""
+    return settings.set_kg_entity_extraction_settings(
+        max_entities=request.max_entities,
+        max_relationships=request.max_relationships,
+        similarity_threshold=request.similarity_threshold,
+    )
+
+
+# ---- Visualization Settings ----
+
+class KGVisualizationRequest(BaseModel):
+    """Request to update visualization settings."""
+    node_sizes: Optional[Dict[str, float]] = None
+    link_widths: Optional[Dict[str, float]] = None
+    label_zoom_threshold: Optional[float] = None
+
+
+@app.put("/api/settings/knowledge-graph/visualization")
+async def set_kg_visualization_endpoint(request: KGVisualizationRequest):
+    """Update visualization settings."""
+    return settings.set_kg_visualization_settings(
+        node_sizes=request.node_sizes,
+        link_widths=request.link_widths,
+        label_zoom_threshold=request.label_zoom_threshold,
+    )
+
+
+# ---- Search Settings ----
+
+class KGSearchRequest(BaseModel):
+    """Request to update search settings."""
+    debounce_ms: Optional[int] = None
+    min_query_length: Optional[int] = None
+    results_limit: Optional[int] = None
+
+
+@app.put("/api/settings/knowledge-graph/search")
+async def set_kg_search_endpoint(request: KGSearchRequest):
+    """Update search settings."""
+    return settings.set_kg_search_settings(
+        debounce_ms=request.debounce_ms,
+        min_query_length=request.min_query_length,
+        results_limit=request.results_limit,
+    )
+
+
+# ---- Chat Settings ----
+
+class KGChatRequest(BaseModel):
+    """Request to update chat/RAG settings."""
+    context_max_length: Optional[int] = None
+    history_limit: Optional[int] = None
+    similarity_weight: Optional[float] = None
+    mention_weight: Optional[float] = None
+
+
+@app.put("/api/settings/knowledge-graph/chat")
+async def set_kg_chat_endpoint(request: KGChatRequest):
+    """Update chat/RAG settings."""
+    return settings.set_kg_chat_settings(
+        context_max_length=request.context_max_length,
+        history_limit=request.history_limit,
+        similarity_weight=request.similarity_weight,
+        mention_weight=request.mention_weight,
+    )
+
+
+# ---- Sleep Compute Settings ----
+
+class KGSleepComputeRequest(BaseModel):
+    """Request to update sleep compute default settings."""
+    default_depth: Optional[int] = None
+    default_max_notes: Optional[int] = None
+    default_turns: Optional[int] = None
+    model: Optional[str] = None
+
+
+@app.put("/api/settings/knowledge-graph/sleep-compute")
+async def set_kg_sleep_compute_settings_endpoint(request: KGSleepComputeRequest):
+    """Update sleep compute default settings."""
+    return settings.set_kg_sleep_compute_settings(
+        default_depth=request.default_depth,
+        default_max_notes=request.default_max_notes,
+        default_turns=request.default_turns,
+        model=request.model,
+    )
+
+
+# =============================================================================
+# Sleep Time Compute Endpoints
+# =============================================================================
+
+from . import sleep_compute
+from . import brainstorm_styles
+
+
+class SleepComputeEntryPoint(BaseModel):
+    """Entry point for sleep compute (note or topic)."""
+    id: str
+    type: str  # "note" or "topic"
+    title: str
+
+
+class SleepComputeStartRequest(BaseModel):
+    """Request to start a sleep compute session."""
+    prompt: str
+    style_id: str
+    depth: int = 2
+    max_notes: int = 30
+    turns: int = 3
+    model: Optional[str] = None
+    entry_points: Optional[List[SleepComputeEntryPoint]] = None
+
+
+@app.post("/api/knowledge-graph/sleep-compute/start")
+async def start_sleep_compute_endpoint(request: SleepComputeStartRequest, background_tasks: BackgroundTasks):
+    """
+    Start a new sleep compute session.
+
+    Budget parameters:
+    - depth: Graph traversal hops (1-3)
+    - max_notes: Maximum notes to analyze (10-50)
+    - turns: Brainstorming iterations (2-5)
+    - entry_points: Optional list of notes or topics to start from
+
+    Returns immediately with session_id. Computation runs in background.
+    """
+    entry_points_data = None
+    if request.entry_points:
+        entry_points_data = [ep.model_dump() for ep in request.entry_points]
+
+    # Create session (synchronous, returns immediately)
+    result = sleep_compute.create_sleep_session(
+        prompt=request.prompt,
+        style_id=request.style_id,
+        depth=request.depth,
+        max_notes=request.max_notes,
+        turns=request.turns,
+        model=request.model,
+        entry_points=entry_points_data
+    )
+
+    # If session created successfully, run computation in background
+    if "error" not in result and "session_id" in result:
+        background_tasks.add_task(sleep_compute.run_sleep_compute, result["session_id"])
+
+    return result
+
+
+@app.get("/api/knowledge-graph/sleep-compute/status")
+async def get_sleep_compute_status():
+    """Get current sleep compute session status."""
+    return sleep_compute.get_sleep_compute_status()
+
+
+@app.post("/api/knowledge-graph/sleep-compute/cancel")
+async def cancel_sleep_compute():
+    """Cancel running sleep compute session."""
+    return sleep_compute.cancel_sleep_compute()
+
+
+@app.post("/api/knowledge-graph/sleep-compute/pause")
+async def pause_sleep_compute():
+    """Pause running sleep compute session."""
+    return sleep_compute.pause_sleep_compute()
+
+
+@app.post("/api/knowledge-graph/sleep-compute/resume")
+async def resume_sleep_compute():
+    """Resume paused sleep compute session."""
+    return sleep_compute.resume_sleep_compute()
+
+
+@app.get("/api/knowledge-graph/sleep-compute/session/{session_id}")
+async def get_sleep_compute_session(session_id: str):
+    """Get full session data by ID."""
+    session = sleep_compute.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.get("/api/knowledge-graph/sleep-compute/sessions")
+async def list_sleep_compute_sessions(limit: int = 20):
+    """List all sleep compute sessions."""
+    return {"sessions": sleep_compute.list_sessions(limit=limit)}
+
+
+@app.delete("/api/knowledge-graph/sleep-compute/session/{session_id}")
+async def delete_sleep_compute_session(session_id: str):
+    """Delete a sleep compute session."""
+    success = sleep_compute.delete_session(session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"status": "deleted"}
+
+
+# =============================================================================
+# Brainstorm Styles Endpoints
+# =============================================================================
+
+@app.get("/api/brainstorm-styles")
+async def list_brainstorm_styles():
+    """List all brainstorming styles with enabled/disabled status."""
+    return {"styles": brainstorm_styles.list_styles()}
+
+
+@app.get("/api/brainstorm-styles/{style_id}")
+async def get_brainstorm_style(style_id: str):
+    """Get a single brainstorming style with prompts."""
+    style = brainstorm_styles.get_style(style_id)
+    if not style:
+        raise HTTPException(status_code=404, detail="Style not found")
+    return style
+
+
+class BrainstormStyleUpdateRequest(BaseModel):
+    """Request to update a brainstorming style."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    initial_prompt: Optional[str] = None
+    expansion_prompt: Optional[str] = None
+    enabled: Optional[bool] = None
+    icon: Optional[str] = None
+
+
+@app.put("/api/brainstorm-styles/{style_id}")
+async def update_brainstorm_style(style_id: str, request: BrainstormStyleUpdateRequest):
+    """Update a brainstorming style (prompts, enabled status)."""
+    updates = {}
+    if request.name is not None:
+        updates["name"] = request.name
+    if request.description is not None:
+        updates["description"] = request.description
+    if request.initial_prompt is not None:
+        updates["initial_prompt"] = request.initial_prompt
+    if request.expansion_prompt is not None:
+        updates["expansion_prompt"] = request.expansion_prompt
+    if request.enabled is not None:
+        updates["enabled"] = request.enabled
+    if request.icon is not None:
+        updates["icon"] = request.icon
+
+    try:
+        return brainstorm_styles.update_style(style_id, updates)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/brainstorm-styles/{style_id}/enable")
+async def enable_brainstorm_style(style_id: str):
+    """Enable a brainstorming style."""
+    try:
+        return brainstorm_styles.enable_style(style_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/brainstorm-styles/{style_id}/disable")
+async def disable_brainstorm_style(style_id: str):
+    """Disable a brainstorming style."""
+    try:
+        return brainstorm_styles.disable_style(style_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# =============================================================================
+# Sleep Time Compute Settings Endpoints
+# =============================================================================
+
+@app.get("/api/settings/sleep-compute")
+async def get_sleep_compute_settings_endpoint():
+    """Get sleep compute default settings."""
+    return sleep_compute.get_sleep_compute_settings()
+
+
+class SleepComputeSettingsRequest(BaseModel):
+    """Request to update sleep compute settings."""
+    default_depth: Optional[int] = None
+    default_max_notes: Optional[int] = None
+    default_turns: Optional[int] = None
+    model: Optional[str] = None
+
+
+@app.put("/api/settings/sleep-compute")
+async def update_sleep_compute_settings_endpoint(request: SleepComputeSettingsRequest):
+    """Update sleep compute default settings."""
+    updates = {}
+    if request.default_depth is not None:
+        updates["default_depth"] = request.default_depth
+    if request.default_max_notes is not None:
+        updates["default_max_notes"] = request.default_max_notes
+    if request.default_turns is not None:
+        updates["default_turns"] = request.default_turns
+    if request.model is not None:
+        updates["model"] = request.model
+
+    return sleep_compute.update_sleep_compute_settings(updates)
 
 
 if __name__ == "__main__":

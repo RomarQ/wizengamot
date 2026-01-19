@@ -1,0 +1,343 @@
+.sleep-compute-section {
+  /* Container styles */
+}
+
+.sleep-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sleep-setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sleep-setting-row label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+.sleep-setting-input-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sleep-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--slider-bg, #e0e0e0);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.sleep-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color, #4a90e2);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sleep-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color, #4a90e2);
+  cursor: pointer;
+  border: 2px solid white;
+}
+
+.sleep-setting-value {
+  min-width: 32px;
+  padding: 4px 8px;
+  background: var(--primary-color, #4a90e2);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.sleep-model-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #333);
+}
+
+.sleep-model-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #4a90e2);
+  box-shadow: 0 0 0 2px var(--primary-light, rgba(74, 144, 226, 0.2));
+}
+
+/* Brainstorm styles list */
+.brainstorm-styles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.brainstorm-style-block {
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.brainstorm-style-block.disabled {
+  opacity: 0.6;
+  background: var(--disabled-bg, #f5f5f5);
+}
+
+.brainstorm-style-block.editing {
+  border-color: var(--primary-color, #4a90e2);
+}
+
+.brainstorm-style-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card-bg, #f8f9fa);
+}
+
+.brainstorm-style-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-on {
+  color: var(--success-color, #28a745);
+}
+
+.toggle-off {
+  color: var(--text-tertiary, #999);
+}
+
+.brainstorm-style-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brainstorm-style-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.brainstorm-style-description {
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+}
+
+.brainstorm-style-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.brainstorm-style-details {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  background: var(--card-bg-light, #fafafa);
+}
+
+.brainstorm-style-pattern {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.brainstorm-style-pattern strong {
+  color: var(--text-primary, #333);
+}
+
+.brainstorm-style-editor {
+  padding: 16px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  background: var(--editor-bg, #fff);
+}
+
+.form-row {
+  margin-bottom: 14px;
+}
+
+.form-row label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+  margin-bottom: 6px;
+}
+
+.style-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #333);
+}
+
+.style-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #4a90e2);
+}
+
+.style-prompt-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-family: monospace;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary, #333);
+  resize: vertical;
+  min-height: 100px;
+}
+
+.style-prompt-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #4a90e2);
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-secondary, #666);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-icon:hover {
+  background: var(--hover-bg, #e0e0e0);
+  color: var(--text-primary, #333);
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--primary-color, #4a90e2);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-dark, #357abd);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--secondary-bg, #e0e0e0);
+  color: var(--text-primary, #333);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--secondary-hover, #d0d0d0);
+}
+
+.styles-loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary, #666);
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--text-tertiary, #999);
+  margin-top: 4px;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .brainstorm-style-header {
+  background: var(--card-bg-dark, #1e1e1e);
+}
+
+[data-theme="dark"] .brainstorm-style-block {
+  border-color: var(--border-color-dark, #333);
+}
+
+[data-theme="dark"] .brainstorm-style-block.disabled {
+  background: var(--disabled-bg-dark, #1a1a1a);
+}
+
+[data-theme="dark"] .brainstorm-style-name {
+  color: var(--text-primary-dark, #e0e0e0);
+}
+
+[data-theme="dark"] .brainstorm-style-description {
+  color: var(--text-secondary-dark, #999);
+}
+
+[data-theme="dark"] .brainstorm-style-details {
+  background: var(--card-bg-dark, #1e1e1e);
+  border-color: var(--border-color-dark, #333);
+}
+
+[data-theme="dark"] .brainstorm-style-editor {
+  background: var(--editor-bg-dark, #121212);
+  border-color: var(--border-color-dark, #333);
+}
+
+[data-theme="dark"] .style-input,
+[data-theme="dark"] .style-prompt-textarea,
+[data-theme="dark"] .sleep-model-input {
+  background: var(--input-bg-dark, #1e1e1e);
+  border-color: var(--border-color-dark, #333);
+  color: var(--text-primary-dark, #e0e0e0);
+}
+
+[data-theme="dark"] .sleep-slider {
+  background: var(--slider-bg-dark, #333);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: var(--secondary-bg-dark, #333);
+  color: var(--text-primary-dark, #e0e0e0);
+}
+
+[data-theme="dark"] .btn-icon:hover {
+  background: var(--hover-bg-dark, #333);
+  color: var(--text-primary-dark, #e0e0e0);
+}

@@ -1030,27 +1030,312 @@ def get_podcast_settings() -> Dict[str, Any]:
 # Knowledge Graph Settings
 # =============================================================================
 
-DEFAULT_KNOWLEDGE_GRAPH_MODEL = "google/gemini-2.0-flash-001"
+# Model defaults
+DEFAULT_KG_ENTITY_MODEL = "google/gemini-2.0-flash-001"
+DEFAULT_KG_DISCOVERY_MODEL = "anthropic/claude-opus-4-20250514"
+DEFAULT_KG_CHAT_MODEL = "anthropic/claude-sonnet-4-20250514"
 
+# Entity Extraction defaults
+DEFAULT_KG_MAX_ENTITIES = 5
+DEFAULT_KG_MAX_RELATIONSHIPS = 3
+DEFAULT_KG_SIMILARITY_THRESHOLD = 0.85
+
+# Visualization defaults
+DEFAULT_KG_NODE_SIZE_SOURCE = 8
+DEFAULT_KG_NODE_SIZE_ENTITY_MIN = 4
+DEFAULT_KG_NODE_SIZE_ENTITY_MAX = 9
+DEFAULT_KG_NODE_SIZE_NOTE = 6
+DEFAULT_KG_LINK_WIDTH_MANUAL = 2.0
+DEFAULT_KG_LINK_WIDTH_SEQUENTIAL = 1.5
+DEFAULT_KG_LINK_WIDTH_SHARED_TAG = 1.0
+DEFAULT_KG_LINK_WIDTH_MENTIONS = 0.5
+DEFAULT_KG_LABEL_ZOOM_THRESHOLD = 1.5
+
+# Search defaults
+DEFAULT_KG_SEARCH_DEBOUNCE_MS = 200
+DEFAULT_KG_SEARCH_MIN_QUERY_LENGTH = 3
+DEFAULT_KG_SEARCH_RESULTS_LIMIT = 20
+
+# Chat defaults
+DEFAULT_KG_CHAT_CONTEXT_MAX_LENGTH = 8000
+DEFAULT_KG_CHAT_HISTORY_LIMIT = 20
+DEFAULT_KG_CHAT_SIMILARITY_WEIGHT = 0.7
+DEFAULT_KG_CHAT_MENTION_WEIGHT = 0.3
+
+# Sleep Time Compute defaults
+DEFAULT_KG_SLEEP_COMPUTE_DEPTH = 2
+DEFAULT_KG_SLEEP_COMPUTE_MAX_NOTES = 30
+DEFAULT_KG_SLEEP_COMPUTE_TURNS = 3
+
+
+# -------------------------
+# Model Settings
+# -------------------------
 
 def get_knowledge_graph_model() -> str:
     """
-    Get the model used for knowledge graph operations (entity extraction, chat).
+    Get the model used for entity extraction.
     Priority: settings file > default
     """
     settings = load_settings()
-    return settings.get("knowledge_graph_model", DEFAULT_KNOWLEDGE_GRAPH_MODEL)
+    return settings.get("knowledge_graph_model", DEFAULT_KG_ENTITY_MODEL)
 
 
 def set_knowledge_graph_model(model: str) -> None:
-    """Set the model used for knowledge graph operations."""
+    """Set the model used for entity extraction."""
     settings = load_settings()
     settings["knowledge_graph_model"] = model
     save_settings(settings)
 
 
+def get_kg_discovery_model() -> str:
+    """Get the model used for knowledge graph discovery."""
+    settings = load_settings()
+    return settings.get("kg_discovery_model", DEFAULT_KG_DISCOVERY_MODEL)
+
+
+def set_kg_discovery_model(model: str) -> None:
+    """Set the model used for knowledge graph discovery."""
+    settings = load_settings()
+    settings["kg_discovery_model"] = model
+    save_settings(settings)
+
+
+def get_kg_chat_model() -> str:
+    """Get the model used for knowledge graph chat (RAG)."""
+    settings = load_settings()
+    return settings.get("kg_chat_model", DEFAULT_KG_CHAT_MODEL)
+
+
+def set_kg_chat_model(model: str) -> None:
+    """Set the model used for knowledge graph chat."""
+    settings = load_settings()
+    settings["kg_chat_model"] = model
+    save_settings(settings)
+
+
+def get_kg_model_settings() -> Dict[str, str]:
+    """Get all knowledge graph model settings."""
+    return {
+        "entity_extraction_model": get_knowledge_graph_model(),
+        "discovery_model": get_kg_discovery_model(),
+        "chat_model": get_kg_chat_model(),
+    }
+
+
+def set_kg_model_settings(
+    entity_extraction_model: Optional[str] = None,
+    discovery_model: Optional[str] = None,
+    chat_model: Optional[str] = None,
+) -> Dict[str, str]:
+    """Set knowledge graph model settings."""
+    if entity_extraction_model is not None:
+        set_knowledge_graph_model(entity_extraction_model)
+    if discovery_model is not None:
+        set_kg_discovery_model(discovery_model)
+    if chat_model is not None:
+        set_kg_chat_model(chat_model)
+    return get_kg_model_settings()
+
+
+# -------------------------
+# Entity Extraction Settings
+# -------------------------
+
+def get_kg_entity_extraction_settings() -> Dict[str, Any]:
+    """Get entity extraction settings."""
+    settings = load_settings()
+    return {
+        "max_entities": settings.get("kg_max_entities", DEFAULT_KG_MAX_ENTITIES),
+        "max_relationships": settings.get("kg_max_relationships", DEFAULT_KG_MAX_RELATIONSHIPS),
+        "similarity_threshold": settings.get("kg_similarity_threshold", DEFAULT_KG_SIMILARITY_THRESHOLD),
+    }
+
+
+def set_kg_entity_extraction_settings(
+    max_entities: Optional[int] = None,
+    max_relationships: Optional[int] = None,
+    similarity_threshold: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Set entity extraction settings."""
+    settings = load_settings()
+    if max_entities is not None:
+        settings["kg_max_entities"] = max_entities
+    if max_relationships is not None:
+        settings["kg_max_relationships"] = max_relationships
+    if similarity_threshold is not None:
+        settings["kg_similarity_threshold"] = similarity_threshold
+    save_settings(settings)
+    return get_kg_entity_extraction_settings()
+
+
+# -------------------------
+# Visualization Settings
+# -------------------------
+
+def get_kg_visualization_settings() -> Dict[str, Any]:
+    """Get visualization settings for the knowledge graph."""
+    settings = load_settings()
+    return {
+        "node_sizes": {
+            "source": settings.get("kg_node_size_source", DEFAULT_KG_NODE_SIZE_SOURCE),
+            "entity_min": settings.get("kg_node_size_entity_min", DEFAULT_KG_NODE_SIZE_ENTITY_MIN),
+            "entity_max": settings.get("kg_node_size_entity_max", DEFAULT_KG_NODE_SIZE_ENTITY_MAX),
+            "note": settings.get("kg_node_size_note", DEFAULT_KG_NODE_SIZE_NOTE),
+        },
+        "link_widths": {
+            "manual": settings.get("kg_link_width_manual", DEFAULT_KG_LINK_WIDTH_MANUAL),
+            "sequential": settings.get("kg_link_width_sequential", DEFAULT_KG_LINK_WIDTH_SEQUENTIAL),
+            "shared_tag": settings.get("kg_link_width_shared_tag", DEFAULT_KG_LINK_WIDTH_SHARED_TAG),
+            "mentions": settings.get("kg_link_width_mentions", DEFAULT_KG_LINK_WIDTH_MENTIONS),
+        },
+        "label_zoom_threshold": settings.get("kg_label_zoom_threshold", DEFAULT_KG_LABEL_ZOOM_THRESHOLD),
+    }
+
+
+def set_kg_visualization_settings(
+    node_sizes: Optional[Dict[str, float]] = None,
+    link_widths: Optional[Dict[str, float]] = None,
+    label_zoom_threshold: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Set visualization settings."""
+    settings = load_settings()
+    if node_sizes is not None:
+        if "source" in node_sizes:
+            settings["kg_node_size_source"] = node_sizes["source"]
+        if "entity_min" in node_sizes:
+            settings["kg_node_size_entity_min"] = node_sizes["entity_min"]
+        if "entity_max" in node_sizes:
+            settings["kg_node_size_entity_max"] = node_sizes["entity_max"]
+        if "note" in node_sizes:
+            settings["kg_node_size_note"] = node_sizes["note"]
+    if link_widths is not None:
+        if "manual" in link_widths:
+            settings["kg_link_width_manual"] = link_widths["manual"]
+        if "sequential" in link_widths:
+            settings["kg_link_width_sequential"] = link_widths["sequential"]
+        if "shared_tag" in link_widths:
+            settings["kg_link_width_shared_tag"] = link_widths["shared_tag"]
+        if "mentions" in link_widths:
+            settings["kg_link_width_mentions"] = link_widths["mentions"]
+    if label_zoom_threshold is not None:
+        settings["kg_label_zoom_threshold"] = label_zoom_threshold
+    save_settings(settings)
+    return get_kg_visualization_settings()
+
+
+# -------------------------
+# Search Settings
+# -------------------------
+
+def get_kg_search_settings() -> Dict[str, Any]:
+    """Get search settings for the knowledge graph."""
+    settings = load_settings()
+    return {
+        "debounce_ms": settings.get("kg_search_debounce_ms", DEFAULT_KG_SEARCH_DEBOUNCE_MS),
+        "min_query_length": settings.get("kg_search_min_query_length", DEFAULT_KG_SEARCH_MIN_QUERY_LENGTH),
+        "results_limit": settings.get("kg_search_results_limit", DEFAULT_KG_SEARCH_RESULTS_LIMIT),
+    }
+
+
+def set_kg_search_settings(
+    debounce_ms: Optional[int] = None,
+    min_query_length: Optional[int] = None,
+    results_limit: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Set search settings."""
+    settings = load_settings()
+    if debounce_ms is not None:
+        settings["kg_search_debounce_ms"] = debounce_ms
+    if min_query_length is not None:
+        settings["kg_search_min_query_length"] = min_query_length
+    if results_limit is not None:
+        settings["kg_search_results_limit"] = results_limit
+    save_settings(settings)
+    return get_kg_search_settings()
+
+
+# -------------------------
+# Chat Settings
+# -------------------------
+
+def get_kg_chat_settings() -> Dict[str, Any]:
+    """Get chat/RAG settings for the knowledge graph."""
+    settings = load_settings()
+    return {
+        "context_max_length": settings.get("kg_chat_context_max_length", DEFAULT_KG_CHAT_CONTEXT_MAX_LENGTH),
+        "history_limit": settings.get("kg_chat_history_limit", DEFAULT_KG_CHAT_HISTORY_LIMIT),
+        "similarity_weight": settings.get("kg_chat_similarity_weight", DEFAULT_KG_CHAT_SIMILARITY_WEIGHT),
+        "mention_weight": settings.get("kg_chat_mention_weight", DEFAULT_KG_CHAT_MENTION_WEIGHT),
+    }
+
+
+def set_kg_chat_settings(
+    context_max_length: Optional[int] = None,
+    history_limit: Optional[int] = None,
+    similarity_weight: Optional[float] = None,
+    mention_weight: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Set chat/RAG settings."""
+    settings = load_settings()
+    if context_max_length is not None:
+        settings["kg_chat_context_max_length"] = context_max_length
+    if history_limit is not None:
+        settings["kg_chat_history_limit"] = history_limit
+    if similarity_weight is not None:
+        settings["kg_chat_similarity_weight"] = similarity_weight
+    if mention_weight is not None:
+        settings["kg_chat_mention_weight"] = mention_weight
+    save_settings(settings)
+    return get_kg_chat_settings()
+
+
+# -------------------------
+# Sleep Time Compute Settings
+# -------------------------
+
+def get_kg_sleep_compute_settings() -> Dict[str, Any]:
+    """Get sleep time compute default settings."""
+    settings = load_settings()
+    return {
+        "default_depth": settings.get("kg_sleep_compute_depth", DEFAULT_KG_SLEEP_COMPUTE_DEPTH),
+        "default_max_notes": settings.get("kg_sleep_compute_max_notes", DEFAULT_KG_SLEEP_COMPUTE_MAX_NOTES),
+        "default_turns": settings.get("kg_sleep_compute_turns", DEFAULT_KG_SLEEP_COMPUTE_TURNS),
+        "model": settings.get("kg_sleep_compute_model", None),
+    }
+
+
+def set_kg_sleep_compute_settings(
+    default_depth: Optional[int] = None,
+    default_max_notes: Optional[int] = None,
+    default_turns: Optional[int] = None,
+    model: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Set sleep time compute default settings."""
+    settings = load_settings()
+    if default_depth is not None:
+        settings["kg_sleep_compute_depth"] = default_depth
+    if default_max_notes is not None:
+        settings["kg_sleep_compute_max_notes"] = default_max_notes
+    if default_turns is not None:
+        settings["kg_sleep_compute_turns"] = default_turns
+    if model is not None:
+        settings["kg_sleep_compute_model"] = model
+    save_settings(settings)
+    return get_kg_sleep_compute_settings()
+
+
+# -------------------------
+# Comprehensive Settings Getter
+# -------------------------
+
 def get_knowledge_graph_settings() -> Dict[str, Any]:
     """Get all knowledge graph settings."""
     return {
-        "model": get_knowledge_graph_model(),
+        "models": get_kg_model_settings(),
+        "entity_extraction": get_kg_entity_extraction_settings(),
+        "visualization": get_kg_visualization_settings(),
+        "search": get_kg_search_settings(),
+        "chat": get_kg_chat_settings(),
+        "sleep_compute": get_kg_sleep_compute_settings(),
     }
