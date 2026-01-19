@@ -514,28 +514,42 @@ def _generate_bridge_suggestions(
             []
         )
 
-        # Extract bridge note content
+        # Extract bridge note title - try specific fields first, then use full idea text
         title = (
             idea.get("bridge_title") or
             idea.get("title") or
-            idea.get("idea", "")[:50]
+            idea.get("sub_idea") or  # For expansion prompts
+            idea.get("insight") or   # For role_storming, six_hats
+            idea.get("question") or  # For starbursting
+            idea.get("description") or  # For reverse_brainstorming
+            idea.get("idea", "")     # NO TRUNCATION - use full text
         )
 
+        # Extract body content - use reasoning as meaningful fallback
         body = (
             idea.get("bridge_body") or
             idea.get("body") or
             idea.get("answer") or
             idea.get("synthesis") or
+            idea.get("reasoning") or  # Use reasoning as fallback
+            idea.get("insight") or    # Use insight as fallback
             ""
         )
 
+        # Extract reasoning separately for the reasoning field
         reasoning = (
             idea.get("reasoning") or
             idea.get("insight") or
             idea.get("bridge_suggestion") or
             idea.get("bridge_opportunity") or
+            idea.get("why_gap_exists") or  # For reverse_brainstorming expansion
             ""
         )
+
+        # Extract tags - ensure it's always a list
+        tags = idea.get("suggested_tags", idea.get("tags", []))
+        if not isinstance(tags, list):
+            tags = []
 
         if not title and not body:
             continue
@@ -553,7 +567,7 @@ def _generate_bridge_suggestions(
             "connection_strength": "moderate",
             "suggested_title": title,
             "suggested_body": body,
-            "suggested_tags": idea.get("tags", []),
+            "suggested_tags": tags,
             "reasoning": reasoning,
             "generation_ids": session.get("generation_ids", [])
         }

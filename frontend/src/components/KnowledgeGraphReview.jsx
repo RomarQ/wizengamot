@@ -212,7 +212,7 @@ export default function KnowledgeGraphReview({
           >
             <FileText size={14} />
             <span className="kg-discover-source-note-title">
-              {noteData?.title || shortId}
+              {noteData?.title || `Note ${shortId}`}
             </span>
             {isLoading && <Loader size={12} className="kg-spinner" />}
             {!isLoading && (isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
@@ -255,7 +255,7 @@ export default function KnowledgeGraphReview({
         <div className="kg-discover-source-note-header">
           <FileText size={16} />
           <span className="kg-discover-source-note-title">
-            {noteData?.title || shortId}
+            {noteData?.title || `Note ${shortId}`}
           </span>
           {isLoading && <Loader size={14} className="kg-spinner" />}
         </div>
