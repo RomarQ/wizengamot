@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { computeTokenBreakdown } from '../utils/tokenizer';
 import { api } from '../api';
 import ReviewSessionSelector from './ReviewSessionSelector';
+import ChatInput from './ChatInput';
 import './CommitSidebar.css';
 
 /**
@@ -110,12 +111,6 @@ function CommitSidebar({
       await onVisualise(selectedStyle);
     } finally {
       setIsVisualising(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      handleSubmit();
     }
   };
 
@@ -475,33 +470,19 @@ function CommitSidebar({
             )}
           </div>
 
-          <div className="followup-input-wrapper">
-            <textarea
-              ref={inputRef}
-              className="followup-textarea"
-              placeholder="Type your question..."
-              value={followUpQuestion}
-              onChange={(e) => setFollowUpQuestion(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={4}
-            />
-            <button
-              className="followup-send-btn"
-              onClick={handleSubmit}
-              disabled={!followUpQuestion.trim() || !selectedModel || !hasContext}
-              title="Send (⌘/Ctrl+Enter)"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="19" x2="12" y2="5"></line>
-                <polyline points="5 12 12 5 19 12"></polyline>
-              </svg>
-            </button>
-          </div>
-
-          <div className="followup-info-row">
-            <span className="encoding-info">Encoding {tokenBreakdown.encodingName}</span>
-            <span className="shortcut-hint">⌘/Ctrl+Enter to send</span>
-          </div>
+          <ChatInput
+            inputRef={inputRef}
+            value={followUpQuestion}
+            onChange={setFollowUpQuestion}
+            onSubmit={handleSubmit}
+            placeholder="Type your question..."
+            disabled={!selectedModel || !hasContext}
+            rows={4}
+            minHeight="60px"
+            maxHeight="120px"
+            requireModifier={true}
+            hint={`Encoding ${tokenBreakdown.encodingName} · ⌘/Ctrl+Enter to send`}
+          />
 
           <div className="token-bar-simple">
             <div className="token-bar-header">

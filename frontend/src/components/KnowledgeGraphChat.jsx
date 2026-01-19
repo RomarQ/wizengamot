@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, X, MessageSquare, ExternalLink, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { X, MessageSquare, RefreshCw, ArrowUpRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../api';
+import ChatInput from './ChatInput';
 import './KnowledgeGraph.css';
 
 /**
@@ -133,8 +134,7 @@ export default function KnowledgeGraphChat({
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
@@ -176,16 +176,6 @@ export default function KnowledgeGraphChat({
   const handleFollowUp = (question) => {
     setInput(question);
     inputRef.current?.focus();
-  };
-
-  // Handle keyboard shortcuts: Enter to send, Shift+Enter for newline
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (input.trim() && !loading) {
-        handleSubmit(e);
-      }
-    }
   };
 
   // Highlight note in graph (stays in chat)
@@ -333,30 +323,21 @@ export default function KnowledgeGraphChat({
         <div ref={messagesEndRef} />
       </div>
 
-      <form className="kg-chat-input-form" onSubmit={handleSubmit}>
-        <div className="kg-chat-input-wrapper">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about your knowledge..."
-            disabled={loading}
-            className="kg-chat-textarea"
-            rows={2}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="kg-chat-send-btn"
-          >
-            <Send size={16} />
-          </button>
-        </div>
-        <div className="kg-chat-input-hint">
-          Enter to send
-        </div>
-      </form>
+      <div className="kg-chat-input-form">
+        <ChatInput
+          inputRef={inputRef}
+          value={input}
+          onChange={setInput}
+          onSubmit={handleSubmit}
+          placeholder="Ask about your knowledge..."
+          disabled={loading}
+          loading={loading}
+          rows={2}
+          minHeight="40px"
+          maxHeight="100px"
+          hint="Enter to send"
+        />
+      </div>
     </div>
   );
 }
