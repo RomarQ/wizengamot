@@ -9,8 +9,9 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-# Prompts directory for brainstorm styles
-BRAINSTORM_PROMPTS_DIR = Path(os.getenv("BRAINSTORM_PROMPTS_DIR", "brainstorm_prompts"))
+# Prompts directory for brainstorm styles (follows project pattern: prompts/{mode}/)
+PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", "prompts"))
+BRAINSTORM_PROMPTS_DIR = PROMPTS_DIR / "brainstorm"
 
 # Default styles with their metadata
 DEFAULT_STYLES = {
@@ -410,8 +411,13 @@ Return a JSON array with exactly 10 items. Each item must have:
 - `idea`: One compelling sentence summarizing the conceptual bridge
 - `note_ids`: Array of 2-4 note IDs (format: "note:convX:note-Y")
 - `reasoning`: 2-3 sentences explaining WHY this connection is valuable and what insight emerges
-- `bridge_title`: A specific title for a potential bridge note
-- `bridge_body`: 2-3 sentences of draft content for the bridge note
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -420,7 +426,8 @@ Return a JSON array with exactly 10 items. Each item must have:
     "note_ids": ["note:conv1:note-1", "note:conv2:note-2"],
     "reasoning": "2-3 sentences explaining the value and insight",
     "bridge_title": "Suggested title for a bridge note",
-    "bridge_body": "Brief draft content for the bridge note"
+    "bridge_body": "Brief draft content for the bridge note",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -463,6 +470,17 @@ Identify 10 gaps, contradictions, or unanswered questions in this knowledge grap
 
 ## Output Format
 Return a JSON array with exactly 10 items:
+- `type`: One of "gap", "contradiction", or "unanswered"
+- `description`: Specific description of what's missing or conflicting
+- `note_ids`: Array of note IDs revealing this finding
+- `reasoning`: Why this gap/contradiction matters
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -472,7 +490,8 @@ Return a JSON array with exactly 10 items:
     "note_ids": ["note:conv1:note-1", "note:conv2:note-2"],
     "reasoning": "Why this gap/contradiction matters and what it reveals",
     "bridge_title": "Suggested title for a bridge note that addresses this",
-    "bridge_body": "Brief draft content for the bridge note"
+    "bridge_body": "Brief draft content for the bridge note",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -528,6 +547,17 @@ Trace trajectories forward. What emerges from these ideas over time?
 
 ## Output Format
 Return a JSON array with exactly 12 items (3 per perspective):
+- `perspective`: One of "child", "expert", "skeptic", or "futurist"
+- `insight`: What this perspective reveals about the notes
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this insight matters from this perspective
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -537,7 +567,8 @@ Return a JSON array with exactly 12 items (3 per perspective):
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this insight matters from this perspective",
     "bridge_title": "Suggested title for a bridge note",
-    "bridge_body": "Brief content addressing this perspective's needs"
+    "bridge_body": "Brief content addressing this perspective's needs",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -600,6 +631,17 @@ Apply each SCAMPER operation to the notes, generating at least one insight per o
 
 ## Output Format
 Return a JSON array with 7-10 items covering all operations:
+- `operation`: One of "substitute", "combine", "adapt", "modify", "put_to_use", "eliminate", or "reverse"
+- `insight`: What the transformation reveals
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: How this operation creates new understanding
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -609,7 +651,8 @@ Return a JSON array with 7-10 items covering all operations:
     "note_ids": ["note:conv1:note-1", "note:conv2:note-2"],
     "reasoning": "How this operation creates new understanding",
     "bridge_title": "Suggested title for a bridge note",
-    "bridge_body": "Brief content capturing the transformation"
+    "bridge_body": "Brief content capturing the transformation",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -679,6 +722,17 @@ Meta-thinking. How does this fit together? What's the big picture?
 
 ## Output Format
 Return a JSON array with exactly 12 items (2 per hat):
+- `hat`: One of "white", "red", "black", "yellow", "green", or "blue"
+- `insight`: What this thinking mode reveals
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Deeper explanation of the insight
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -688,7 +742,8 @@ Return a JSON array with exactly 12 items (2 per hat):
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Deeper explanation of the insight",
     "bridge_title": "Suggested title for a bridge note",
-    "bridge_body": "Brief content from this hat's perspective"
+    "bridge_body": "Brief content from this hat's perspective",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -758,6 +813,17 @@ Generate 12 thought-provoking questions using the 5W1H framework (2 per category
 
 ## Output Format
 Return a JSON array with exactly 12 items (2 per category):
+- `question_type`: One of "who", "what", "when", "where", "why", or "how"
+- `question`: The specific, probing question
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this question matters and what it might reveal
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -767,7 +833,8 @@ Return a JSON array with exactly 12 items (2 per category):
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this question matters and what it might reveal",
     "bridge_title": "Suggested title for a bridge note that answers this",
-    "bridge_body": "Brief sketch of how a note could address this question"
+    "bridge_body": "Brief sketch of how a note could address this question",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -811,6 +878,17 @@ Think about:
 
 ## Output Format
 Return a JSON array with exactly 5 items:
+- `sub_idea`: Specific sub-connection that deepens the original
+- `builds_on`: How this extends or refines the original insight
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this sub-connection matters
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -820,7 +898,8 @@ Return a JSON array with exactly 5 items:
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this sub-connection matters",
     "bridge_title": "Suggested title for bridge note",
-    "bridge_body": "2-3 sentences of draft content for the bridge note"
+    "bridge_body": "2-3 sentences of draft content for the bridge note",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -866,6 +945,17 @@ Generate 5 resolution approaches that address this gap or contradiction, each le
 
 ## Output Format
 Return a JSON array with exactly 5 items:
+- `resolution_approach`: How this addresses the gap/contradiction
+- `why_gap_exists`: Root cause analysis of why this gap/contradiction exists
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this resolution is valuable
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -875,7 +965,8 @@ Return a JSON array with exactly 5 items:
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this resolution is valuable",
     "bridge_title": "Suggested title for bridge note",
-    "bridge_body": "2-3 sentences of draft content that resolves the issue"
+    "bridge_body": "2-3 sentences of draft content that resolves the issue",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -921,6 +1012,17 @@ Create 5 bridge notes that integrate multiple perspectives, serving the needs of
 
 ## Output Format
 Return a JSON array with exactly 5 items:
+- `perspectives_integrated`: Array of perspectives woven together
+- `integration_approach`: How these perspectives are woven together
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this integration creates value
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -930,7 +1032,8 @@ Return a JSON array with exactly 5 items:
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this integration creates value",
     "bridge_title": "Suggested title for bridge note",
-    "bridge_body": "2-3 sentences demonstrating the integrated approach"
+    "bridge_body": "2-3 sentences demonstrating the integrated approach",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -967,6 +1070,18 @@ Generate 5 synthesis notes that combine multiple SCAMPER operations for amplifie
 
 ## Output Format
 Return a JSON array with exactly 5 items:
+- `operations_combined`: Array of SCAMPER operations combined
+- `synergy_explanation`: How these operations amplify each other
+- `synthesis`: The insight that emerges from combining these operations
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this combination is valuable
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -977,7 +1092,8 @@ Return a JSON array with exactly 5 items:
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this combination is valuable",
     "bridge_title": "Suggested title for bridge note",
-    "bridge_body": "2-3 sentences capturing the synthesized insight"
+    "bridge_body": "2-3 sentences capturing the synthesized insight",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -1024,6 +1140,18 @@ Generate 5 bridge notes that integrate insights from multiple thinking hats, cre
 
 ## Output Format
 Return a JSON array with exactly 5 items:
+- `hats_integrated`: Array of thinking hats integrated
+- `tensions_identified`: Key disagreements or tensions between hats
+- `synthesis`: How these perspectives can be productively combined
+- `note_ids`: Array of relevant note IDs
+- `reasoning`: Why this integration creates value
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -1034,7 +1162,8 @@ Return a JSON array with exactly 5 items:
     "note_ids": ["note:conv1:note-1"],
     "reasoning": "Why this integration creates value",
     "bridge_title": "Suggested title for bridge note",
-    "bridge_body": "2-3 sentences demonstrating the balanced perspective"
+    "bridge_body": "2-3 sentences demonstrating the balanced perspective",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```
@@ -1080,6 +1209,19 @@ Select the 5 most valuable questions and create bridge notes that answer them ba
 
 ## Output Format
 Return a JSON array with exactly 5 items:
+- `question`: The original question being answered
+- `answer_type`: One of "clear", "partial", or "unknown"
+- `answer`: The substantive answer based on the notes
+- `evidence`: Specific notes and reasoning supporting this answer
+- `note_ids`: Array of relevant note IDs
+- `uncertainty`: What remains unknown or assumed
+- `bridge_title`: Short title in sentence case (max 6 words, e.g., "Feedback loops enable learning")
+- `bridge_body`: Atomic note up to 100 words in Zettelkasten format:
+  * Opens with the primary conclusion in one clear sentence
+  * One sentence per line, separated by blank lines
+  * Each sentence packs context, supporting fact, or consequence
+  * Closes with a practical takeaway (what to do, watch for, or expect)
+- `suggested_tags`: Array of exactly 1-2 relevant hashtags (e.g., ["#insight", "#how"])
 
 ```json
 [
@@ -1091,7 +1233,8 @@ Return a JSON array with exactly 5 items:
     "note_ids": ["note:conv1:note-1"],
     "uncertainty": "What remains unknown or assumed",
     "bridge_title": "Suggested title for bridge note",
-    "bridge_body": "2-3 sentences capturing the answer and its context"
+    "bridge_body": "2-3 sentences capturing the answer and its context",
+    "suggested_tags": ["#tag1", "#tag2", "#tag3"]
   }
 ]
 ```

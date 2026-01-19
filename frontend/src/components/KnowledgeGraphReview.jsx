@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Sparkles, Check, XCircle, Edit3, ChevronDown, ChevronUp, ExternalLink, FileText, Clock, Loader, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Sparkles, Check, XCircle, Edit3, ChevronDown, ChevronUp, ExternalLink, FileText, Clock, Loader, Maximize2, Minimize2, Trash2, Rows } from 'lucide-react';
 import { api } from '../api';
 import ReactMarkdown from 'react-markdown';
+import ImmersiveReviewMode from './ImmersiveReviewMode';
 
 /**
  * KnowledgeGraphReview - Panel for reviewing and managing discovered insights
@@ -25,6 +26,8 @@ export default function KnowledgeGraphReview({
   const [loadingNotes, setLoadingNotes] = useState(new Set());
   const [expandedNotes, setExpandedNotes] = useState(new Set());
   const [fullScreen, setFullScreen] = useState(false);
+  const [immersiveMode, setImmersiveMode] = useState(false);
+  const [immersiveIndex, setImmersiveIndex] = useState(0);
   const [error, setError] = useState(null);
 
   // Load discoveries on mount
@@ -154,6 +157,20 @@ export default function KnowledgeGraphReview({
     }
   };
 
+  // Delete discovery permanently
+  const handleDelete = async (discovery) => {
+    if (!window.confirm('Permanently delete this discovery? This cannot be undone.')) return;
+    try {
+      await api.deleteDiscovery(discovery.id);
+      setDiscoveries(prev => prev.filter(d => d.id !== discovery.id));
+      setSelectedDiscovery(null);
+      loadStats();
+      if (onRefreshGraph) onRefreshGraph();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   // Toggle expanded state for a discovery
   const toggleExpanded = (discoveryId) => {
     setExpandedDiscoveries(prev => {
@@ -176,6 +193,56 @@ export default function KnowledgeGraphReview({
     setEditMode(false);
     // Pre-fetch all source notes
     discovery.source_notes?.forEach(noteId => fetchNoteData(noteId));
+  };
+
+  // Open immersive review mode
+  const openImmersiveMode = (index = 0) => {
+    setImmersiveIndex(index);
+    setImmersiveMode(true);
+    setSelectedDiscovery(null); // Close modal if open
+    // Pre-fetch all source notes for all discoveries
+    discoveries.forEach(d => {
+      d.source_notes?.forEach(noteId => fetchNoteData(noteId));
+    });
+  };
+
+  // Handle approve from immersive mode (with optional edits)
+  const handleImmersiveApprove = async (discovery, edits = null) => {
+    try {
+      const result = await api.approveDiscovery(discovery.id, edits);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setDiscoveries(prev => prev.filter(d => d.id !== discovery.id));
+        loadStats();
+        if (onRefreshGraph) onRefreshGraph();
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Handle dismiss from immersive mode
+  const handleImmersiveDismiss = async (discovery) => {
+    try {
+      await api.dismissDiscovery(discovery.id);
+      setDiscoveries(prev => prev.filter(d => d.id !== discovery.id));
+      loadStats();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Handle delete from immersive mode
+  const handleImmersiveDelete = async (discovery) => {
+    try {
+      await api.deleteDiscovery(discovery.id);
+      setDiscoveries(prev => prev.filter(d => d.id !== discovery.id));
+      loadStats();
+      if (onRefreshGraph) onRefreshGraph();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   // Format relative time
@@ -366,6 +433,13 @@ export default function KnowledgeGraphReview({
               >
                 <XCircle size={14} /> Dismiss
               </button>
+              <button
+                className="kg-btn kg-btn-small kg-btn-ghost"
+                onClick={(e) => { e.stopPropagation(); handleDelete(discovery); }}
+                title="Permanently delete"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
         )}
@@ -381,6 +455,15 @@ export default function KnowledgeGraphReview({
           <span>Review Insights</span>
         </div>
         <div className="kg-review-header-actions">
+          {discoveries.length > 0 && (
+            <button
+              className="kg-icon-btn"
+              onClick={() => openImmersiveMode(0)}
+              title="Immersive Review Mode"
+            >
+              <Rows size={18} />
+            </button>
+          )}
           <button
             className="kg-icon-btn"
             onClick={() => setFullScreen(!fullScreen)}
@@ -447,9 +530,21 @@ export default function KnowledgeGraphReview({
           <div className="kg-discover-modal kg-discover-modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="kg-discover-modal-header">
               <h3>Bridge Note Preview</h3>
-              <button className="kg-icon-btn" onClick={() => setSelectedDiscovery(null)}>
-                <X size={18} />
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className="kg-icon-btn"
+                  onClick={() => {
+                    const idx = discoveries.findIndex(d => d.id === selectedDiscovery.id);
+                    openImmersiveMode(idx >= 0 ? idx : 0);
+                  }}
+                  title="Open in Immersive Mode"
+                >
+                  <Rows size={18} />
+                </button>
+                <button className="kg-icon-btn" onClick={() => setSelectedDiscovery(null)}>
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="kg-discover-modal-body">
@@ -554,6 +649,13 @@ export default function KnowledgeGraphReview({
                 <XCircle size={14} /> Dismiss
               </button>
               <button
+                className="kg-btn kg-btn-ghost"
+                onClick={() => handleDelete(selectedDiscovery)}
+                title="Permanently delete"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+              <button
                 className="kg-btn kg-btn-success"
                 onClick={() => handleApprove(selectedDiscovery)}
               >
@@ -562,6 +664,21 @@ export default function KnowledgeGraphReview({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Immersive Review Mode */}
+      {immersiveMode && (
+        <ImmersiveReviewMode
+          discoveries={discoveries}
+          initialIndex={immersiveIndex}
+          sourceNotesData={sourceNotesData}
+          loadingNotes={loadingNotes}
+          fetchNoteData={fetchNoteData}
+          onApprove={handleImmersiveApprove}
+          onDismiss={handleImmersiveDismiss}
+          onDelete={handleImmersiveDelete}
+          onClose={() => setImmersiveMode(false)}
+        />
       )}
     </div>
   );
