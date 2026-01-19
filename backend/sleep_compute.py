@@ -497,12 +497,14 @@ def _prune_ideas(ideas: List[Dict[str, Any]], max_keep: int = 10) -> List[Dict[s
 
 def _generate_bridge_suggestions(
     session: Dict[str, Any],
-    final_ideas: List[Dict[str, Any]]
+    final_ideas: List[Dict[str, Any]],
+    notes_target: int = 10
 ) -> List[Dict[str, Any]]:
     """
     Generate final bridge note suggestions from brainstorming ideas.
 
     Converts raw ideas into discovery-compatible format.
+    Limited to notes_target number of suggestions.
     """
     suggestions = []
 
@@ -574,7 +576,11 @@ def _generate_bridge_suggestions(
 
         suggestions.append(suggestion)
 
-    return suggestions
+        # Stop if we've reached the target
+        if len(suggestions) >= notes_target:
+            break
+
+    return suggestions[:notes_target]
 
 
 def create_sleep_session(
@@ -583,6 +589,7 @@ def create_sleep_session(
     depth: int = 2,
     max_notes: int = 30,
     turns: int = 3,
+    notes_target: int = 10,
     model: Optional[str] = None,
     entry_points: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
@@ -595,6 +602,7 @@ def create_sleep_session(
         depth: Graph traversal depth (1-3)
         max_notes: Maximum notes to analyze
         turns: Number of brainstorming iterations
+        notes_target: Target number of bridge notes to generate (5-30)
         model: Model to use (defaults to settings or SLEEP_COMPUTE_MODEL)
         entry_points: Optional list of entry points (notes or topics) to start from
 
@@ -635,6 +643,7 @@ def create_sleep_session(
     depth = max(1, min(3, depth))
     max_notes = max(10, min(50, max_notes))
     turns = max(2, min(5, turns))
+    notes_target = max(5, min(30, notes_target))
 
     # Initialize session
     session_id = f"sleep_{uuid.uuid4().hex[:8]}"
@@ -646,6 +655,7 @@ def create_sleep_session(
             "depth": depth,
             "max_notes": max_notes,
             "turns": turns,
+            "notes_target": notes_target,
             "model": model
         },
         "prompt": prompt,
@@ -805,7 +815,9 @@ async def run_sleep_compute(session_id: str) -> Dict[str, Any]:
 
         session["progress"]["phase"] = "synthesizing"
 
-        bridge_suggestions = _generate_bridge_suggestions(session, all_ideas)
+        # Get notes_target from config, default to 10
+        notes_target = config.get("notes_target", 10)
+        bridge_suggestions = _generate_bridge_suggestions(session, all_ideas, notes_target)
 
         session["final_output"] = {
             "bridge_suggestions": bridge_suggestions,

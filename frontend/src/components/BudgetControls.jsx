@@ -1,17 +1,19 @@
 import React from 'react';
-import { Layers, FileText, RefreshCw } from 'lucide-react';
+import { Layers, FileText, RefreshCw, Target } from 'lucide-react';
 import './BudgetControls.css';
 
 /**
- * BudgetControls - Sliders for depth, max notes, and turns
+ * BudgetControls - Sliders for depth, max notes, turns, and notes target
  */
 export default function BudgetControls({
   depth,
   maxNotes,
   turns,
+  notesTarget,
   onDepthChange,
   onMaxNotesChange,
   onTurnsChange,
+  onNotesTargetChange,
   disabled = false,
 }) {
   return (
@@ -92,6 +94,33 @@ export default function BudgetControls({
           Brainstorming iterations. More turns = deeper exploration.
         </div>
       </div>
+
+      {notesTarget !== undefined && onNotesTargetChange && (
+        <div className="budget-control-row">
+          <div className="budget-control-header">
+            <Target size={14} />
+            <span>Notes Target</span>
+            <span className="budget-control-value">{notesTarget}</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="30"
+            step="1"
+            value={notesTarget}
+            onChange={(e) => onNotesTargetChange(parseInt(e.target.value))}
+            disabled={disabled}
+            className="budget-slider"
+          />
+          <div className="budget-slider-labels">
+            <span>1</span>
+            <span>30</span>
+          </div>
+          <div className="budget-control-hint">
+            Target number of bridge notes to generate.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

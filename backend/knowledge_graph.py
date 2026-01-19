@@ -635,6 +635,7 @@ def build_graph() -> Dict[str, Any]:
 
     nodes = []
     links = []
+    node_ids = set()  # Track all valid node IDs for link validation
     source_notes = {}  # Group notes by conversation (source)
     tag_index = {}  # Map tags to note IDs
 
@@ -674,6 +675,7 @@ def build_graph() -> Dict[str, Any]:
             "sourceType": source_type,
             "conversationId": conversation_id
         })
+        node_ids.add(source_node_id)
 
         # Collect notes from this conversation
         conv_notes = []
@@ -703,6 +705,7 @@ def build_graph() -> Dict[str, Any]:
                 "sourceType": source_type,  # Type of source (youtube, podcast, pdf, article)
                 "created_at": full_conv.get("created_at"),  # Conversation creation time
             })
+            node_ids.add(note_id)
 
             # Index tags for cross-source linking
             for tag in note.get("tags", []):
@@ -739,15 +742,18 @@ def build_graph() -> Dict[str, Any]:
             "entityType": entity.get("type", "concept"),
             "mentionCount": len(entity.get("mentions", []))
         })
+        node_ids.add(entity_node_id)
 
-        # Add links from notes to entities
+        # Add links from notes to entities (only if note exists)
         for mention in entity.get("mentions", []):
             note_id = f"note:{mention['conversation_id']}:{mention['note_id']}"
-            links.append({
-                "source": note_id,
-                "target": entity_node_id,
-                "type": "mentions"
-            })
+            # Validate that the note node exists before adding the link
+            if note_id in node_ids:
+                links.append({
+                    "source": note_id,
+                    "target": entity_node_id,
+                    "type": "mentions"
+                })
 
     # Add cross-source tag links
     for tag, note_ids in tag_index.items():
@@ -778,15 +784,19 @@ def build_graph() -> Dict[str, Any]:
                     "value": tag
                 })
 
-    # Add manual links
+    # Add manual links (only if both source and target nodes exist)
     for manual_link in manual_links_data.get("manual_links", []):
         if manual_link["id"] not in manual_links_data.get("dismissed_links", []):
-            links.append({
-                "source": manual_link["source"],
-                "target": manual_link["target"],
-                "type": "manual",
-                "label": manual_link.get("label", "related")
-            })
+            source = manual_link["source"]
+            target = manual_link["target"]
+            # Validate that both nodes exist before adding the link
+            if source in node_ids and target in node_ids:
+                links.append({
+                    "source": source,
+                    "target": target,
+                    "type": "manual",
+                    "label": manual_link.get("label", "related")
+                })
 
     # Calculate stats
     note_count = sum(1 for n in nodes if n["type"] == "note")

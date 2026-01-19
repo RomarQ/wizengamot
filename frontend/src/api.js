@@ -3270,6 +3270,7 @@ export const api = {
         depth: options.depth || 2,
         max_notes: options.maxNotes || 30,
         turns: options.turns || 3,
+        notes_target: options.notesTarget || 10,
         model: options.model || null,
         entry_points: options.entryPoints || [],
       }),

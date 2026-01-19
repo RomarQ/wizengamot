@@ -18,6 +18,8 @@ import EntryPointSelector from './EntryPointSelector';
 export default function KnowledgeGraphDiscover({
   onClose,
   onRefreshGraph,
+  activeWorkers = [],      // Lifted to parent for persistence
+  setActiveWorkers = null, // Lifted to parent for persistence
 }) {
   // Mode toggle: 'quick' or 'sleep'
   const [mode, setMode] = useState('quick');
@@ -33,8 +35,8 @@ export default function KnowledgeGraphDiscover({
   const [depth, setDepth] = useState(2);
   const [maxNotes, setMaxNotes] = useState(30);
   const [turns, setTurns] = useState(3);
+  const [notesTarget, setNotesTarget] = useState(10);
   const [entryPoints, setEntryPoints] = useState([]);
-  const [activeWorkers, setActiveWorkers] = useState([]);
 
   // Maximum concurrent workers
   const MAX_WORKERS = 3;
@@ -46,28 +48,12 @@ export default function KnowledgeGraphDiscover({
     "Suggest bridge notes connecting different domains",
   ];
 
-  // Check for active workers on mount and periodically
+  // Auto-switch to sleep mode when there are active workers
   useEffect(() => {
-    const checkActiveWorkers = async () => {
-      try {
-        const sessions = await api.listSleepComputeSessions(10);
-        const running = (sessions || []).filter(
-          s => s.status === 'running' || s.status === 'paused'
-        );
-        setActiveWorkers(running);
-        if (running.length > 0) {
-          setMode('sleep');
-        }
-      } catch (err) {
-        console.error('Failed to check active workers:', err);
-      }
-    };
-    checkActiveWorkers();
-
-    // Poll for updates when workers are running
-    const interval = setInterval(checkActiveWorkers, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (activeWorkers.length > 0) {
+      setMode('sleep');
+    }
+  }, [activeWorkers.length]);
 
   // Load sleep compute default settings
   useEffect(() => {
@@ -136,6 +122,7 @@ export default function KnowledgeGraphDiscover({
         depth,
         maxNotes,
         turns,
+        notesTarget,
         entryPoints: entryPoints.map(ep => ({
           id: ep.id,
           type: ep.type,
@@ -155,7 +142,9 @@ export default function KnowledgeGraphDiscover({
           entry_points: entryPoints,
           created_at: new Date().toISOString(),
         };
-        setActiveWorkers(prev => [...prev, newWorker]);
+        if (setActiveWorkers) {
+          setActiveWorkers(prev => [...prev, newWorker]);
+        }
         setEntryPoints([]);
         setLoading(false);
       }
@@ -168,15 +157,19 @@ export default function KnowledgeGraphDiscover({
   // Handle worker completion
   const handleWorkerComplete = useCallback((sessionId) => {
     // Remove from active workers
-    setActiveWorkers(prev => prev.filter(w => w.id !== sessionId));
+    if (setActiveWorkers) {
+      setActiveWorkers(prev => prev.filter(w => w.id !== sessionId));
+    }
     if (onRefreshGraph) onRefreshGraph();
-  }, [onRefreshGraph]);
+  }, [onRefreshGraph, setActiveWorkers]);
 
   // Handle worker cancel
   const handleWorkerCancel = useCallback((sessionId) => {
     // Remove from active workers
-    setActiveWorkers(prev => prev.filter(w => w.id !== sessionId));
-  }, []);
+    if (setActiveWorkers) {
+      setActiveWorkers(prev => prev.filter(w => w.id !== sessionId));
+    }
+  }, [setActiveWorkers]);
 
   return (
     <div className={`kg-discover-panel ${fullScreen ? 'kg-discover-fullscreen' : ''}`}>
@@ -326,9 +319,11 @@ export default function KnowledgeGraphDiscover({
                 depth={depth}
                 maxNotes={maxNotes}
                 turns={turns}
+                notesTarget={notesTarget}
                 onDepthChange={setDepth}
                 onMaxNotesChange={setMaxNotes}
                 onTurnsChange={setTurns}
+                onNotesTargetChange={setNotesTarget}
                 disabled={loading}
               />
 

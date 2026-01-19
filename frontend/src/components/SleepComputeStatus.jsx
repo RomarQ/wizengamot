@@ -9,6 +9,8 @@ import {
   Loader,
   Clock,
   DollarSign,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api';
 import './SleepComputeStatus.css';
@@ -24,6 +26,15 @@ export default function SleepComputeStatus({
   const [status, setStatus] = useState(null);
   const [session, setSession] = useState(null);
   const [polling, setPolling] = useState(true);
+  const [expandedTurns, setExpandedTurns] = useState({});
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleTurn = (turnNumber) => {
+    setExpandedTurns(prev => ({
+      ...prev,
+      [turnNumber]: !prev[turnNumber]
+    }));
+  };
 
   // Poll for status updates
   useEffect(() => {
@@ -130,21 +141,30 @@ export default function SleepComputeStatus({
   };
 
   return (
-    <div className={`sleep-compute-status ${status.running ? 'running' : 'done'}`}>
-      <div className="sleep-status-header">
-        {getStatusIcon()}
-        <div className="sleep-status-title">
-          {status.running
-            ? status.paused
-              ? 'Sleep Time Compute Paused'
-              : 'Sleep Time Compute Running'
-            : status.cancelled
-              ? 'Sleep Time Compute Cancelled'
-              : status.error
-                ? 'Sleep Time Compute Failed'
-                : 'Sleep Time Compute Complete'
-          }
+    <div className={`sleep-compute-status ${status.running ? 'running' : 'done'} ${expanded ? 'expanded' : ''}`}>
+      <div
+        className={`sleep-status-header ${expanded ? 'expanded' : ''}`}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="sleep-status-header-left">
+          {getStatusIcon()}
+          <div className="sleep-status-title">
+            {status.running
+              ? status.paused
+                ? 'Sleep Time Compute Paused'
+                : 'Sleep Time Compute Running'
+              : status.cancelled
+                ? 'Sleep Time Compute Cancelled'
+                : status.error
+                  ? 'Sleep Time Compute Failed'
+                  : 'Sleep Time Compute Complete'
+            }
+          </div>
         </div>
+        <ChevronRight
+          size={16}
+          className={`sleep-status-chevron ${expanded ? 'expanded' : ''}`}
+        />
       </div>
 
       {status.running && (
@@ -243,17 +263,80 @@ export default function SleepComputeStatus({
         </div>
       )}
 
+      {/* Expanded detail section */}
+      {expanded && session && (
+        <div className="sleep-detail-section">
+          {/* Entry points */}
+          {session.config?.entry_points?.length > 0 && (
+            <div className="sleep-detail-group">
+              <div className="sleep-detail-label">Entry Points</div>
+              <div className="sleep-detail-items">
+                {session.config.entry_points.map((ep, i) => (
+                  <div key={i} className="sleep-detail-item">
+                    {ep.title || ep.name || ep.id || `Entry ${i + 1}`}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Current activity when running */}
+          {status.running && (
+            <div className="sleep-detail-group">
+              <div className="sleep-detail-label">Current Activity</div>
+              <div className="sleep-detail-activity">
+                {status.phase === 'collecting' && 'Searching knowledge graph for relevant notes...'}
+                {status.phase === 'brainstorming' && `Generating ideas (Turn ${status.current_turn}/${status.total_turns})...`}
+                {status.phase === 'synthesizing' && 'Creating bridge note suggestions...'}
+                {!['collecting', 'brainstorming', 'synthesizing'].includes(status.phase) && 'Processing...'}
+              </div>
+            </div>
+          )}
+
+          {/* Brainstorm style if available */}
+          {session.config?.style_id && (
+            <div className="sleep-detail-group">
+              <div className="sleep-detail-label">Brainstorm Style</div>
+              <div className="sleep-detail-item">{session.config.style_id.replace(/_/g, ' ')}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Turn history */}
-      {session?.turns?.length > 0 && (
+      {expanded && session?.turns?.length > 0 && (
         <div className="sleep-turn-history">
           <div className="sleep-turn-history-label">Turn History</div>
           <div className="sleep-turn-list">
             {session.turns.map((turn, idx) => (
               <div key={idx} className="sleep-turn-item">
-                <div className="sleep-turn-number">Turn {turn.turn_number}</div>
-                <div className="sleep-turn-ideas">
-                  {turn.ideas?.length || 0} ideas
+                <div
+                  className="sleep-turn-header"
+                  onClick={() => toggleTurn(turn.turn_number)}
+                >
+                  <div className="sleep-turn-info">
+                    <span className="sleep-turn-number">Turn {turn.turn_number}</span>
+                    <span className="sleep-turn-ideas-count">
+                      {turn.ideas?.length || 0} ideas
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`sleep-turn-chevron ${expandedTurns[turn.turn_number] ? 'expanded' : ''}`}
+                  />
                 </div>
+                {expandedTurns[turn.turn_number] && turn.ideas?.length > 0 && (
+                  <div className="sleep-turn-ideas-list">
+                    {turn.ideas.map((idea, i) => (
+                      <div key={i} className="sleep-idea-item">
+                        <div className="sleep-idea-title">{idea.title || idea.name || `Idea ${i + 1}`}</div>
+                        {idea.reasoning && (
+                          <div className="sleep-idea-reasoning">{idea.reasoning}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {turn.error && (
                   <div className="sleep-turn-error">{turn.error}</div>
                 )}

@@ -14,7 +14,7 @@ import threading
 import time
 import os
 
-from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search
+from . import storage, config, prompts, threads, settings, content, synthesizer, search, tweet, monitors, monitor_chat, monitor_crawler, monitor_scheduler, monitor_updates, monitor_digest, question_sets, visualiser, openrouter, diagram_styles, knowledge_graph, graph_rag, graph_search, brainstorm_styles
 from .council import run_full_council, generate_conversation_title, generate_synthesizer_title, generate_visualiser_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
 from .summarizer import generate_summary
 
@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
     search.preload_model()
     # Startup: Start background tasks
     monitor_scheduler.start_scheduler()
+    # Startup: Initialize brainstorm prompts
+    brainstorm_styles.initialize_default_prompts()
     yield
     # Shutdown: Clean up
     monitor_scheduler.stop_scheduler()
@@ -4362,6 +4364,7 @@ class SleepComputeStartRequest(BaseModel):
     depth: int = 2
     max_notes: int = 30
     turns: int = 3
+    notes_target: int = 10
     model: Optional[str] = None
     entry_points: Optional[List[SleepComputeEntryPoint]] = None
 
@@ -4375,6 +4378,7 @@ async def start_sleep_compute_endpoint(request: SleepComputeStartRequest, backgr
     - depth: Graph traversal hops (1-3)
     - max_notes: Maximum notes to analyze (10-50)
     - turns: Brainstorming iterations (2-5)
+    - notes_target: Target number of bridge notes to generate (5-30)
     - entry_points: Optional list of notes or topics to start from
 
     Returns immediately with session_id. Computation runs in background.
@@ -4390,6 +4394,7 @@ async def start_sleep_compute_endpoint(request: SleepComputeStartRequest, backgr
         depth=request.depth,
         max_notes=request.max_notes,
         turns=request.turns,
+        notes_target=request.notes_target,
         model=request.model,
         entry_points=entry_points_data
     )

@@ -35,6 +35,7 @@ export default function KnowledgeGraphGallery({
   const [focusMode, setFocusMode] = useState(false);
   const [searchMatchedNodes, setSearchMatchedNodes] = useState([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [activeWorkers, setActiveWorkers] = useState([]);
   const containerRef = useRef(null);
   const searchContainerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -139,6 +140,25 @@ export default function KnowledgeGraphGallery({
     loadGraph();
     loadMigrationStatus();
   }, [loadGraph, loadMigrationStatus]);
+
+  // Poll for active sleep compute workers (persists across tab switches)
+  useEffect(() => {
+    const checkActiveWorkers = async () => {
+      try {
+        const sessions = await api.listSleepComputeSessions(10);
+        const running = (sessions || []).filter(
+          s => s.status === 'running' || s.status === 'paused'
+        );
+        setActiveWorkers(running);
+      } catch (err) {
+        console.error('Failed to check active workers:', err);
+      }
+    };
+
+    checkActiveWorkers();
+    const interval = setInterval(checkActiveWorkers, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Auto-select entity if initialEntityId is provided
   useEffect(() => {
@@ -796,6 +816,8 @@ export default function KnowledgeGraphGallery({
           <KnowledgeGraphDiscover
             onClose={() => setShowDiscover(false)}
             onRefreshGraph={loadGraph}
+            activeWorkers={activeWorkers}
+            setActiveWorkers={setActiveWorkers}
           />
         )}
 
