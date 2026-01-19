@@ -1692,6 +1692,16 @@
   overflow: hidden;
 }
 
+/* Scrollable body container for discover panel content */
+.kg-discover-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 0;
+}
+
 .kg-discover-header {
   display: flex;
   align-items: center;
@@ -1715,8 +1725,10 @@
 
 /* Input section */
 .kg-discover-input-section {
-  padding: 16px;
+  padding: 0;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border-primary);
+  margin-bottom: 16px;
 }
 
 .kg-discover-examples {
@@ -1744,7 +1756,7 @@
 
 /* Status and error */
 .kg-discover-error {
-  margin: 0 16px;
+  margin: 0 0 12px 0;
   padding: 10px 12px;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -1754,7 +1766,7 @@
 }
 
 .kg-discover-status {
-  margin: 0 16px;
+  margin: 0 0 12px 0;
   padding: 12px;
   background: var(--bg-secondary);
   border-radius: 8px;
@@ -1783,17 +1795,19 @@
 .kg-discover-stats {
   display: flex;
   gap: 16px;
-  padding: 12px 16px;
+  padding: 12px 0;
   background: var(--bg-secondary);
   font-size: 12px;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
 }
 
 /* Filter */
 .kg-discover-filter {
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border-primary);
+  padding: 0;
+  margin-bottom: 12px;
 }
 
 .kg-discover-filter-select {
@@ -1807,9 +1821,9 @@
 
 /* Discoveries list */
 .kg-discover-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
+  flex: none;
+  overflow: visible;
+  padding: 0 0 24px 0;
 }
 
 .kg-discover-empty {
@@ -2378,4 +2392,466 @@
 .kg-btn-small {
   padding: 5px 10px;
   font-size: 12px;
+}
+
+/* =============================================================================
+   Sleep Time Compute Styles
+   ============================================================================= */
+
+/* Mode Toggle */
+.kg-discover-mode-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin: 0 0 16px 0;
+}
+
+.kg-discover-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kg-discover-mode-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.kg-discover-mode-btn.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kg-discover-mode-btn.active svg {
+  color: var(--primary);
+}
+
+/* Section Divider */
+.kg-discover-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  margin: 8px 0;
+  border-top: 1px solid var(--border-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.kg-discover-section-divider:hover {
+  background: var(--bg-hover);
+  margin: 8px -16px;
+  padding: 12px 16px;
+}
+
+.kg-discover-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.5px;
+}
+
+.kg-discover-section-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.kg-discover-section-toggle {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  transition: transform 0.2s ease;
+}
+
+.kg-discover-section-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Sleep Time Compute Configuration Section */
+.kg-discover-sleep-config {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-primary);
+  margin-bottom: 16px;
+}
+
+.kg-discover-sleep-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kg-discover-sleep-config-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.5px;
+}
+
+/* Sleep Time Compute Start Button */
+.kg-btn-sleep-start {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--primary);
+  border: none;
+  color: var(--text-inverse);
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.kg-btn-sleep-start:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border: none;
+  color: var(--text-inverse);
+}
+
+.kg-btn-sleep-start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kg-btn-sleep-start svg {
+  animation: none;
+}
+
+.kg-btn-sleep-start.loading svg {
+  animation: kg-spin 1s linear infinite;
+}
+
+/* Sleep Time Compute Status Container */
+.kg-discover-sleep-status {
+  padding: 0;
+}
+
+/* Sleep Time Compute Results Section */
+.kg-discover-sleep-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kg-discover-sleep-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.kg-discover-sleep-results-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.kg-discover-sleep-results-title svg {
+  color: var(--primary);
+}
+
+.kg-discover-sleep-results-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* No Style Selected Warning */
+.kg-discover-no-style {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.kg-discover-no-style svg {
+  flex-shrink: 0;
+}
+
+/* Sleep Time Compute Loading State */
+.kg-discover-sleep-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.kg-discover-sleep-loading svg {
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.kg-discover-sleep-loading-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Sleep Time Compute Session Card */
+.kg-sleep-session-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.kg-sleep-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.kg-sleep-session-style {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.kg-sleep-session-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.kg-sleep-session-status.running {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.kg-sleep-session-status.completed {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.kg-sleep-session-status.failed {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.kg-sleep-session-status.cancelled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.kg-sleep-session-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.kg-sleep-session-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Mode Badge (worker count) */
+.kg-discover-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* Workers List */
+.kg-discover-workers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-primary);
+  margin-bottom: 16px;
+}
+
+.kg-discover-workers-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.kg-discover-workers-header svg {
+  color: var(--primary);
+}
+
+.kg-discover-worker-status {
+  /* Container for each worker's SleepComputeStatus */
+}
+
+/* Sleep Config Header */
+.kg-discover-sleep-config-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+/* Max Workers Message */
+.kg-discover-max-workers {
+  padding: 12px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  color: var(--warning);
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .kg-discover-mode-toggle {
+    flex-direction: column;
+  }
+
+  .kg-discover-mode-btn {
+    justify-content: flex-start;
+  }
+}
+
+/* =============================================================================
+   Knowledge Graph Review Panel Styles
+   ============================================================================= */
+
+.kg-gallery-content.review-open {
+  /* Force immediate layout recalculation */
+}
+
+.kg-review-panel {
+  width: 400px;
+  min-width: 400px;
+  border-left: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.kg-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.kg-review-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.kg-review-title svg {
+  color: #22c55e;
+}
+
+.kg-review-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Scrollable body container for review panel content */
+.kg-review-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* Full screen mode for review panel */
+.kg-review-panel.kg-review-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  min-width: 100%;
+  z-index: 1000;
+  border-radius: 0;
+  border: none;
+}
+
+/* Info text in discover panel */
+.kg-discover-info {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-primary);
+  text-align: center;
+}
+
+.kg-discover-info p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Responsive adjustments for review panel */
+@media (max-width: 1200px) {
+  .kg-review-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 25;
+  }
+}
+
+@media (max-width: 768px) {
+  .kg-review-panel {
+    width: 100%;
+  }
 }

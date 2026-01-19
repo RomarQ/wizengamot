@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search } from 'lucide-react';
+import { X, Network, RefreshCw, Play, Square, Eye, EyeOff, ExternalLink, MessageSquare, ArrowRight, Maximize2, Minimize2, Target, ZoomOut, Search, Sparkles, CheckSquare } from 'lucide-react';
 import KnowledgeGraphViewer from './KnowledgeGraphViewer';
 import KnowledgeGraphChat from './KnowledgeGraphChat';
 import KnowledgeGraphSearch from './KnowledgeGraphSearch';
+import KnowledgeGraphDiscover from './KnowledgeGraphDiscover';
+import KnowledgeGraphReview from './KnowledgeGraphReview';
 import { api } from '../api';
 import './KnowledgeGraph.css';
 
@@ -14,6 +16,7 @@ export default function KnowledgeGraphGallery({
   onClose,
   onSelectConversation,
   initialEntityId = null,
+  initialOpenReview = false,
 }) {
   const [graphData, setGraphData] = useState(null);
   const [stats, setStats] = useState(null);
@@ -25,6 +28,8 @@ export default function KnowledgeGraphGallery({
   const [migrationStatus, setMigrationStatus] = useState(null);
   const [migrationPolling, setMigrationPolling] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showDiscover, setShowDiscover] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [highlightedNodeId, setHighlightedNodeId] = useState(null);
   const [expandedView, setExpandedView] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -152,6 +157,15 @@ export default function KnowledgeGraphGallery({
       setTimeout(() => setHighlightedNodeId(null), 2000);
     }
   }, [initialEntityId, graphData]);
+
+  // Auto-open Review panel when initialOpenReview is true
+  useEffect(() => {
+    if (initialOpenReview) {
+      setShowReview(true);
+      setShowDiscover(false);
+      setShowChat(false);
+    }
+  }, [initialOpenReview]);
 
   // Poll migration status while running
   useEffect(() => {
@@ -398,8 +412,22 @@ export default function KnowledgeGraphGallery({
 
         <div className={`kg-gallery-actions ${searchExpanded ? 'hidden' : ''}`}>
           <button
+            className={`kg-icon-btn ${showDiscover ? 'active' : ''}`}
+            onClick={() => { setShowDiscover(!showDiscover); if (!showDiscover) { setShowChat(false); setShowReview(false); } }}
+            title={showDiscover ? 'Hide Generate' : 'Generate Insights'}
+          >
+            <Sparkles size={16} />
+          </button>
+          <button
+            className={`kg-icon-btn ${showReview ? 'active' : ''}`}
+            onClick={() => { setShowReview(!showReview); if (!showReview) { setShowDiscover(false); setShowChat(false); } }}
+            title={showReview ? 'Hide Review' : 'Review Insights'}
+          >
+            <CheckSquare size={16} />
+          </button>
+          <button
             className={`kg-icon-btn ${showChat ? 'active' : ''}`}
-            onClick={() => setShowChat(!showChat)}
+            onClick={() => { setShowChat(!showChat); if (!showChat) { setShowDiscover(false); setShowReview(false); } }}
             title={showChat ? 'Hide Chat' : 'Ask Knowledge Graph'}
           >
             <MessageSquare size={16} />
@@ -473,7 +501,7 @@ export default function KnowledgeGraphGallery({
       )}
 
       {/* Main content */}
-      <div className={`kg-gallery-content ${showChat ? 'chat-open' : ''}`}>
+      <div className={`kg-gallery-content ${showChat ? 'chat-open' : ''} ${showDiscover ? 'discover-open' : ''} ${showReview ? 'review-open' : ''}`}>
         {/* Graph container */}
         <div className="kg-graph-container" ref={containerRef}>
           {loading ? (
@@ -744,6 +772,23 @@ export default function KnowledgeGraphGallery({
             onClose={() => setShowChat(false)}
             onSelectConversation={onSelectConversation}
             onHighlightNode={handleHighlightNode}
+          />
+        )}
+
+        {/* Generate (Discovery) panel */}
+        {showDiscover && (
+          <KnowledgeGraphDiscover
+            onClose={() => setShowDiscover(false)}
+            onRefreshGraph={loadGraph}
+          />
+        )}
+
+        {/* Review panel */}
+        {showReview && (
+          <KnowledgeGraphReview
+            onClose={() => setShowReview(false)}
+            onSelectConversation={onSelectConversation}
+            onRefreshGraph={loadGraph}
           />
         )}
       </div>
