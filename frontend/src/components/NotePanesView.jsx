@@ -60,6 +60,8 @@ export default function NotePanesView({
   const [noteEntities, setNoteEntities] = useState(null);
   const [loadingEntities, setLoadingEntities] = useState(false);
   const [extractingEntities, setExtractingEntities] = useState(false);
+  const [extractionError, setExtractionError] = useState(null);
+  const [extractionSuccess, setExtractionSuccess] = useState(false);
   const containerRef = useRef(null);
 
   // Parse note body into sentences for formatting
@@ -148,17 +150,38 @@ export default function NotePanesView({
     const focusedPane = paneStack.find(p => p.isFocused);
     if (!focusedPane) return;
 
+    // Validate conversationId exists
+    if (!focusedPane.conversationId) {
+      setExtractionError('Unable to extract: conversation ID not available');
+      return;
+    }
+
     setExtractingEntities(true);
+    setExtractionError(null);
+    setExtractionSuccess(false);
+
     try {
-      await api.extractEntities(focusedPane.conversationId);
-      // Reload entities after extraction
+      const response = await api.extractEntities(focusedPane.conversationId);
+
+      // Check for backend error response
+      if (response.error) {
+        setExtractionError(response.error);
+        return;
+      }
+
+      // Reload entities after successful extraction
       const fullNoteId = focusedPane.noteId.startsWith('note:')
         ? focusedPane.noteId
         : `note:${focusedPane.conversationId}:${focusedPane.noteId}`;
       const result = await api.getNoteEntities(fullNoteId);
       setNoteEntities(result);
+      setExtractionSuccess(true);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setExtractionSuccess(false), 3000);
     } catch (err) {
       console.error('Failed to re-extract entities:', err);
+      setExtractionError(err.message || 'Failed to extract entities');
     } finally {
       setExtractingEntities(false);
     }
@@ -537,6 +560,18 @@ export default function NotePanesView({
             <h4>Entities ({noteEntities?.entities?.length || 0})</h4>
             {loadingEntities && <span className="loading-spinner" />}
           </div>
+
+          {/* Error/Success Messages */}
+          {extractionError && (
+            <div className="extraction-error">
+              {extractionError}
+            </div>
+          )}
+          {extractionSuccess && (
+            <div className="extraction-success">
+              Entities extracted successfully
+            </div>
+          )}
 
           {!loadingEntities && (!noteEntities?.entities?.length) ? (
             <div className="entities-empty">

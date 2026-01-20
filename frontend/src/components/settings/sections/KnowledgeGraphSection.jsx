@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Cpu,
   Network,
@@ -13,6 +13,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Edit3,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '../../../api';
 import './KnowledgeGraphSection.css';
@@ -87,6 +89,11 @@ export default function KnowledgeGraphSection({
   const [styleDirty, setStyleDirty] = useState(false);
   const [expandedStyles, setExpandedStyles] = useState(new Set());
 
+  // Migration/Batch indexing state
+  const [migrationStatus, setMigrationStatus] = useState(null);
+  const [migrationLoading, setMigrationLoading] = useState(false);
+  const migrationPollRef = useRef(null);
+
   // Initialize from settings
   useEffect(() => {
     if (knowledgeGraphSettings && !modelsDirty) {
@@ -158,6 +165,50 @@ export default function KnowledgeGraphSection({
     };
     loadStyles();
   }, []);
+
+  // Load migration status on mount and poll when running
+  useEffect(() => {
+    const loadMigrationStatus = async () => {
+      try {
+        const status = await api.getKnowledgeGraphMigrationStatus();
+        setMigrationStatus(status);
+      } catch (err) {
+        console.error('Failed to load migration status:', err);
+      }
+    };
+    loadMigrationStatus();
+
+    return () => {
+      if (migrationPollRef.current) {
+        clearInterval(migrationPollRef.current);
+      }
+    };
+  }, []);
+
+  // Poll for migration status when running
+  useEffect(() => {
+    if (migrationStatus?.status === 'running') {
+      migrationPollRef.current = setInterval(async () => {
+        try {
+          const status = await api.getKnowledgeGraphMigrationStatus();
+          setMigrationStatus(status);
+          if (status.status !== 'running') {
+            clearInterval(migrationPollRef.current);
+            migrationPollRef.current = null;
+          }
+        } catch (err) {
+          console.error('Failed to poll migration status:', err);
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (migrationPollRef.current) {
+        clearInterval(migrationPollRef.current);
+        migrationPollRef.current = null;
+      }
+    };
+  }, [migrationStatus?.status]);
 
   const getModelShortName = (model) => model?.split('/')[1] || model || '';
 
@@ -351,6 +402,43 @@ export default function KnowledgeGraphSection({
       setSleepModel(sleep.model || '');
     }
     setSleepDirty(false);
+  };
+
+  // Migration handlers
+  const handleStartMigration = async (force = false) => {
+    setMigrationLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const result = await api.startKnowledgeGraphMigration(force);
+      setMigrationStatus(result);
+      if (result.status === 'running') {
+        setSuccess('Batch indexing started');
+      } else if (result.status === 'completed') {
+        setSuccess(`Indexing complete: ${result.processed || 0} notes processed`);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to start batch indexing');
+    } finally {
+      setMigrationLoading(false);
+    }
+  };
+
+  const handleCancelMigration = async () => {
+    setMigrationLoading(true);
+    setError('');
+
+    try {
+      await api.cancelKnowledgeGraphMigration();
+      const status = await api.getKnowledgeGraphMigrationStatus();
+      setMigrationStatus(status);
+      setSuccess('Batch indexing cancelled');
+    } catch (err) {
+      setError(err.message || 'Failed to cancel batch indexing');
+    } finally {
+      setMigrationLoading(false);
+    }
   };
 
   // Brainstorm style handlers
@@ -624,6 +712,92 @@ export default function KnowledgeGraphSection({
             <button className="btn-secondary" onClick={handleResetExtraction} disabled={loading}>
               Reset
             </button>
+          )}
+        </div>
+      </div>
+
+      {/* Batch Indexing Section */}
+      <div id="kg-batch-indexing" className="modal-section">
+        <h3>
+          <Database size={18} />
+          Batch Indexing
+        </h3>
+        <p className="section-description">
+          Index existing notes that were created before automatic entity extraction was enabled.
+        </p>
+
+        <div className="kg-settings-grid">
+          {migrationStatus && (
+            <div className="migration-status-card">
+              <div className="migration-status-header">
+                <span className={`migration-status-badge ${migrationStatus.status}`}>
+                  {migrationStatus.status === 'running' && <RefreshCw size={12} className="spinning" />}
+                  {migrationStatus.status === 'running' ? 'Running' :
+                   migrationStatus.status === 'completed' ? 'Completed' :
+                   migrationStatus.status === 'cancelled' ? 'Cancelled' : 'Idle'}
+                </span>
+              </div>
+
+              {migrationStatus.status === 'running' && (
+                <div className="migration-progress">
+                  <div className="migration-progress-bar">
+                    <div
+                      className="migration-progress-fill"
+                      style={{
+                        width: `${migrationStatus.total > 0
+                          ? (migrationStatus.processed / migrationStatus.total) * 100
+                          : 0}%`
+                      }}
+                    />
+                  </div>
+                  <span className="migration-progress-text">
+                    {migrationStatus.processed || 0} / {migrationStatus.total || 0} conversations
+                  </span>
+                </div>
+              )}
+
+              {migrationStatus.status === 'completed' && migrationStatus.processed > 0 && (
+                <p className="migration-complete-text">
+                  Successfully indexed {migrationStatus.processed} conversations.
+                </p>
+              )}
+
+              {migrationStatus.last_run && (
+                <p className="migration-last-run">
+                  Last run: {new Date(migrationStatus.last_run).toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="btn-group">
+          {migrationStatus?.status === 'running' ? (
+            <button
+              className="btn-secondary"
+              onClick={handleCancelMigration}
+              disabled={migrationLoading}
+            >
+              Cancel Indexing
+            </button>
+          ) : (
+            <>
+              <button
+                className="btn-primary"
+                onClick={() => handleStartMigration(false)}
+                disabled={migrationLoading}
+              >
+                {migrationLoading ? 'Starting...' : 'Index Unprocessed Notes'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => handleStartMigration(true)}
+                disabled={migrationLoading}
+                title="Reprocess all notes, including already indexed ones"
+              >
+                Force Reindex All
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -523,8 +523,9 @@ async def extract_entities_for_conversation(
     if not conversation:
         return {"error": "Conversation not found", "count": 0}
 
-    if conversation.get("mode") != "synthesizer":
-        return {"error": "Not a synthesizer conversation", "count": 0}
+    # Accept both synthesizer and discovery conversations (both have indexable notes)
+    if conversation.get("mode") not in ("synthesizer", "discovery"):
+        return {"error": "Not a synthesizer or discovery conversation", "count": 0}
 
     # Load existing entities
     data = load_entities()
@@ -641,7 +642,7 @@ def build_graph() -> Dict[str, Any]:
 
     # Get all synthesizer conversations
     all_conversations = list_conversations()
-    synth_conversations = [c for c in all_conversations if c.get("mode") == "synthesizer"]
+    synth_conversations = [c for c in all_conversations if c.get("mode") in ("synthesizer", "discovery")]
 
     # Build nodes and collect source/tag information
     for conv in synth_conversations:
@@ -1135,7 +1136,7 @@ def get_graph_stats() -> Dict[str, Any]:
 
     # Get all synthesizer conversations
     all_conversations = list_conversations()
-    synth_conversations = [c for c in all_conversations if c.get("mode") == "synthesizer"]
+    synth_conversations = [c for c in all_conversations if c.get("mode") in ("synthesizer", "discovery")]
 
     # Count notes
     total_notes = 0
@@ -1294,7 +1295,7 @@ async def migrate_all_conversations(
 
     # Get all synthesizer conversations
     all_conversations = list_conversations()
-    synth_conversations = [c for c in all_conversations if c.get("mode") == "synthesizer"]
+    synth_conversations = [c for c in all_conversations if c.get("mode") in ("synthesizer", "discovery")]
 
     # Load current state
     data = load_entities()
@@ -1594,7 +1595,7 @@ async def get_connection_suggestions(
 
     # Get all synthesizer conversations
     all_conversations = list_conversations()
-    synth_conversations = [c for c in all_conversations if c.get("mode") == "synthesizer"]
+    synth_conversations = [c for c in all_conversations if c.get("mode") in ("synthesizer", "discovery")]
 
     # Collect notes from different sources
     notes_by_source = {}

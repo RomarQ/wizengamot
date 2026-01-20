@@ -17,7 +17,7 @@ import asyncio
 from .openrouter import query_model, get_generation_cost
 from .storage import get_conversation, list_conversations, save_conversation, update_conversation_cost, update_conversation_summary
 from .graph_search import search_knowledge_graph
-from .knowledge_graph import load_entities, build_graph
+from .knowledge_graph import load_entities, build_graph, extract_entities_for_conversation
 from .summarizer import generate_summary
 
 logger = logging.getLogger(__name__)
@@ -704,6 +704,14 @@ async def approve_discovery(
     discovery["conversation_id"] = conv_id
     discovery["note_id"] = note_id
     save_discoveries(data)
+
+    # Trigger entity extraction for the newly created discovery conversation
+    try:
+        extraction_result = await extract_entities_for_conversation(conv_id)
+        logger.info(f"Extracted {extraction_result.get('total_entities', 0)} entities for discovery {conv_id}")
+    except Exception as e:
+        logger.warning(f"Failed to extract entities for discovery {conv_id}: {e}")
+        # Don't fail the approval, just log the warning
 
     return {
         "status": "approved",

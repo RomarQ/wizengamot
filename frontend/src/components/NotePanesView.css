@@ -403,6 +403,29 @@
   animation: spin 1s linear infinite;
 }
 
+/* Extraction feedback messages */
+.extraction-error {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  background: var(--error-bg, #fef2f2);
+  border: 1px solid var(--error-border, #fecaca);
+  border-radius: 6px;
+  color: var(--error-text, #dc2626);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.extraction-success {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  background: var(--success-bg, #f0fdf4);
+  border: 1px solid var(--success-border, #bbf7d0);
+  border-radius: 6px;
+  color: var(--success-text, #16a34a);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .entities-list {
   display: flex;
   flex-direction: column;

@@ -1212,23 +1212,13 @@ export default function Sidebar({
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
             <span className="sidebar-discovery-title">Discovery</span>
+            {activeWorkers > 0 && (
+              <span className="worker-spinner" />
+            )}
             {(activeWorkers + discoveryStats.pending) > 0 && (
               <span className="sidebar-badge">{activeWorkers + discoveryStats.pending}</span>
             )}
           </div>
-
-          {activeWorkers > 0 && (
-            <div className="sidebar-discovery-sub">
-              <span className="worker-spinner" />
-              <span>{activeWorkers} worker{activeWorkers > 1 ? 's' : ''} running</span>
-            </div>
-          )}
-
-          {discoveryStats.pending > 0 && (
-            <div className="sidebar-discovery-sub">
-              <span>{discoveryStats.pending} to review</span>
-            </div>
-          )}
         </div>
       )}
 
