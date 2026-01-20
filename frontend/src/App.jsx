@@ -100,6 +100,7 @@ function App() {
   // Knowledge graph gallery state
   const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
   const [focusedEntityId, setFocusedEntityId] = useState(null);
+  const [initialSearchQuery, setInitialSearchQuery] = useState(null);
   const [initialOpenReview, setInitialOpenReview] = useState(false);
   const [showPodcastSetup, setShowPodcastSetup] = useState(false);
   const [currentPodcastId, setCurrentPodcastId] = useState(null);
@@ -548,6 +549,23 @@ function App() {
   // Navigate to Knowledge Graph with pre-selected entity
   const handleNavigateToGraphEntity = (entityId) => {
     setFocusedEntityId(entityId);
+    setShowKnowledgeGraph(true);
+    setCurrentConversationId(null);
+    setCurrentConversation(null);
+    setCurrentMonitorId(null);
+    setCurrentMonitor(null);
+    setShowImageGallery(false);
+    setShowCouncilGallery(false);
+    setShowNotesGallery(false);
+    setShowPodcastGallery(false);
+    setShowPodcastSetup(false);
+    setCurrentPodcastId(null);
+  };
+
+  // Navigate to Knowledge Graph with a search query (e.g., for tag search)
+  const handleNavigateToGraphSearch = (searchQuery) => {
+    setInitialSearchQuery(searchQuery);
+    setFocusedEntityId(null);
     setShowKnowledgeGraph(true);
     setCurrentConversationId(null);
     setCurrentConversation(null);
@@ -1621,14 +1639,17 @@ function App() {
             await handleSelectConversation(id);
             setShowKnowledgeGraph(false);
             setFocusedEntityId(null);
+            setInitialSearchQuery(null);
             setInitialOpenReview(false);
           }}
           onClose={() => {
             setShowKnowledgeGraph(false);
             setFocusedEntityId(null);
+            setInitialSearchQuery(null);
             setInitialOpenReview(false);
           }}
           initialEntityId={focusedEntityId}
+          initialSearchQuery={initialSearchQuery}
           initialOpenReview={initialOpenReview}
         />
       ) : showImageGallery ? (
@@ -1702,6 +1723,7 @@ function App() {
           reviewSessionCount={reviewSessions.length}
           onToggleReviewSidebar={handleToggleCommitSidebar}
           onNavigateToGraphEntity={handleNavigateToGraphEntity}
+          onNavigateToGraphSearch={handleNavigateToGraphSearch}
         />
       ) : currentConversation?.mode === 'synthesizer' ? (
         <SynthesizerInterface
@@ -1746,6 +1768,7 @@ function App() {
           reviewSessionCount={reviewSessions.length}
           onToggleReviewSidebar={handleToggleCommitSidebar}
           onNavigateToGraphEntity={handleNavigateToGraphEntity}
+          onNavigateToGraphSearch={handleNavigateToGraphSearch}
         />
       ) : currentConversation?.mode === 'visualiser' ? (
         <VisualiserInterface
@@ -1778,28 +1801,52 @@ function App() {
           preSelectedConversationId={podcastSourceConvId}
         />
       ) : currentConversation?.mode === 'council' ? (
-        <CouncilDiscussionView
-          conversation={conversationWithThreads}
-          comments={comments}
-          contextSegments={contextSegments}
-          onSelectionChange={handleSelectionChange}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-          activeCommentId={activeCommentId}
-          onSetActiveComment={handleSetActiveComment}
-          onAddContextSegment={handleAddContextSegment}
-          onRemoveContextSegment={handleRemoveContextSegment}
-          onOpenSettings={(tab, promptFilename) => {
-            setSettingsDefaultTab(tab || 'api');
-            setSettingsDefaultPrompt(promptFilename || null);
-            setShowSettingsModal(true);
-          }}
-          onContinueThread={handleContinueThread}
-          onSelectThread={handleSelectThread}
-          isLoading={isLoading}
-          reviewSessionCount={reviewSessions.length}
-          onToggleReviewSidebar={handleToggleCommitSidebar}
-        />
+        conversationWithThreads?.messages?.length === 0 ? (
+          <ChatInterface
+            conversation={conversationWithThreads}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            comments={comments}
+            contextSegments={contextSegments}
+            onSelectionChange={handleSelectionChange}
+            onEditComment={handleEditComment}
+            onDeleteComment={handleDeleteComment}
+            activeCommentId={activeCommentId}
+            onSetActiveComment={handleSetActiveComment}
+            onAddContextSegment={handleAddContextSegment}
+            onRemoveContextSegment={handleRemoveContextSegment}
+            onContinueThread={handleContinueThread}
+            onSelectThread={handleSelectThread}
+            onOpenSettings={(tab) => {
+              setSettingsDefaultTab(tab || 'council');
+              setSettingsDefaultPrompt(null);
+              setShowSettingsModal(true);
+            }}
+          />
+        ) : (
+          <CouncilDiscussionView
+            conversation={conversationWithThreads}
+            comments={comments}
+            contextSegments={contextSegments}
+            onSelectionChange={handleSelectionChange}
+            onEditComment={handleEditComment}
+            onDeleteComment={handleDeleteComment}
+            activeCommentId={activeCommentId}
+            onSetActiveComment={handleSetActiveComment}
+            onAddContextSegment={handleAddContextSegment}
+            onRemoveContextSegment={handleRemoveContextSegment}
+            onOpenSettings={(tab, promptFilename) => {
+              setSettingsDefaultTab(tab || 'api');
+              setSettingsDefaultPrompt(promptFilename || null);
+              setShowSettingsModal(true);
+            }}
+            onContinueThread={handleContinueThread}
+            onSelectThread={handleSelectThread}
+            isLoading={isLoading}
+            reviewSessionCount={reviewSessions.length}
+            onToggleReviewSidebar={handleToggleCommitSidebar}
+          />
+        )
       ) : (
         <ChatInterface
           conversation={conversationWithThreads}
