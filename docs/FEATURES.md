@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Jan 21 - Adding new visualisation style: Blackboard
 - Jan 21 - Improving sidebar navigation
 - Jan 19 - Knowledge Graph discovery and sleep time compute
 - Jan 17 - Knowledge Graph navigation improvements
