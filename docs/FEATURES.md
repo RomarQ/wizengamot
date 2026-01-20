@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Jan 21 - Knowledge Graph synthesis mode for generating notes with awareness of existing knowledge base
 - Jan 21 - Adding new visualisation style: Blackboard
 - Jan 21 - Improving sidebar navigation
 - Jan 19 - Knowledge Graph discovery and sleep time compute
