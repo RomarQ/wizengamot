@@ -343,6 +343,70 @@ export default function Sidebar({
   // All conversations for list mode
   const allConversations = filterAndSortConversations(conversations);
 
+  // Keyboard navigation for Shift+J/K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Skip if typing in input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      // Skip if sidebar is collapsed
+      if (collapsed) return;
+
+      // Only handle Shift+J or Shift+K (without Cmd/Ctrl modifiers)
+      if (!e.shiftKey || e.metaKey || e.ctrlKey) return;
+
+      if (e.key === 'j' || e.key === 'J' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+
+        // Get the appropriate conversation list based on sidebar style
+        let visibleList;
+        if (sidebarStyle === SIDEBAR_STYLES.LIST) {
+          visibleList = allConversations;
+        } else {
+          // CATEGORY or FOCUS mode - use the focused category's list
+          if (focusedCategory === CATEGORIES.NOTES) {
+            visibleList = notesConversations;
+          } else if (focusedCategory === CATEGORIES.COUNCIL) {
+            visibleList = councilConversations;
+          } else {
+            visibleList = visualiserConversations;
+          }
+        }
+
+        if (!visibleList.length) return;
+
+        // Find current index
+        const currentIndex = visibleList.findIndex(c => c.id === currentConversationId);
+
+        let newIndex;
+        if (e.key === 'j' || e.key === 'J') {
+          // Down/Next
+          newIndex = currentIndex === -1 ? 0 : Math.min(currentIndex + 1, visibleList.length - 1);
+        } else {
+          // Up/Previous
+          newIndex = currentIndex === -1 ? 0 : Math.max(currentIndex - 1, 0);
+        }
+
+        if (newIndex !== currentIndex && visibleList[newIndex]) {
+          onSelectConversation(visibleList[newIndex].id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    collapsed,
+    sidebarStyle,
+    focusedCategory,
+    allConversations,
+    notesConversations,
+    councilConversations,
+    visualiserConversations,
+    currentConversationId,
+    onSelectConversation
+  ]);
+
   // Toggle type filter
   const toggleType = (type) => {
     setSelectedTypes(prev =>
