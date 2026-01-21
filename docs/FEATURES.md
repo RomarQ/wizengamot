@@ -1,8 +1,9 @@
 # Wizengamot Features
 
+- Jan 21 - Shift+J/K keyboard shortcuts for navigating between sidebar conversations
 - Jan 21 - Knowledge Graph synthesis mode for generating notes with awareness of existing knowledge base
-- Jan 21 - Adding new visualisation style: Blackboard
-- Jan 21 - Improving sidebar navigation
+- Jan 20 - Adding new visualisation style: Blackboard
+- Jan 20 - Improving sidebar navigation
 - Jan 19 - Knowledge Graph discovery and sleep time compute
 - Jan 17 - Knowledge Graph navigation improvements
 - Jan 17 - Knowledge Graph for visualizing entity relationships across notes with search and RAG chat
