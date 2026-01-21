@@ -2913,21 +2913,43 @@ export const api = {
   },
 
   /**
-   * Clear a chat session.
+   * Get a full chat session with all messages and metadata.
    * @param {string} sessionId - The session ID
    */
-  async clearKnowledgeGraphChatSession(sessionId) {
-    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/${sessionId}`, {
-      method: 'DELETE',
-    });
+  async getKnowledgeGraphChatSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/${sessionId}`);
     if (!response.ok) {
-      throw new Error('Failed to clear chat session');
+      throw new Error('Failed to get chat session');
     }
     return response.json();
   },
 
   /**
-   * List all active chat sessions.
+   * Delete a chat session.
+   * @param {string} sessionId - The session ID
+   */
+  async deleteKnowledgeGraphChatSession(sessionId) {
+    const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete chat session');
+    }
+    return response.json();
+  },
+
+  /**
+   * Clear a chat session (alias for delete).
+   * @param {string} sessionId - The session ID
+   * @deprecated Use deleteKnowledgeGraphChatSession instead
+   */
+  async clearKnowledgeGraphChatSession(sessionId) {
+    return this.deleteKnowledgeGraphChatSession(sessionId);
+  },
+
+  /**
+   * List all chat sessions with metadata.
+   * Returns sessions with: id, title, created_at, updated_at, message_count
    */
   async listKnowledgeGraphChatSessions() {
     const response = await fetch(`${API_BASE}/api/knowledge-graph/chat/sessions`);

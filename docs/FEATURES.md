@@ -1,5 +1,6 @@
 # Wizengamot Features
 
+- Jan 21 - Knowledge Graph chat persistence with browsable history panel
 - Jan 21 - Shift+J/K keyboard shortcuts for navigating between sidebar conversations
 - Jan 21 - Knowledge Graph synthesis mode for generating notes with awareness of existing knowledge base
 - Jan 20 - Adding new visualisation style: Blackboard

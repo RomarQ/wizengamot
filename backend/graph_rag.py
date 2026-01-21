@@ -10,6 +10,7 @@ from .openrouter import query_model
 from .storage import get_conversation, list_conversations
 from .knowledge_graph import load_entities, build_graph
 from .settings import get_knowledge_graph_model
+from . import kg_chat_storage
 
 logger = logging.getLogger(__name__)
 
@@ -356,36 +357,43 @@ FOLLOW_UPS:
         }
 
 
-# Chat session management
-_chat_sessions: Dict[str, List[Dict[str, str]]] = {}
+# Chat session management - delegates to kg_chat_storage for persistence
 
 
 def get_chat_history(session_id: str) -> List[Dict[str, str]]:
-    """Get chat history for a session."""
-    return _chat_sessions.get(session_id, [])
+    """Get chat history for a session (simplified format for LLM context)."""
+    return kg_chat_storage.get_history(session_id)
 
 
-def add_to_chat_history(session_id: str, role: str, content: str):
-    """Add a message to chat history."""
-    if session_id not in _chat_sessions:
-        _chat_sessions[session_id] = []
+def get_chat_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Get full chat session with all metadata."""
+    return kg_chat_storage.get_session(session_id)
 
-    _chat_sessions[session_id].append({
-        "role": role,
-        "content": content
-    })
 
-    # Limit history to last 20 messages
-    if len(_chat_sessions[session_id]) > 20:
-        _chat_sessions[session_id] = _chat_sessions[session_id][-20:]
+def add_to_chat_history(
+    session_id: str,
+    role: str,
+    content: str,
+    citations: Optional[List[Dict[str, Any]]] = None,
+    follow_ups: Optional[List[str]] = None,
+    notes_searched: Optional[int] = None
+):
+    """Add a message to chat history with optional metadata."""
+    kg_chat_storage.add_message(
+        session_id,
+        role,
+        content,
+        citations=citations,
+        follow_ups=follow_ups,
+        notes_searched=notes_searched
+    )
 
 
 def clear_chat_session(session_id: str):
-    """Clear a chat session."""
-    if session_id in _chat_sessions:
-        del _chat_sessions[session_id]
+    """Clear/delete a chat session."""
+    kg_chat_storage.delete_session(session_id)
 
 
-def list_chat_sessions() -> List[str]:
-    """List all active chat session IDs."""
-    return list(_chat_sessions.keys())
+def list_chat_sessions() -> List[Dict[str, Any]]:
+    """List all chat sessions with metadata."""
+    return kg_chat_storage.list_sessions()

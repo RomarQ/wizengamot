@@ -4057,7 +4057,7 @@ async def chat_with_knowledge_graph(request: GraphRAGChatRequest):
     # Get conversation history
     history = graph_rag.get_chat_history(session_id)
 
-    # Add user message to history
+    # Add user message to history (creates session if new)
     graph_rag.add_to_chat_history(session_id, "user", request.message)
 
     # Query the knowledge graph
@@ -4066,8 +4066,15 @@ async def chat_with_knowledge_graph(request: GraphRAGChatRequest):
         conversation_history=history
     )
 
-    # Add assistant response to history
-    graph_rag.add_to_chat_history(session_id, "assistant", result["answer"])
+    # Add assistant response to history with metadata
+    graph_rag.add_to_chat_history(
+        session_id,
+        "assistant",
+        result["answer"],
+        citations=result.get("citations"),
+        follow_ups=result.get("follow_ups"),
+        notes_searched=result.get("notes_searched")
+    )
 
     return {
         "session_id": session_id,
@@ -4078,24 +4085,33 @@ async def chat_with_knowledge_graph(request: GraphRAGChatRequest):
     }
 
 
+@app.get("/api/knowledge-graph/chat/sessions")
+async def list_chat_sessions():
+    """List all chat sessions with metadata."""
+    return {"sessions": graph_rag.list_chat_sessions()}
+
+
+@app.get("/api/knowledge-graph/chat/{session_id}")
+async def get_chat_session(session_id: str):
+    """Get full chat session with all messages and metadata."""
+    session = graph_rag.get_chat_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
 @app.get("/api/knowledge-graph/chat/{session_id}/history")
 async def get_chat_history(session_id: str):
-    """Get chat history for a session."""
+    """Get chat history for a session (simplified format)."""
     history = graph_rag.get_chat_history(session_id)
     return {"session_id": session_id, "messages": history}
 
 
 @app.delete("/api/knowledge-graph/chat/{session_id}")
 async def clear_chat_session(session_id: str):
-    """Clear a chat session."""
+    """Delete a chat session."""
     graph_rag.clear_chat_session(session_id)
-    return {"status": "cleared"}
-
-
-@app.get("/api/knowledge-graph/chat/sessions")
-async def list_chat_sessions():
-    """List all active chat sessions."""
-    return {"sessions": graph_rag.list_chat_sessions()}
+    return {"status": "deleted"}
 
 
 # =============================================================================

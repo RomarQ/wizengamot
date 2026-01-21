@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { X, MessageSquare, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { X, MessageSquare, RefreshCw, ArrowUpRight, History, Plus, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../api';
 import ChatInput from './ChatInput';
+import { formatRelativeTime } from '../utils/formatRelativeTime';
 import './KnowledgeGraph.css';
 
 /**
@@ -105,6 +106,9 @@ export default function KnowledgeGraphChat({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -123,6 +127,71 @@ export default function KnowledgeGraphChat({
     });
     return map;
   }, [messages]);
+
+  // Load chat sessions when history panel is opened
+  const loadSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    try {
+      const response = await api.listKnowledgeGraphChatSessions();
+      setSessions(response.sessions || []);
+    } catch (error) {
+      console.error('Failed to load chat sessions:', error);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, []);
+
+  // Load a specific session
+  const loadSession = useCallback(async (session) => {
+    try {
+      const fullSession = await api.getKnowledgeGraphChatSession(session.id);
+      setSessionId(fullSession.id);
+      // Convert stored messages to UI format
+      setMessages(fullSession.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        citations: msg.citations || [],
+        follow_ups: msg.follow_ups || [],
+        notes_searched: msg.notes_searched || 0
+      })));
+      setShowHistory(false);
+    } catch (error) {
+      console.error('Failed to load session:', error);
+    }
+  }, []);
+
+  // Delete a session
+  const deleteSession = useCallback(async (sessionIdToDelete, e) => {
+    e.stopPropagation();
+    try {
+      await api.deleteKnowledgeGraphChatSession(sessionIdToDelete);
+      setSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
+      // If we deleted the current session, start fresh
+      if (sessionIdToDelete === sessionId) {
+        setMessages([]);
+        setSessionId(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+    }
+  }, [sessionId]);
+
+  // Start a new chat
+  const handleNewChat = useCallback(() => {
+    setMessages([]);
+    setSessionId(null);
+    setShowHistory(false);
+    inputRef.current?.focus();
+  }, []);
+
+  // Toggle history panel
+  const toggleHistory = useCallback(() => {
+    const newShowHistory = !showHistory;
+    setShowHistory(newShowHistory);
+    if (newShowHistory) {
+      loadSessions();
+    }
+  }, [showHistory, loadSessions]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -194,10 +263,11 @@ export default function KnowledgeGraphChat({
   };
 
   const handleClearChat = () => {
+    const currentSessionId = sessionId;
     setMessages([]);
     setSessionId(null);
-    if (sessionId) {
-      api.clearKnowledgeGraphChatSession(sessionId).catch(console.error);
+    if (currentSessionId) {
+      api.deleteKnowledgeGraphChatSession(currentSessionId).catch(console.error);
     }
   };
 
@@ -209,6 +279,13 @@ export default function KnowledgeGraphChat({
           <span>Knowledge Graph Chat</span>
         </div>
         <div className="kg-chat-actions">
+          <button
+            className={`kg-btn kg-btn-secondary ${showHistory ? 'active' : ''}`}
+            onClick={toggleHistory}
+            title="Chat history"
+          >
+            <History size={14} />
+          </button>
           {messages.length > 0 && (
             <button
               className="kg-btn kg-btn-secondary"
@@ -223,6 +300,63 @@ export default function KnowledgeGraphChat({
           </button>
         </div>
       </div>
+
+      {/* History Panel Overlay */}
+      {showHistory && (
+        <div className="kg-chat-history-overlay" onClick={() => setShowHistory(false)}>
+          <div className="kg-chat-history-panel" onClick={e => e.stopPropagation()}>
+            <div className="kg-chat-history-header">
+              <h3>Chat History</h3>
+              <button
+                className="kg-btn kg-btn-primary kg-btn-small"
+                onClick={handleNewChat}
+              >
+                <Plus size={14} />
+                New Chat
+              </button>
+            </div>
+            <div className="kg-chat-history-list">
+              {loadingSessions ? (
+                <div className="kg-chat-history-loading">
+                  <div className="kg-chat-loading">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="kg-chat-history-empty">
+                  <p>No chat history yet</p>
+                </div>
+              ) : (
+                sessions.map(session => (
+                  <div
+                    key={session.id}
+                    className={`kg-chat-history-item ${session.id === sessionId ? 'active' : ''}`}
+                    onClick={() => loadSession(session)}
+                  >
+                    <div className="kg-chat-history-item-content">
+                      <div className="kg-chat-history-item-title">{session.title}</div>
+                      <div className="kg-chat-history-item-meta">
+                        <span>{session.message_count} message{session.message_count !== 1 ? 's' : ''}</span>
+                        <span className="kg-chat-history-item-dot">·</span>
+                        <span>{formatRelativeTime(session.updated_at)}</span>
+                      </div>
+                    </div>
+                    <button
+                      className="kg-chat-history-item-delete"
+                      onClick={(e) => deleteSession(session.id, e)}
+                      title="Delete chat"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="kg-chat-messages">
         {messages.length === 0 ? (
