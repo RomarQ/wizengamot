@@ -146,7 +146,7 @@ export default function KnowledgeGraphGallery({
   useEffect(() => {
     const checkActiveWorkers = async () => {
       try {
-        const sessions = await api.listSleepComputeSessions(10);
+        const { sessions } = await api.listSleepComputeSessions(10);
         const running = (sessions || []).filter(
           s => s.status === 'running' || s.status === 'paused'
         );
@@ -317,12 +317,14 @@ export default function KnowledgeGraphGallery({
     setSelectedNode(node);
     setFocusMode(true); // Auto-focus on click to show subgraph
     setExpandedView(false); // Reset expanded view when selecting new node
+    setSearchMatchedNodes([]); // Clear search filter when navigating to a node
   }, []);
 
   // Navigate to a connected node
   const handleConnectionClick = useCallback((node) => {
     setSelectedNode(node);
     setExpandedView(false);
+    setSearchMatchedNodes([]); // Clear search filter when navigating to a node
     // Also highlight it briefly
     setHighlightedNodeId(node.id);
     setTimeout(() => setHighlightedNodeId(null), 2000);
@@ -372,6 +374,7 @@ export default function KnowledgeGraphGallery({
         setSelectedNode(node);
         setFocusMode(true);
         setExpandedView(false);
+        setSearchMatchedNodes([]); // Clear search filter when navigating to a node
         // Also highlight briefly
         setHighlightedNodeId(nodeId);
         setTimeout(() => setHighlightedNodeId(null), 2000);
